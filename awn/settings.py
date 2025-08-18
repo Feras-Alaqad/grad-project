@@ -11,6 +11,8 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+from datetime import timedelta
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -40,6 +42,7 @@ INSTALLED_APPS = [
     'awn',  # Your main application
     'api',  # Your API application
     'rest_framework',  # Django REST Framework for API support
+    'rest_framework_simplejwt',  # JWT authentication support
 ]
 
 MIDDLEWARE = [
@@ -86,7 +89,12 @@ DATABASES = {
     }
 }
 
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    )
 
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -132,7 +140,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 from django.utils.translation import gettext_lazy as _
 
-LANGUAGE_CODE = 'ar'  # اللغة الافتراضية للعربية
+LANGUAGE_CODE = 'en'  # اللغة الافتراضية للعربية
 
 LANGUAGES = (
     ('ar', _('Arabic')),   # إضافة اللغة العربية
@@ -146,3 +154,19 @@ LOCALE_PATHS = [
 LANGUAGE_BIDI = True  # لأن العربية لغة تُكتب من اليمين لليسار
 
 AUTH_USER_MODEL = 'api.User'
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+}
+
+# إعدادات البريد الإلكتروني
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'  # أو SMTP server آخر
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'feras.kh.aqad@gmail.com'  # بريدك الإلكتروني
+EMAIL_HOST_PASSWORD = 'olfs nrix nxyl jnif'  # استخدم App Password
+DEFAULT_FROM_EMAIL = 'EMAIL_HOST_USER'

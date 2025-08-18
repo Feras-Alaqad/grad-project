@@ -1,78 +1,93 @@
-from django.db import models
-
-# Create your models here.
-
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 
 from django.db import models
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.utils import timezone
 from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator, MaxValueValidator
+
 
 class UserManager(BaseUserManager):
     """
-    مدير مخصص للمستخدمين - يستخدم البريد الإلكتروني بدلاً من اسم المستخدم
+    Custom user manager - uses email instead of username
     """
     def create_user(self, email, password=None, **extra_fields):
-        """إنشاء مستخدم عادي"""
+        """Create a regular user"""
         if not email:
-            raise ValueError('يجب تعيين حقل البريد الإلكتروني')
+            raise ValueError('Email field must be set')
         email = self.normalize_email(email)
-        if not extra_fields.get('username'):
-            username = email.split('@')[0]
-            extra_fields['username'] = username
         user = self.model(email=email, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
         return user
 
     def create_superuser(self, email, password=None, **extra_fields):
-        """إنشاء مستخدم متقدم (مدير)"""
+        """Create a superuser (admin)"""
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
         extra_fields.setdefault('role', 'admin')
 
         if extra_fields.get('is_staff') is not True or extra_fields.get('is_superuser') is not True:
-            raise ValueError('المستخدم المتقدم يجب أن يحتوي على is_staff=True و is_superuser=True.')
+            raise ValueError('Superuser must have is_staff=True and is_superuser=True.')
 
         return self.create_user(email, password, **extra_fields)
 
-
 class User(AbstractUser):
     """
-    نموذج المستخدم المخصص
-    - يستخدم البريد الإلكتروني بدلاً من اسم المستخدم
-    - يحتوي على أدوار مختلفة (مؤسسة، مدير، مستخدم)
+    Custom user model
+    - Uses email instead of username
+    - Contains different roles (institution, admin, user)
     """
     class Role(models.TextChoices):
-        INSTITUTION = "institution", "مؤسسة"
-        ADMIN = "admin", "مدير"  
-        USER = "user", "مستخدم"
+        INSTITUTION = "institution", "Institution"
+        ADMIN = "admin", "Admin"  
+        USER = "user", "User"
 
-    # إلغاء اسم المستخدم واستخدام البريد الإلكتروني
+    # Remove username and use email
     username = None
     name = models.CharField(
         max_length=255, 
         blank=True,
-        verbose_name="الاسم",
-        help_text="اسم المستخدم الكامل"
+        verbose_name="Name",
+        help_text="Full user name"
     )
     email = models.EmailField(
         unique=True,
-        verbose_name="البريد الإلكتروني",
-        help_text="البريد الإلكتروني الفريد للمستخدم"
+        verbose_name="Email",
+        help_text="Unique email address for the user"
+    )
+    phone = models.CharField(
+        max_length=14,
+        blank=True,
+        verbose_name="Phone Number",
+        help_text="User's phone number"
+    )
+    is_active = models.BooleanField(
+        default=True, 
+        verbose_name="Active",
+        help_text="Is the user active?"
     )
     role = models.CharField(
         max_length=20,
         choices=Role.choices,
         default=Role.USER,
-        verbose_name="الدور",
-        help_text="دور المستخدم في النظام"
+        verbose_name="Role",
+        help_text="User role in the system"
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Creation Date",
+        help_text="Date when the user was created"
+    )
+    ubdated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name="Update Date",
+        help_text="Date when the user was last updated"
     )
     
-    # تحديد البريد الإلكتروني كحقل تسجيل الدخول الرئيسي
+    # Set email as the primary login field
     USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = []
+    REQUIRED_FIELDS = ['name', 'password', 'role', 'phone']
     
     objects = UserManager()
 
@@ -80,211 +95,168 @@ class User(AbstractUser):
         return f"{self.name or self.email} ({self.get_role_display()})"
 
     class Meta:
-        verbose_name = "مستخدم"
-        verbose_name_plural = "المستخدمون"
+        verbose_name = "User"
+        verbose_name_plural = "Users"
+
+class AnnouncementCategory(models.Model):
+    """
+    Announcement categories model
+    - Allows categorization of announcements
+    - Supports hierarchical categories
+    """
+
+    name = models.CharField(
+        max_length=100,
+        unique=True,
+        verbose_name="Category Name",
+        help_text="Unique name for the announcement category"
+    )
 
 
 class Announcement(models.Model):
     """
-    نموذج الإعلانات الرئيسي
-    - يحتوي على جميع المعلومات الأساسية للإعلان
-    - يدعم الحالات المختلفة والفئات المتنوعة
-    - يرتبط بالمؤلف ويتتبع المشاهدات
+    Main announcements model
+    - Contains all basic information for the announcement
+    - Supports different statuses and various categories
+    - Linked to author and tracks views
     """
-    class Status(models.TextChoices):
-        DRAFT = "draft", "مسودة"
-        PUBLISHED = "published", "منشور"
-        ARCHIVED = "archived", "مؤرشف"
-
-    class Category(models.TextChoices):
-        FOOD = "food", "غذائية"
-        MEDICAL = "medical", "طبية"
-        HEALTH = "health", "صحية"
-        EDUCATION = "education", "تعليمية"
-        TECHNOLOGY = "technology", "تقنية"
-        SPORTS = "sports", "رياضية"
-        CULTURAL = "cultural", "ثقافية"
-        GENERAL = "general", "عامة"
-
-    # الحقول الأساسية
+    # Basic fields
     title = models.CharField(
         max_length=255,
-        verbose_name="العنوان",
-        help_text="عنوان الإعلان"
+        verbose_name="Title",
+        help_text="Announcement title"
     )
     description = models.TextField(
-        verbose_name="الوصف",
-        help_text="وصف تفصيلي للإعلان"
+        verbose_name="Description",
+        help_text="Detailed description of the announcement"
     )
-    category = models.CharField(
-        max_length=20,
-        choices=Category.choices,
-        default=Category.GENERAL,
-        verbose_name="الفئة",
-        help_text="فئة الإعلان"
+    start_date = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name="Start Date",
+        help_text="Announcement start date (optional)"
     )
-    status = models.CharField(
-        max_length=20,
-        choices=Status.choices,
-        default=Status.DRAFT,
-        verbose_name="الحالة",
-        help_text="حالة الإعلان الحالية"
-    )
-    
-    # العلاقات
-    author = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name='created_announcements',
-        verbose_name="المؤلف",
-        help_text="المستخدم الذي أنشأ الإعلان"
+    end_date = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name="End Date",
+        help_text="Announcement end date (optional)"
     )
     organization = models.ForeignKey(
-        'Organization',  # استخدام string للإشارة إلى النموذج المعرف لاحقاً
+        'Organization',  # Use string to reference model defined later
         on_delete=models.CASCADE,
         related_name='announcements',
         null=True,
         blank=True,
-        verbose_name="المؤسسة",
-        help_text="المؤسسة التي ينتمي إليها الإعلان (اختياري)"
+        verbose_name="Organization",
+        help_text="Organization the announcement belongs to (optional)"
     )
-    
-    # الحقول الإضافية
-    is_pinned = models.BooleanField(
-        default=False,
-        verbose_name="مثبت",
-        help_text="هل الإعلان مثبت في الأعلى؟"
+    url = models.URLField(
+        blank=False,
+        null=False,
+        verbose_name="URL",
+        help_text="Link to the announcement details",
+        default="https://example.com"  # ضع الرابط الافتراضي هنا
     )
-    publish_date = models.DateTimeField(
-        null=True, 
-        blank=True,
-        verbose_name="تاريخ النشر",
-        help_text="تاريخ نشر الإعلان (اختياري)"
+
+    AnnouncementCategory = models.ForeignKey(
+    'AnnouncementCategory',
+    on_delete=models.CASCADE,
+    related_name='announcements',
+    default=1  # هنا ضع ID لفئة موجودة مسبقًا
     )
-    expiry_date = models.DateTimeField(
-        null=True, 
-        blank=True,
-        verbose_name="تاريخ الانتهاء",
-        help_text="تاريخ انتهاء صلاحية الإعلان (اختياري)"
-    )
-    attachment = models.FileField(
-        upload_to='announcements/',
-        blank=True,
-        verbose_name="المرفق",
-        help_text="ملف مرفق مع الإعلان (اختياري)"
-    )
-    views_count = models.PositiveIntegerField(
-        default=0,
-        verbose_name="عدد المشاهدات",
-        help_text="عدد مرات مشاهدة الإعلان"
-    )
-    
-    # الطوابع الزمنية التلقائية
+
+   
+    # Automatic timestamps
     created_at = models.DateTimeField(
         auto_now_add=True,
-        verbose_name="تاريخ الإنشاء"
+        verbose_name="Creation Date"
     )
     updated_at = models.DateTimeField(
         auto_now=True,
-        verbose_name="تاريخ التحديث"
+        verbose_name="Update Date"
     )
+    REQUIRED_FIELDS = ['title', 'description', 'url']
 
     def __str__(self):
         return self.title
 
     def clean(self):
-        """التحقق من صحة البيانات"""
+        """Data validation"""
         if self.expiry_date and self.publish_date:
             if self.expiry_date <= self.publish_date:
-                raise ValidationError('تاريخ الانتهاء يجب أن يكون بعد تاريخ النشر')
+                raise ValidationError('Expiry date must be after publish date')
     
-    def is_expired(self):
-        """التحقق من انتهاء صلاحية الإعلان"""
-        if self.expiry_date:
-            return timezone.now() > self.expiry_date
-        return False
-    
-    def is_published(self):
-        """التحقق من نشر الإعلان"""
-        return self.status == self.Status.PUBLISHED
 
     class Meta:
-        verbose_name = "إعلان"
-        verbose_name_plural = "الإعلانات"
-        ordering = ['-is_pinned', '-created_at']
+        verbose_name = "Announcement"
+        verbose_name_plural = "Announcements"
+        ordering = ['-created_at']
         indexes = [
-            models.Index(fields=['status', 'category']),
-            models.Index(fields=['publish_date']),
-            models.Index(fields=['is_pinned', '-created_at']),
+            models.Index(fields=['-created_at']),
         ]
-
 
 class Application(models.Model):
     """
-    نموذج طلبات التقديم على الإعلانات
-    - يربط بين المستخدم والإعلان
-    - يتتبع حالة الطلب والملاحظات الإدارية
-    - يمنع التقديم المتكرر من نفس المستخدم على نفس الإعلان
+    Applications model for announcement applications
+    - Links user and announcement
+    - Tracks application status and admin notes
+    - Prevents duplicate applications from same user to same announcement
     """
     class Status(models.TextChoices):
-        PENDING = "pending", "قيد الانتظار"
-        APPROVED = "approved", "موافق عليه"
-        REJECTED = "rejected", "مرفوض"
-        IN_REVIEW = "in_review", "قيد المراجعة"
-        WITHDRAWN = "withdrawn", "منسحب"
+        PENDING = "pending", "Pending"
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
+        IN_REVIEW = "in_review", "In Review"
+        WITHDRAWN = "withdrawn", "Withdrawn"
 
-    # العلاقات الأساسية
+    # Basic relationships
     announcement = models.ForeignKey(
         Announcement,
         on_delete=models.CASCADE,
         related_name='applications',
-        verbose_name="الإعلان",
-        help_text="الإعلان المتقدم عليه"
+        verbose_name="Announcement",
+        help_text="Announcement being applied to"
     )
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name='applications',
-        verbose_name="المستخدم",
-        help_text="المستخدم المتقدم"
+        verbose_name="User",
+        help_text="User applying"
     )
     
-    # حالة الطلب والملاحظات
+    # Application status and notes
     status = models.CharField(
         max_length=20,
         choices=Status.choices,
         default=Status.PENDING,
-        verbose_name="الحالة",
-        help_text="حالة طلب التقديم"
+        verbose_name="Status",
+        help_text="Application status"
     )
     admin_notes = models.TextField(
         blank=True,
-        verbose_name="ملاحظات إدارية",
-        help_text="ملاحظات من الإدارة حول الطلب"
-    )
-    rejection_reason = models.TextField(
-        blank=True,
-        verbose_name="سبب الرفض",
-        help_text="سبب رفض الطلب (في حالة الرفض)"
+        verbose_name="Admin Notes",
+        help_text="Admin notes about the application"
     )
     
-    # الطوابع الزمنية
+    # Timestamps
     created_at = models.DateTimeField(
         auto_now_add=True,
-        verbose_name="تاريخ التقديم"
+        verbose_name="Application Date"
     )
     updated_at = models.DateTimeField(
         auto_now=True,
-        verbose_name="تاريخ التحديث"
+        verbose_name="Update Date"
     )
 
     def __str__(self):
         return f"{self.user.name or self.user.email} - {self.announcement.title} - {self.get_status_display()}"
 
     class Meta:
-        verbose_name = "طلب تقديم"
-        verbose_name_plural = "طلبات التقديم"
-        # منع التقديم المتكرر من نفس المستخدم على نفس الإعلان
+        verbose_name = "Application"
+        verbose_name_plural = "Applications"
+        # Prevent duplicate applications from same user to same announcement
         constraints = [
             models.UniqueConstraint(
                 fields=['announcement', 'user'], 
@@ -300,38 +272,43 @@ class Application(models.Model):
 
 class UserFavorite(models.Model):
     """
-    نموذج المفضلة للمستخدمين
-    - يسمح للمستخدمين بإضافة إعلانات إلى المفضلة
-    - علاقة many-to-many بين المستخدمين والإعلانات
-    - يمنع إضافة نفس الإعلان للمفضلة أكثر من مرة
+    User favorites model
+    - Allows users to add announcements to favorites
+    - Many-to-many relationship between users and announcements
+    - Prevents adding same announcement to favorites more than once
     """
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name='favorites',
-        verbose_name="المستخدم",
-        help_text="المستخدم الذي أضاف الإعلان للمفضلة"
+        verbose_name="User",
+        help_text="User who added announcement to favorites"
     )
     announcement = models.ForeignKey(
         Announcement,
         on_delete=models.CASCADE,
         related_name='favorited_by',
-        verbose_name="الإعلان",
-        help_text="الإعلان المضاف للمفضلة"
+        verbose_name="Announcement",
+        help_text="Announcement added to favorites"
     )
     created_at = models.DateTimeField(
         auto_now_add=True,
-        verbose_name="تاريخ الإضافة",
-        help_text="تاريخ إضافة الإعلان للمفضلة"
+        verbose_name="Addition Date",
+        help_text="Date announcement was added to favorites"
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name="Update Date",
+        help_text="Date when favorite was last updated"
     )
 
     def __str__(self):
         return f"{self.user.name or self.user.email} - {self.announcement.title}"
 
     class Meta:
-        verbose_name = "مفضلة"
-        verbose_name_plural = "المفضلات"
-        # منع إضافة نفس الإعلان للمفضلة أكثر من مرة من نفس المستخدم
+        verbose_name = "Favorite"
+        verbose_name_plural = "Favorites"
+        # Prevent adding same announcement to favorites more than once by same user
         constraints = [
             models.UniqueConstraint(
                 fields=['user', 'announcement'], 
@@ -343,131 +320,80 @@ class UserFavorite(models.Model):
             models.Index(fields=['user', '-created_at']),
         ]
 
-
-class AnnouncementView(models.Model):
-    """
-    نموذج تتبع مشاهدات الإعلانات
-    - يتتبع من شاهد الإعلان ومتى
-    - يساعد في إحصائيات المشاهدة الدقيقة
-    - يمنع احتساب المشاهدة المتكررة من نفس المستخدم
-    """
-    announcement = models.ForeignKey(
-        Announcement,
-        on_delete=models.CASCADE,
-        related_name='detailed_views',
-        verbose_name="الإعلان"
-    )
-    user = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        null=True,  # للسماح بالمشاهدة للمستخدمين غير المسجلين
-        blank=True,
-        related_name='viewed_announcements',
-        verbose_name="المستخدم"
-    )
-    ip_address = models.GenericIPAddressField(
-        null=True,
-        blank=True,
-        verbose_name="عنوان IP",
-        help_text="عنوان IP للمشاهد (للمستخدمين غير المسجلين)"
-    )
-    viewed_at = models.DateTimeField(
-        auto_now_add=True,
-        verbose_name="تاريخ المشاهدة"
-    )
-
-    def __str__(self):
-        viewer = self.user.name if self.user else f"IP: {self.ip_address}"
-        return f"{viewer} شاهد {self.announcement.title}"
-
-    class Meta:
-        verbose_name = "مشاهدة إعلان"
-        verbose_name_plural = "مشاهدات الإعلانات"
-        ordering = ['-viewed_at']
-        indexes = [
-            models.Index(fields=['announcement', '-viewed_at']),
-            models.Index(fields=['user', '-viewed_at']),
-        ]
-
-
 class Organization(models.Model):
     """
-    نموذج المؤسسات/المنظمات
-    - يحتوي على معلومات المؤسسات المختلفة
-    - يرتبط بالمستخدمين والإعلانات
-    - يتضمن معلومات التحقق والتقييم
+    Organizations/Institutions model
+    - Contains information about different organizations
+    - Linked to users and announcements
+    - Includes verification and rating information
     """
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name='organizations',
-        verbose_name="المستخدم المسؤول",
-        help_text="المستخدم المسؤول عن المؤسسة"
+        verbose_name="Responsible User",
+        help_text="User responsible for the organization"
     )
     name = models.CharField(
         max_length=255,
-        verbose_name="اسم المؤسسة",
-        help_text="الاسم الرسمي للمؤسسة"
+        verbose_name="Organization Name",
+        help_text="Official organization name"
     )
     description = models.TextField(
         blank=True,
-        verbose_name="وصف المؤسسة",
-        help_text="وصف تفصيلي عن المؤسسة وأنشطتها"
+        verbose_name="Organization Description",
+        help_text="Detailed description of organization and its activities"
     )
     website = models.URLField(
         blank=True,
-        verbose_name="الموقع الإلكتروني",
-        help_text="رابط الموقع الرسمي للمؤسسة"
+        verbose_name="Website",
+        help_text="Organization's official website link"
     )
-    phone = models.CharField(
-        max_length=20,
+    contact_phone = models.CharField(
+        max_length=14,
         blank=True,
-        verbose_name="رقم الهاتف",
-        help_text="رقم الهاتف الرسمي للمؤسسة"
+        verbose_name="Phone Number",
+        help_text="Organization's official phone number"
     )
-    email = models.EmailField(
+    contact_email = models.EmailField(
         blank=True,
-        verbose_name="البريد الإلكتروني",
-        help_text="البريد الإلكتروني الرسمي للمؤسسة"
+        verbose_name="Email",
+        help_text="Organization's official email address"
     )
     location = models.CharField(
         max_length=255,
         blank=True,
-        verbose_name="الموقع",
-        help_text="العنوان أو الموقع الجغرافي للمؤسسة"
+        verbose_name="Location",
+        help_text="Organization's address or geographical location"
     )
-    rate = models.DecimalField(
-        max_digits=3,
-        decimal_places=2,
-        default=0.00,
-        verbose_name="التقييم",
-        help_text="تقييم المؤسسة من 0.00 إلى 5.00"
+    rate = models.PositiveSmallIntegerField(
+    validators=[MinValueValidator(1), MaxValueValidator(5)]
     )
     verified = models.BooleanField(
         default=False,
-        verbose_name="محقق",
-        help_text="هل المؤسسة محققة من قبل الإدارة؟"
+        verbose_name="Verified",
+        help_text="Is the organization verified by admin?"
     )
     is_active = models.BooleanField(
         default=True,
-        verbose_name="نشطة",
-        help_text="هل المؤسسة نشطة حالياً؟"
+        verbose_name="Active",
+        help_text="Is the organization currently active?"
     )
     created_at = models.DateTimeField(
         auto_now_add=True,
-        verbose_name="تاريخ التسجيل"
+        verbose_name="Registration Date"
     )
     updated_at = models.DateTimeField(
         auto_now=True,
-        verbose_name="تاريخ التحديث"
+        verbose_name="Update Date"
     )
 
     def __str__(self):
         return self.name
 
     class Meta:
-        verbose_name = "مؤسسة"
-        verbose_name_plural = "المؤسسات"
+        verbose_name = "Organization"
+        verbose_name_plural = "Organizations"
         ordering = ['-rate', '-created_at']
         indexes = [
             models.Index(fields=['verified', 'is_active']),
@@ -477,82 +403,96 @@ class Organization(models.Model):
 
 class OrganizationDocument(models.Model):
     """
-    نموذج وثائق المؤسسات
-    - يحتوي على جميع الوثائق المطلوبة للتحقق من المؤسسة
-    - يدعم أنواع مختلفة من الوثائق
+    Organization documents model
+    - Contains all documents required for organization verification
+    - Supports different types of documents
     """
     organization = models.ForeignKey(
         Organization,
         on_delete=models.CASCADE,
         related_name='documents',
-        verbose_name="المؤسسة"
+        verbose_name="Organization"
     )
     registration_docs = models.FileField(
         upload_to='organizations/registration/',
         blank=True,
-        verbose_name="وثائق التسجيل",
-        help_text="وثائق تسجيل المؤسسة الرسمية"
+        verbose_name="Registration Documents",
+        help_text="Official organization registration documents"
     )
     financial_report = models.FileField(
         upload_to='organizations/financial/',
         blank=True,
-        verbose_name="التقرير المالي",
-        help_text="التقارير المالية للمؤسسة"
+        verbose_name="Financial Report",
+        help_text="Organization financial reports"
     )
     activity_proof = models.JSONField(
         default=dict,
         blank=True,
-        verbose_name="دليل النشاط",
-        help_text="بيانات JSON تحتوي على أدلة أنشطة المؤسسة"
+        verbose_name="Activity Proof",
+        help_text="JSON data containing organization activity proofs"
+    )
+    address_proof = models.FileField(
+        upload_to='organizations/address/',
+        blank=True,
+        verbose_name="Financial Report",
+        help_text="Organization financial reports"
     )
 
+    created_at = models.DateTimeField(default=timezone.now)
+
+
     def __str__(self):
-        return f"وثائق {self.organization.name}"
+        return f"{self.organization.name} Documents"
 
     class Meta:
-        verbose_name = "وثيقة مؤسسة"
-        verbose_name_plural = "وثائق المؤسسات"
+        verbose_name = "Organization Document"
+        verbose_name_plural = "Organization Documents"
 
 
 class Notification(models.Model):
     """
-    نموذج الإشعارات
-    - يرسل إشعارات للمستخدمين حول أحداث مختلفة
-    - يدعم حالات قراءة/عدم قراءة الإشعارات
+    Notifications model
+    - Sends notifications to users about various events
+    - Supports read/unread notification states
     """
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name='notifications',
-        verbose_name="المستخدم",
-        help_text="المستخدم المرسل إليه الإشعار"
+        verbose_name="User",
+        help_text="User receiving the notification"
+    )
+    title = models.CharField(
+        max_length=50,
+        blank=False,
+        default="Notification",
     )
     message = models.TextField(
-        verbose_name="رسالة الإشعار",
-        help_text="نص الإشعار المرسل للمستخدم"
+        verbose_name="Notification Message",
+        help_text="Notification text sent to user"
     )
     read_status = models.BooleanField(
         default=False,
-        verbose_name="حالة القراءة",
-        help_text="هل تم قراءة الإشعار؟"
+        verbose_name="Read Status",
+        help_text="Has the notification been read?"
     )
     created_at = models.DateTimeField(
         auto_now_add=True,
-        verbose_name="تاريخ الإرسال"
+        verbose_name="Send Date"
     )
 
     def __str__(self):
-        status = "مقروء" if self.read_status else "غير مقروء"
-        return f"إشعار لـ {self.user.name or self.user.email} - {status}"
+        status = "Read" if self.read_status else "Unread"
+        return f"Notification to {self.user.name or self.user.email} - {status}"
 
     def mark_as_read(self):
-        """تحديد الإشعار كمقروء"""
+        """Mark notification as read"""
         self.read_status = True
         self.save()
 
     class Meta:
-        verbose_name = "إشعار"
-        verbose_name_plural = "الإشعارات"
+        verbose_name = "Notification"
+        verbose_name_plural = "Notifications"
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['user', 'read_status']),
@@ -562,40 +502,40 @@ class Notification(models.Model):
 
 class Review(models.Model):
     """
-    نموذج التقييمات والمراجعات
-    - يسمح للمستخدمين بتقييم طلبات التقديم
-    - يحتوي على تعليقات وتقييم رقمي
+    Reviews and ratings model
+    - Allows users to rate applications
+    - Contains comments and numerical rating
     """
     application = models.ForeignKey(
         Application,
         on_delete=models.CASCADE,
         related_name='reviews',
-        verbose_name="طلب التقديم",
-        help_text="طلب التقديم المراد تقييمه"
+        verbose_name="Application",
+        help_text="Application to be reviewed"
     )
     comment = models.TextField(
         blank=True,
-        verbose_name="التعليق",
-        help_text="تعليق أو ملاحظات حول الطلب"
+        verbose_name="Comment",
+        help_text="Comment or notes about the application"
     )
     rating = models.PositiveSmallIntegerField(
-        default=1,
-        verbose_name="التقييم",
-        help_text="التقييم من 1 إلى 5"
+    validators=[MinValueValidator(1), MaxValueValidator(5)]
     )
+    created_at = models.DateTimeField(default=timezone.now)
+
 
     def __str__(self):
-        return f"تقييم طلب {self.application.user.name} - {self.rating}/5"
+        return f"Review for {self.application.user.name} application - {self.rating}/5"
 
     def clean(self):
-        """التحقق من صحة التقييم"""
+        """Validate rating"""
         if self.rating < 1 or self.rating > 5:
-            raise ValidationError('التقييم يجب أن يكون بين 1 و 5')
+            raise ValidationError('Rating must be between 1 and 5')
 
     class Meta:
-        verbose_name = "تقييم"
-        verbose_name_plural = "التقييمات"
-        # منع تقييم نفس الطلب أكثر من مرة من نفس المراجع
+        verbose_name = "Review"
+        verbose_name_plural = "Reviews"
+        # Prevent reviewing same application more than once by same reviewer
         constraints = [
             models.UniqueConstraint(
                 fields=['application'], 
@@ -606,46 +546,44 @@ class Review(models.Model):
 
 class HelpSupport(models.Model):
     """
-    نموذج الدعم والمساعدة
-    - يسمح للمستخدمين بإرسال طلبات دعم
-    - يدعم أنواع مختلفة من طلبات الدعم
+    Help and support model
+    - Allows users to send support requests
+    - Supports different types of support requests
     """
     class SupportType(models.TextChoices):
-        TECHNICAL = "technical", "مشكلة تقنية"
-        ACCOUNT = "account", "مشكلة في الحساب"
-        GENERAL = "general", "استفسار عام"
-        COMPLAINT = "complaint", "شكوى"
-        SUGGESTION = "suggestion", "اقتراح"
+        ACCOUNT = "account", "Account Issue"
+        GENERAL = "general", "General Inquiry"
+        COMPLAINT = "complaint", "Complaint"
 
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name='support_requests',
-        verbose_name="المستخدم",
-        help_text="المستخدم الذي أرسل طلب الدعم"
+        verbose_name="User",
+        help_text="User who sent the support request"
     )
     description = models.TextField(
-        verbose_name="وصف المشكلة",
-        help_text="وصف تفصيلي للمشكلة أو الاستفسار"
+        verbose_name="Issue Description",
+        help_text="Detailed description of the issue or inquiry"
     )
     type = models.CharField(
         max_length=20,
         choices=SupportType.choices,
         default=SupportType.GENERAL,
-        verbose_name="نوع الطلب",
-        help_text="نوع طلب الدعم"
+        verbose_name="Request Type",
+        help_text="Type of support request"
     )
     created_at = models.DateTimeField(
         auto_now_add=True,
-        verbose_name="تاريخ الإرسال"
+        verbose_name="Send Date"
     )
 
     def __str__(self):
-        return f"طلب دعم من {self.user.name or self.user.email} - {self.get_type_display()}"
+        return f"Support request from {self.user.name or self.user.email} - {self.get_type_display()}"
 
     class Meta:
-        verbose_name = "طلب دعم"
-        verbose_name_plural = "طلبات الدعم"
+        verbose_name = "Support Request"
+        verbose_name_plural = "Support Requests"
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['type', '-created_at']),

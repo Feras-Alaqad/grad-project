@@ -1,79 +1,79 @@
 from django.contrib import admin
-from .models import User, Announcement, Application, UserFavorite, AnnouncementView, Organization, OrganizationDocument, Notification, Review, HelpSupport
+from .models import (
+    User, Announcement, AnnouncementCategory, Application,
+    UserFavorite, Organization, OrganizationDocument,
+    Notification, Review, HelpSupport
+)
 
-# نموذج المستخدم
+# ----- User -----
 @admin.register(User)
 class UserAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "email", "role", "is_active", "date_joined")
-    readonly_fields = ("date_joined",)
-    search_fields = ("name", "email")
+    list_display = ("id", "name", "email", "role", "is_active", "created_at", "ubdated_at")
     list_filter = ("role", "is_active")
+    search_fields = ("name", "email")
+    readonly_fields = ("created_at", "ubdated_at", "last_login", "date_joined")
 
-# نموذج الإعلانات
+# ----- Announcement -----
 @admin.register(Announcement)
 class AnnouncementAdmin(admin.ModelAdmin):
-    list_display = ("id", "title", "category", "status", "author", "publish_date", "expiry_date", "created_at")
-    readonly_fields = ("created_at", "updated_at", "views_count")
+    list_display = ("id", "title", "organization", "start_date", "end_date", "created_at", "updated_at")
+    list_filter = ("organization",)
     search_fields = ("title", "description")
-    list_filter = ("category", "status", "is_pinned")
-    date_hierarchy = "created_at"
+    readonly_fields = ("created_at", "updated_at")
 
-# نموذج الطلبات
+# ----- AnnouncementCategory -----
+@admin.register(AnnouncementCategory)
+class AnnouncementCategoryAdmin(admin.ModelAdmin):
+    list_display = ("id", "name")
+    search_fields = ("name",)
+
+# ----- Application -----
 @admin.register(Application)
 class ApplicationAdmin(admin.ModelAdmin):
-    list_display = ("id", "user", "announcement", "status", "created_at")
-    readonly_fields = ("created_at", "updated_at")
+    list_display = ("id", "announcement", "user", "status", "created_at", "updated_at")
     list_filter = ("status",)
     search_fields = ("user__name", "announcement__title")
+    readonly_fields = ("created_at", "updated_at")
 
-# نموذج المفضلة
+# ----- UserFavorite -----
 @admin.register(UserFavorite)
 class UserFavoriteAdmin(admin.ModelAdmin):
-    list_display = ("id", "user", "announcement", "created_at")
-    readonly_fields = ("created_at",)
+    list_display = ("id", "user", "announcement", "created_at", "updated_at")
     search_fields = ("user__name", "announcement__title")
+    readonly_fields = ("created_at", "updated_at")
 
-# نموذج مشاهدة الإعلانات
-@admin.register(AnnouncementView)
-class AnnouncementViewAdmin(admin.ModelAdmin):
-    list_display = ("id", "user", "announcement", "ip_address", "viewed_at")
-    readonly_fields = ("viewed_at",)
-    search_fields = ("user__name", "announcement__title", "ip_address")
-
-# نموذج المؤسسات
+# ----- Organization -----
 @admin.register(Organization)
 class OrganizationAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "user", "rate", "verified", "is_active", "created_at")
-    readonly_fields = ("created_at", "updated_at")
-    search_fields = ("name", "user__name")
+    list_display = ("id", "name", "user", "verified", "is_active", "rate", "created_at", "updated_at")
     list_filter = ("verified", "is_active")
+    search_fields = ("name", "description")
+    readonly_fields = ("created_at", "updated_at")
 
-# نموذج الوثائق
+# ----- OrganizationDocument -----
 @admin.register(OrganizationDocument)
 class OrganizationDocumentAdmin(admin.ModelAdmin):
-    list_display = ("id", "organization",)
-    search_fields = ("organization__name",)
+    list_display = ("id", "organization", "created_at")
+    readonly_fields = ("created_at",)
 
-# نموذج الإشعارات
+# ----- Notification -----
 @admin.register(Notification)
 class NotificationAdmin(admin.ModelAdmin):
-    list_display = ("id", "user", "message", "read_status", "created_at")
-    readonly_fields = ("created_at",)
-    search_fields = ("user__name", "message")
+    list_display = ("id", "user", "title", "read_status", "created_at")
     list_filter = ("read_status",)
+    search_fields = ("user__name", "title", "message")
+    readonly_fields = ("created_at",)
 
-# نموذج التقييمات
+# ----- Review -----
 @admin.register(Review)
 class ReviewAdmin(admin.ModelAdmin):
     list_display = ("id", "application", "rating")
-    search_fields = ("application__user__name", "comment")
-    list_filter = ("rating",)
-
-# نموذج الدعم والمساعدة
+    search_fields = ("application__user__name",)
+    
+# ----- HelpSupport -----
 @admin.register(HelpSupport)
 class HelpSupportAdmin(admin.ModelAdmin):
     list_display = ("id", "user", "type", "created_at")
-    readonly_fields = ("created_at",)
-    search_fields = ("user__name", "description")
     list_filter = ("type",)
-
+    search_fields = ("user__name", "description")
+    readonly_fields = ("created_at",)
