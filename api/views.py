@@ -66,7 +66,7 @@ class ForgotPasswordAPIView(generics.GenericAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        user = serializer.context['user']  # نستخدم context بدل validated_data
+        user = serializer.context['user']  
         token = default_token_generator.make_token(user)
         uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
 
