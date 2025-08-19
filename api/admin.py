@@ -45,9 +45,9 @@ class UserFavoriteAdmin(admin.ModelAdmin):
 # ----- Organization -----
 @admin.register(Organization)
 class OrganizationAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "user", "verified", "is_active", "rate", "created_at", "updated_at")
+    list_display = ("id", "user", "verified", "is_active", "rate", "created_at", "updated_at")
     list_filter = ("verified", "is_active")
-    search_fields = ("name", "description")
+    search_fields = ("description",)
     readonly_fields = ("created_at", "updated_at")
 
 # ----- OrganizationDocument -----

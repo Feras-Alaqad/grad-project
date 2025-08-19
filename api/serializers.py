@@ -5,6 +5,8 @@ from django.utils.http import urlsafe_base64_decode
 from django.utils.encoding import force_str
 from django.contrib.auth.tokens import default_token_generator
 
+
+
 from .models import (
     User, Announcement, AnnouncementCategory, Application,
     UserFavorite, Organization, OrganizationDocument,
@@ -14,14 +16,17 @@ from .models import (
 # =========================
 # 🔹 User Serializers
 # =========================
-
-class UserSignupSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, min_length=8, style={'input_type': 'password'})
-    password_confirm = serializers.CharField(write_only=True, style={'input_type': 'password'})
+class BaseSignupSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(
+        write_only=True, min_length=8, style={'input_type': 'password'}
+    )
+    password_confirm = serializers.CharField(
+        write_only=True, style={'input_type': 'password'}
+    )
 
     class Meta:
         model = User
-        fields = ('email', 'name', 'password', 'password_confirm', 'role')
+        fields = ('email', 'name', 'phone', 'password', 'password_confirm')  # بدون role
 
     def validate_email(self, value):
         if User.objects.filter(email=value).exists():
@@ -37,24 +42,107 @@ class UserSignupSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         if attrs['password'] != attrs['password_confirm']:
-            raise serializers.ValidationError({"password_confirm": "Passwords do not match"})
+            raise serializers.ValidationError(
+                {"password_confirm": "Passwords do not match"}
+            )
         return attrs
 
+
+class UserSignupSerializer(BaseSignupSerializer):
     def create(self, validated_data):
         validated_data.pop('password_confirm', None)
         return User.objects.create_user(
             email=validated_data['email'],
             password=validated_data['password'],
+            phone=validated_data.get('phone', ''),
             name=validated_data.get('name', ''),
-            role=validated_data.get('role', User.Role.USER)
+            role=User.Role.USER 
+        )
+    
+class OrganizationSignupSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, min_length=8, style={'input_type': 'password'})
+    password_confirm = serializers.CharField(write_only=True, style={'input_type': 'password'})
+
+    description = serializers.CharField(required=False, allow_blank=True)
+    website = serializers.URLField(required=False, allow_blank=True)
+    location = serializers.CharField(required=False, allow_blank=True)
+    rate = serializers.IntegerField(required=False, min_value=1, max_value=5)
+
+    class Meta:
+        model = User
+        fields = (
+            'email', 'name', 'phone', 'password', 'password_confirm',
+            'description', 'website', 'location', 'rate'
         )
 
+    def validate_email(self, value):
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("A user with this email already exists.")
+        return value
+
+    def validate_password(self, value):
+        try:
+            validate_password(value)
+        except ValidationError as e:
+            raise serializers.ValidationError(e.messages)
+        return value
+
+    def validate(self, attrs):
+        if attrs['password'] != attrs['password_confirm']:
+            raise serializers.ValidationError({"password_confirm": "Passwords do not match"})
+        return attrs
+
+    def create(self, validated_data):
+        password = validated_data.pop('password')
+        validated_data.pop('password_confirm', None)
+
+        # بيانات المؤسسة فقط
+        org_data = {
+            'description': validated_data.pop('description', ''),
+            'website': validated_data.pop('website', ''),
+            'location': validated_data.pop('location', ''),
+            'rate': validated_data.pop('rate', 1),
+            'verified': False,
+            'is_active': True,
+        }
+
+        # إنشاء المستخدم مع role ORGANIZATION
+        user = User.objects.create_user(
+            email=validated_data['email'],
+            password=password,
+            name=validated_data.get('name', ''),
+            phone=validated_data.get('phone', ''),
+            role=User.Role.ORGANIZATION
+        )
+
+        # إنشاء المنظمة وربطها بالمستخدم
+        Organization.objects.create(
+            user=user,
+            **org_data
+        )
+
+        return user
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('id', 'email', 'name', 'role', 'date_joined', 'is_active')
-        read_only_fields = ('id', 'date_joined')
+        fields = [
+            "id",
+            "name",
+            "email",
+            "phone",
+            "role",
+            "is_active",
+            "created_at",
+            "ubdated_at"
+        ]
+        read_only_fields = ('id', 'created_at', 'updated_at')
+        extra_kwargs = {
+            'email': {'required': True, 'allow_blank': False},
+            'name': {'required': True, 'allow_blank': False},
+            'phone': {'required': False, 'allow_blank': True},
+            'role': {'required': True, 'allow_blank': False}
+        }
 
 
 # serializer.py
@@ -71,27 +159,32 @@ class ForgotPasswordSerializer(serializers.Serializer):
 
 
 class ResetPasswordSerializer(serializers.Serializer):
-    uidb64 = serializers.CharField()
+    user_id = serializers.IntegerField()
     token = serializers.CharField()
     password = serializers.CharField(write_only=True, min_length=8, style={'input_type': 'password'})
     password_confirm = serializers.CharField(write_only=True, style={'input_type': 'password'})
 
     def validate(self, attrs):
         try:
-            uid = force_str(urlsafe_base64_decode(attrs['uidb64']))
-            user = User.objects.get(pk=uid)
+            user = User.objects.get(pk=attrs['user_id'])
 
+            # check token validity
             if not default_token_generator.check_token(user, attrs['token']):
                 raise serializers.ValidationError({"token": "Invalid or expired reset token"})
 
+            # check password match
             if attrs['password'] != attrs['password_confirm']:
                 raise serializers.ValidationError({"password_confirm": "Passwords do not match"})
 
+            # validate password strength
             validate_password(attrs['password'], user)
+
+            # pass user to serializer context
             self.context['user'] = user
 
-        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
-            raise serializers.ValidationError({"uidb64": "Invalid user ID"})
+        except User.DoesNotExist:
+            raise serializers.ValidationError({"user_id": "Invalid user ID"})
+
         return attrs
 
 
@@ -117,6 +210,20 @@ class ChangePasswordSerializer(serializers.Serializer):
         if attrs['new_password'] != attrs['new_password_confirm']:
             raise serializers.ValidationError({"new_password_confirm": "New passwords do not match"})
         return attrs
+    
+class OrganizationProfileSerializer(serializers.ModelSerializer):
+
+    name = serializers.CharField(source='user.name', read_only=True)
+    email = serializers.EmailField(source='user.email', read_only=True)
+    phone = serializers.CharField(source='user.phone', read_only=True)
+
+    class Meta:
+        model = Organization
+        fields = [
+            'name', 'email', 'phone',  
+            'description', 'website', 'contact_phone', 'contact_email',
+            'location', 'rate', 'verified', 'is_active', 'created_at', 'updated_at'
+        ]
 
 
 # =========================

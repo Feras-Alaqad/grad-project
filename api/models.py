@@ -39,8 +39,8 @@ class User(AbstractUser):
     - Contains different roles (institution, admin, user)
     """
     class Role(models.TextChoices):
-        INSTITUTION = "institution", "Institution"
-        ADMIN = "admin", "Admin"  
+        ORGANIZATION = "organization", "Organization"
+        ADMIN = "admin", "Admin"
         USER = "user", "User"
 
     # Remove username and use email
@@ -334,11 +334,6 @@ class Organization(models.Model):
         verbose_name="Responsible User",
         help_text="User responsible for the organization"
     )
-    name = models.CharField(
-        max_length=255,
-        verbose_name="Organization Name",
-        help_text="Official organization name"
-    )
     description = models.TextField(
         blank=True,
         verbose_name="Organization Description",
@@ -348,17 +343,6 @@ class Organization(models.Model):
         blank=True,
         verbose_name="Website",
         help_text="Organization's official website link"
-    )
-    contact_phone = models.CharField(
-        max_length=14,
-        blank=True,
-        verbose_name="Phone Number",
-        help_text="Organization's official phone number"
-    )
-    contact_email = models.EmailField(
-        blank=True,
-        verbose_name="Email",
-        help_text="Organization's official email address"
     )
     location = models.CharField(
         max_length=255,
@@ -389,7 +373,13 @@ class Organization(models.Model):
     )
 
     def __str__(self):
-        return self.name
+        return self.user.name or self.user.email
+
+    def clean(self):
+        """Validate rate"""
+        if self.rate < 1 or self.rate > 5:
+            raise ValidationError('Rate must be between 1 and 5')
+        
 
     class Meta:
         verbose_name = "Organization"
