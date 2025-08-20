@@ -43,6 +43,13 @@ class User(AbstractBaseUser, PermissionsMixin):
         ADMIN = "admin", "Admin"
         USER = "user", "User"
 
+
+    name = models.CharField(
+        max_length=255, 
+        blank=True,
+        verbose_name="Name",
+        help_text="Full user name"
+    )
     email = models.EmailField(
         unique=True,
         verbose_name="Email",
@@ -68,7 +75,6 @@ class User(AbstractBaseUser, PermissionsMixin):
         help_text="User role in the system"
     )
     is_active = models.BooleanField(default=True)
-    is_staff = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -76,6 +82,26 @@ class User(AbstractBaseUser, PermissionsMixin):
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ['name', 'password', 'phone']
 
+    date_joined = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Date Joined",
+        help_text="Date when the user joined"
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Creation Date",
+        help_text="Date when the user was created"
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name="Update Date",
+        help_text="Date when the user was last updated"
+    )
+    
+    # Set email as the primary login field
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['name', 'password', 'role', 'phone']
+    
     objects = UserManager()
 
     def __str__(self):
@@ -107,6 +133,13 @@ class Announcement(models.Model):
     - Supports different statuses and various categories
     - Linked to author and tracks views
     """
+    
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending Approval"
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
+        DRAFT = "draft", "Draft"
+    
     # Basic fields
     title = models.CharField(
         max_length=255,
@@ -138,6 +171,13 @@ class Announcement(models.Model):
         verbose_name="Organization",
         help_text="Organization the announcement belongs to (optional)"
     )
+    organization_name = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        verbose_name="Organization Name",
+        help_text="Custom organization name (for admin use)"
+    )
     url = models.URLField(
         blank=False,
         null=False,
@@ -145,12 +185,33 @@ class Announcement(models.Model):
         help_text="Link to the announcement details",
         default="https://example.com"  # ضع الرابط الافتراضي هنا
     )
-
-    AnnouncementCategory = models.ForeignKey(
-    'AnnouncementCategory',
-    on_delete=models.CASCADE,
-    related_name='announcements',
-    default=1  # هنا ضع ID لفئة موجودة مسبقًا
+    category = models.ForeignKey(
+        'AnnouncementCategory',
+        on_delete=models.CASCADE,
+        related_name='announcements',
+        verbose_name="Category",
+        help_text="Announcement category",
+        default=1
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.DRAFT,
+        verbose_name="Status",
+        help_text="Announcement approval status"
+    )
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='created_announcements',
+        verbose_name="Created By",
+        help_text="User who created this announcement",
+        default=1
+    )
+    admin_notes = models.TextField(
+        blank=True,
+        verbose_name="Admin Notes",
+        help_text="Admin notes about the announcement approval/rejection"
     )
 
    

@@ -270,17 +270,260 @@ class UserFavoriteSerializer(serializers.ModelSerializer):
 # 🔹 Models Serializers
 # =========================
 
+# =========================
+# 🔹 Announcement Serializers
+# =========================
+
 class AnnouncementCategorySerializer(serializers.ModelSerializer):
+    announcements_count = serializers.SerializerMethodField()
+    
     class Meta:
         model = AnnouncementCategory
-        fields = "__all__"
+        fields = ['id', 'name', 'announcements_count']
+    
+    def get_announcements_count(self, obj):
+        return obj.announcements.filter(status=Announcement.Status.APPROVED).count()
 
 
-class AnnouncementSerializer(serializers.ModelSerializer):
+class AnnouncementListSerializer(serializers.ModelSerializer):
+    """Serializer for listing announcements (public view)"""
+    category_name = serializers.CharField(source='category.name', read_only=True)
+    organization_name = serializers.SerializerMethodField()
+    creator_name = serializers.SerializerMethodField()
+    
     class Meta:
         model = Announcement
-        fields = "__all__"
-        read_only_fields = ("created_at", "updated_at")
+        fields = [
+            'id', 'title', 'description', 'start_date', 'end_date',
+            'url', 'category_name', 'organization_name', 'creator_name',
+            'status', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'status', 'created_at', 'updated_at']
+    
+    def get_creator_name(self, obj):
+        """Return creator name or 'Admin' if created by admin"""
+        if obj.created_by.role == User.Role.ADMIN:
+            return "Admin"
+        return obj.created_by.name
+    
+    def get_organization_name(self, obj):
+        """Return organization name or None if no organization"""
+        if obj.organization_name:
+            return obj.organization_name
+        elif obj.organization:
+            return obj.organization.user.name
+        return None
+
+
+class AnnouncementDetailSerializer(serializers.ModelSerializer):
+    """Serializer for detailed announcement view"""
+    category = AnnouncementCategorySerializer(read_only=True)
+    organization_name = serializers.SerializerMethodField()
+    creator_name = serializers.SerializerMethodField()
+    applications_count = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Announcement
+        fields = [
+            'id', 'title', 'description', 'start_date', 'end_date',
+            'url', 'category', 'organization_name', 'creator_name',
+            'applications_count', 'status', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'status', 'created_at', 'updated_at']
+    
+    def get_creator_name(self, obj):
+        """Return creator name or 'Admin' if created by admin"""
+        if obj.created_by.role == User.Role.ADMIN:
+            return "Admin"
+        return obj.created_by.name
+    
+    def get_organization_name(self, obj):
+        """Return organization name or None if no organization"""
+        if obj.organization_name:
+            return obj.organization_name
+        elif obj.organization:
+            return obj.organization.user.name
+        return None
+
+    def get_applications_count(self, obj):
+        return obj.applications.count()
+
+
+class AnnouncementCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating announcements"""
+    organization_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
+    organization_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    
+    # Response fields
+    creator_name = serializers.SerializerMethodField()
+    organization_display_name = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Announcement
+        fields = [
+            'id', 'title', 'description', 'start_date', 'end_date',
+            'url', 'category', 'organization_id', 'organization_name', 'status', 'created_at',
+            'creator_name', 'organization_display_name'
+        ]
+        read_only_fields = ['id', 'status', 'created_at', 'creator_name', 'organization_display_name']
+    
+    def get_creator_name(self, obj):
+        """Return creator name or 'Admin' if created by admin"""
+        if obj.created_by.role == User.Role.ADMIN:
+            return "Admin"
+        return obj.created_by.name
+    
+    def get_organization_display_name(self, obj):
+        """Return organization name or None if no organization"""
+        if obj.organization_name:
+            return obj.organization_name
+        elif obj.organization:
+            return obj.organization.user.name
+        return None
+    
+    def validate(self, attrs):
+        user = self.context['request'].user
+        organization_id = attrs.get('organization_id')
+        organization_name = attrs.get('organization_name')
+        
+        # Handle organization field based on user role
+        if user.role == User.Role.ORGANIZATION:
+            # Organization users: automatically set their organization
+            try:
+                organization = Organization.objects.get(user=user)
+                attrs['organization'] = organization
+                attrs['organization_name'] = None
+            except Organization.DoesNotExist:
+                raise serializers.ValidationError("Organization profile not found")
+            # Remove organization fields from input if provided
+            attrs.pop('organization_id', None)
+            attrs.pop('organization_name', None)
+        
+        elif user.role == User.Role.ADMIN:
+            # Admin users: can select existing organization or specify custom name
+            if organization_id and organization_name:
+                raise serializers.ValidationError({
+                    'organization': 'Cannot specify both organization_id and organization_name. Choose one.'
+                })
+            
+            if organization_id:
+                # Link to existing organization
+                try:
+                    organization = Organization.objects.get(id=organization_id)
+                    attrs['organization'] = organization
+                    attrs['organization_name'] = None
+                except Organization.DoesNotExist:
+                    raise serializers.ValidationError({
+                        'organization_id': 'Organization with this ID does not exist.'
+                    })
+            elif organization_name:
+                # Use custom organization name
+                attrs['organization_name'] = organization_name.strip()
+                attrs['organization'] = None
+            else:
+                # No organization specified
+                attrs['organization_name'] = None
+                attrs['organization'] = None
+            
+            # Remove organization_id from attrs as it's not a model field
+            attrs.pop('organization_id', None)
+        
+        # Validate dates
+        if attrs.get('start_date') and attrs.get('end_date'):
+            if attrs['end_date'] <= attrs['start_date']:
+                raise serializers.ValidationError("End date must be after start date")
+        
+        return attrs
+    
+    def create(self, validated_data):
+        user = self.context['request'].user
+        validated_data['created_by'] = user
+        
+        # Set status based on user role
+        if user.role == User.Role.ADMIN:
+            validated_data['status'] = Announcement.Status.APPROVED
+        else:
+            validated_data['status'] = Announcement.Status.PENDING
+        
+        return super().create(validated_data)
+
+
+class AnnouncementUpdateSerializer(serializers.ModelSerializer):
+    """Serializer for updating announcements"""
+    
+    class Meta:
+        model = Announcement
+        fields = [
+            'title', 'description', 'start_date', 'end_date',
+            'url', 'category'
+        ]
+    
+    def validate(self, attrs):
+        # Validate dates
+        instance = self.instance
+        start_date = attrs.get('start_date', instance.start_date)
+        end_date = attrs.get('end_date', instance.end_date)
+        
+        if start_date and end_date and end_date <= start_date:
+            raise serializers.ValidationError("End date must be after start date")
+        
+        return attrs
+    
+    def update(self, instance, validated_data):
+        user = self.context['request'].user
+        
+        # If organization user is updating, set status back to pending for admin approval
+        if user.role == User.Role.ORGANIZATION:
+            validated_data['status'] = Announcement.Status.PENDING
+        # Admin updates remain approved
+        elif user.role == User.Role.ADMIN:
+            # Admin can keep current status or it will be handled by approval endpoint
+            pass
+            
+        return super().update(instance, validated_data)
+
+
+class AnnouncementAdminSerializer(serializers.ModelSerializer):
+    """Serializer for admin view of announcements"""
+    category_name = serializers.CharField(source='category.name', read_only=True)
+    organization_name = serializers.SerializerMethodField()
+    creator_name = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Announcement
+        fields = [
+            'id', 'title', 'description', 'start_date', 'end_date',
+            'url', 'category_name', 'organization_name', 'creator_name',
+            'status', 'admin_notes', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at', 'created_by']
+    
+    def get_creator_name(self, obj):
+        """Return creator name or 'Admin' if created by admin"""
+        if obj.created_by.role == User.Role.ADMIN:
+            return "Admin"
+        return obj.created_by.name
+    
+    def get_organization_name(self, obj):
+        """Return organization name or None if no organization"""
+        if obj.organization_name:
+            return obj.organization_name
+        elif obj.organization:
+            return obj.organization.user.name
+        return None
+
+
+class AnnouncementApprovalSerializer(serializers.ModelSerializer):
+    """Serializer for admin to approve/reject announcements"""
+    
+    class Meta:
+        model = Announcement
+        fields = ['status', 'admin_notes']
+    
+    def validate_status(self, value):
+        if value not in [Announcement.Status.APPROVED, Announcement.Status.REJECTED]:
+            raise serializers.ValidationError("Status must be either approved or rejected")
+        return value
 
 
 class ApplicationSerializer(serializers.ModelSerializer):

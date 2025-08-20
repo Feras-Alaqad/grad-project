@@ -1,0 +1,222 @@
+{
+  "info": {
+    "name": "Organization Announcement Creation Test",
+    "description": "Test cases for organization users creating announcements with pending status",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Organization Login",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"org@example.com\",\n  \"password\": \"your_password\"\n}"
+        },
+        "url": {
+          "raw": "http://127.0.0.1:8000/awn/api/login/",
+          "protocol": "http",
+          "host": ["127.0.0.1"],
+          "port": "8000",
+          "path": ["awn", "api", "login"]
+        },
+        "description": "Login as organization user to get access token"
+      },
+      "response": []
+    },
+    {
+      "name": "2. Create Announcement (Organization User - Should be PENDING)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{org_access_token}}",
+            "description": "Replace with actual token from login response"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Software Engineering Internship\",\n  \"description\": \"Join our team as a software engineering intern. Work on exciting projects with cutting-edge technologies.\",\n  \"start_date\": \"2024-02-01\",\n  \"end_date\": \"2024-08-01\",\n  \"url\": \"https://company.com/internship\",\n  \"category\": 1\n}"
+        },
+        "url": {
+          "raw": "http://127.0.0.1:8000/awn/api/create-announcements/",
+          "protocol": "http",
+          "host": ["127.0.0.1"],
+          "port": "8000",
+          "path": ["awn", "api", "create-announcements"]
+        },
+        "description": "Create announcement as organization user - status should automatically be set to PENDING"
+      },
+      "response": []
+    },
+    {
+      "name": "3. Get Organization's Own Announcements",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{org_access_token}}",
+            "description": "Replace with actual token from login response"
+          }
+        ],
+        "url": {
+          "raw": "http://127.0.0.1:8000/awn/api/announcements/",
+          "protocol": "http",
+          "host": ["127.0.0.1"],
+          "port": "8000",
+          "path": ["awn", "api", "announcements"]
+        },
+        "description": "Organization can see their own announcements (including pending ones)"
+      },
+      "response": []
+    },
+    {
+      "name": "4. Admin Login",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"admin_password\"\n}"
+        },
+        "url": {
+          "raw": "http://127.0.0.1:8000/awn/api/login/",
+          "protocol": "http",
+          "host": ["127.0.0.1"],
+          "port": "8000",
+          "path": ["awn", "api", "login"]
+        },
+        "description": "Login as admin to approve/reject pending announcements"
+      },
+      "response": []
+    },
+    {
+      "name": "5. Admin View All Announcements (Including Pending)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_access_token}}",
+            "description": "Replace with actual admin token"
+          }
+        ],
+        "url": {
+          "raw": "http://127.0.0.1:8000/awn/api/announcements/?status=pending",
+          "protocol": "http",
+          "host": ["127.0.0.1"],
+          "port": "8000",
+          "path": ["awn", "api", "announcements"],
+          "query": [
+            {
+              "key": "status",
+              "value": "pending",
+              "description": "Filter to see only pending announcements"
+            }
+          ]
+        },
+        "description": "Admin can see all announcements including pending ones"
+      },
+      "response": []
+    },
+    {
+      "name": "6. Admin Approve Announcement",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{admin_access_token}}",
+            "description": "Replace with actual admin token"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"approved\",\n  \"admin_notes\": \"Great internship opportunity. Approved for publication.\"\n}"
+        },
+        "url": {
+          "raw": "http://127.0.0.1:8000/awn/api/announcements/{{announcement_id}}/approve/",
+          "protocol": "http",
+          "host": ["127.0.0.1"],
+          "port": "8000",
+          "path": ["awn", "api", "announcements", "{{announcement_id}}", "approve"]
+        },
+        "description": "Admin approves the pending announcement. Replace {{announcement_id}} with actual ID from step 2 response"
+      },
+      "response": []
+    },
+    {
+      "name": "7. Public View (Only Approved Announcements)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://127.0.0.1:8000/awn/api/announcements/",
+          "protocol": "http",
+          "host": ["127.0.0.1"],
+          "port": "8000",
+          "path": ["awn", "api", "announcements"]
+        },
+        "description": "Public users can only see approved announcements (no authentication required)"
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "org_access_token",
+      "value": "",
+      "description": "Access token for organization user - copy from login response"
+    },
+    {
+      "key": "admin_access_token",
+      "value": "",
+      "description": "Access token for admin user - copy from admin login response"
+    },
+    {
+      "key": "announcement_id",
+      "value": "",
+      "description": "ID of the created announcement - copy from create announcement response"
+    }
+  ],
+  "notes": {
+    "testing_flow": [
+      "1. Login as organization user and copy the access_token",
+      "2. Create announcement - verify status is 'pending' in response",
+      "3. Organization can see their own pending announcements",
+      "4. Login as admin and copy admin access_token",
+      "5. Admin can see all announcements including pending ones",
+      "6. Admin can approve/reject announcements",
+      "7. Public users only see approved announcements"
+    ],
+    "expected_behavior": {
+      "organization_creates_announcement": "Status should be 'pending'",
+      "admin_creates_announcement": "Status should be 'approved'",
+      "organization_updates_announcement": "Status should reset to 'pending'",
+      "public_view": "Only approved announcements visible",
+      "organization_view": "Can see their own announcements (all statuses)",
+      "admin_view": "Can see all announcements (all statuses)"
+    }
+  }
+}
