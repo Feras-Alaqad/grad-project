@@ -236,6 +236,11 @@ class Application(models.Model):
         auto_now=True,
         verbose_name="Update Date"
     )
+    is_favorite = models.BooleanField(
+        default=False,
+        verbose_name="Is Favorite",
+        help_text="Is this application marked as favorite by the user?"
+    )
 
     def __str__(self):
         return f"{self.user.name or self.user.email} - {self.announcement.title} - {self.get_status_display()}"
@@ -349,6 +354,12 @@ class Organization(models.Model):
         default=True,
         verbose_name="Active",
         help_text="Is the organization currently active?"
+    )
+    is_rejected = models.BooleanField(
+        default=False
+    )
+    rejection_reason = models.TextField(
+        blank=True
     )
     created_at = models.DateTimeField(
         auto_now_add=True,

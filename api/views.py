@@ -14,7 +14,11 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAdminUser
 from rest_framework_simplejwt.views import TokenObtainPairView
 
-from .models import User, Organization
+from .models import (
+    User, Organization,
+    Announcement, Application,
+    UserFavorite
+)
 from .serializers import (
     UserSignupSerializer,
     UserSerializer,
@@ -22,7 +26,8 @@ from .serializers import (
     ChangePasswordSerializer,
     OrganizationSignupSerializer,
     OrganizationProfileSerializer,
-    CustomTokenObtainPairSerializer
+    CustomTokenObtainPairSerializer,
+    UserFavoriteSerializer
 )
 
 
@@ -68,7 +73,7 @@ class OrganizationSignupView(APIView):
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-class OrganizationActivationView(APIView):
+class OrganizationAcceptView(APIView):
     permission_classes = [IsAdminUser]
 
     def post(self, request, org_id):
@@ -82,6 +87,8 @@ class OrganizationActivationView(APIView):
 
         # تفعيل المؤسسة
         org.is_active = True
+        org.is_rejected = False       # إعادة ضبط الرفض
+        org.rejection_reason = ''
         org.save()
 
         # إنشاء التوكن للمستخدم المرتبط
@@ -100,6 +107,26 @@ class OrganizationActivationView(APIView):
             "refresh": str(refresh),
             "access": str(refresh.access_token)
         }, status=200)
+
+class OrganizationRejectionView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, org_id):
+        reason = request.data.get("reason", "")
+        if not reason:
+            return Response({"detail": "Rejection reason is required."}, status=400)
+
+        try:
+            org = Organization.objects.get(id=org_id)
+        except Organization.DoesNotExist:
+            return Response({"detail": "Organization not found."}, status=404)
+
+        org.is_rejected = True
+        org.rejection_reason = reason
+        org.is_active = False
+        org.save()
+
+        return Response({"detail": "Organization has been rejected.", "reason": reason}, status=200)
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
@@ -232,7 +259,6 @@ class ProfileView(APIView):
     def put(self, request):
         user = request.user
 
-        # 🚨 تحقق من الحقول إذا كان User عادي
         forbidden_fields = ['website', 'location', 'description']
         if user.role == user.Role.USER:
             for field in forbidden_fields:
@@ -263,3 +289,37 @@ class ProfileView(APIView):
                 return Response(serializer.data)
             return Response(serializer.errors, status=400)
     
+class AddFavoriteView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, announcement_id):
+        user = request.user
+        try:
+            announcement = Announcement.objects.get(id=announcement_id)
+        except Announcement.DoesNotExist:
+            return Response({"detail": "Announcement not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # التحقق من وجود Application مع is_favorite = True
+        try:
+            app = Application.objects.get(user=user, announcement=announcement, is_favorite=True)
+        except Application.DoesNotExist:
+            return Response({"detail": "Cannot add to favorites. Application is not marked as favorite."},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        favorite, created = UserFavorite.objects.get_or_create(user=user, announcement=announcement)
+        serializer = UserFavoriteSerializer(favorite)
+        return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+
+class RemoveFavoriteView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, announcement_id):
+        user = request.user
+        try:
+            favorite = UserFavorite.objects.get(user=user, announcement_id=announcement_id)
+        except UserFavorite.DoesNotExist:
+            return Response({"detail": "Favorite not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        favorite.delete()
+        return Response({"detail": "Announcement removed from favorites."}, status=status.HTTP_200_OK)

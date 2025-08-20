@@ -18,18 +18,22 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         user = self.user
 
         if user.role == User.Role.ORGANIZATION:
-            from .models import Organization  # عدّل حسب app
             org = Organization.objects.filter(user=user).first()
             if not org:
+                raise serializers.ValidationError({"detail": "Organization profile not found."})
+            
+            if org.is_rejected:
                 raise serializers.ValidationError({
-                    "detail": "Organization profile not found."
+                    "detail": f"Your organization registration has been rejected: {org.rejection_reason}"
                 })
+            
             if not org.is_active:
                 raise serializers.ValidationError({
                     "detail": "Your organization account is not active yet. Please wait for admin approval."
                 })
 
         return data
+
 
 # =========================
 # 🔹 User Serializers
@@ -256,6 +260,11 @@ class OrganizationProfileSerializer(serializers.ModelSerializer):
         # تحديث بيانات الـ Organization
         return super().update(instance, validated_data)
 
+class UserFavoriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserFavorite
+        fields = ['id', 'user', 'announcement', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'user', 'created_at', 'updated_at']
 
 # =========================
 # 🔹 Models Serializers
@@ -277,13 +286,6 @@ class AnnouncementSerializer(serializers.ModelSerializer):
 class ApplicationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Application
-        fields = "__all__"
-        read_only_fields = ("created_at", "updated_at")
-
-
-class UserFavoriteSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = UserFavorite
         fields = "__all__"
         read_only_fields = ("created_at", "updated_at")
 

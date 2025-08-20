@@ -30,7 +30,7 @@ class AnnouncementCategoryAdmin(admin.ModelAdmin):
 # ----- Application -----
 @admin.register(Application)
 class ApplicationAdmin(admin.ModelAdmin):
-    list_display = ("id", "announcement", "user", "status", "created_at", "updated_at")
+    list_display = ("id", "announcement", "user", "status", "created_at", "updated_at", "is_favorite")
     list_filter = ("status",)
     search_fields = ("user__name", "announcement__title")
     readonly_fields = ("created_at", "updated_at")
@@ -45,10 +45,24 @@ class UserFavoriteAdmin(admin.ModelAdmin):
 # ----- Organization -----
 @admin.register(Organization)
 class OrganizationAdmin(admin.ModelAdmin):
-    list_display = ("id", "user", "verified", "is_active", "rate", "created_at", "updated_at")
-    list_filter = ("verified", "is_active")
-    search_fields = ("description",)
+    list_display = (
+        "id", "user", "verified", "is_active", "is_rejected", "rate", "created_at", "updated_at"
+    )
+    list_filter = ("verified", "is_active", "is_rejected")
+    search_fields = ("description", "rejection_reason", "user__name", "user__email")
     readonly_fields = ("created_at", "updated_at")
+    fieldsets = (
+        (None, {
+            "fields": ("user", "description", "website", "location", "rate")
+        }),
+        ("Status", {
+            "fields": ("verified", "is_active", "is_rejected", "rejection_reason")
+        }),
+        ("Timestamps", {
+            "fields": ("created_at", "updated_at")
+        }),
+    )
+
 
 # ----- OrganizationDocument -----
 @admin.register(OrganizationDocument)
