@@ -81,21 +81,21 @@ WSGI_APPLICATION = 'awn.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'awn',          # عدل الاسم حسب إعداداتك
-        'USER': 'postgres',                # اسم المستخدم لقاعدة البيانات
-        'PASSWORD': 'Awn@db.5200!!',  # كلمة المرور لقاعدة البيانات
-        'HOST': '109.61.81.34',                    # أو عنوان السيرفر
-        'PORT': '5432',                         # رقم المنفذ الافتراضي
+        'NAME': 'awn',         
+        'USER': 'postgres',           
+        'PASSWORD': 'Awn@db.5200!!', 
+        'HOST': '109.61.81.34',                  
+        'PORT': '5432',                       
     }
 }
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
-        'rest_framework.authentication.SessionAuthentication',  # Optional, for session-based auth
+        'rest_framework.authentication.SessionAuthentication', 
     ),
     'DEFAULT_RENDERER_CLASSES': (
-        'rest_framework.renderers.JSONRenderer',  # Only JSON responses
+        'rest_framework.renderers.JSONRenderer', 
     ),
 
 

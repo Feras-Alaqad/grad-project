@@ -8,10 +8,10 @@ from .models import (
 # ----- User -----
 @admin.register(User)
 class UserAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "email", "role", "is_active", "created_at", "ubdated_at")
+    list_display = ("id", "name", "email", "role", "is_active", "created_at", "updated_at")
     list_filter = ("role", "is_active")
     search_fields = ("name", "email")
-    readonly_fields = ("created_at", "ubdated_at", "last_login", "date_joined")
+    readonly_fields = ("created_at", "updated_at", "last_login", "date_joined")
 
 # ----- Announcement -----
 @admin.register(Announcement)
