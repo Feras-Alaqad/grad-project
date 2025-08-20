@@ -1,71 +1,64 @@
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 
 from django.db import models
-from django.contrib.auth.models import AbstractUser, BaseUserManager
+from django.contrib.auth.models import BaseUserManager, AbstractBaseUser, PermissionsMixin
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
 
 
+
 class UserManager(BaseUserManager):
-    """
-    Custom user manager - uses email instead of username
-    """
-    def create_user(self, email, password=None, **extra_fields):
-        """Create a regular user"""
+    def create_user(self, email, name, phone, password=None, **extra_fields):
         if not email:
-            raise ValueError('Email field must be set')
+            raise ValueError("Email field must be set")
+        if not name:
+            raise ValueError("Name field must be set")
+        if not phone:
+            raise ValueError("Phone field must be set")
+
         email = self.normalize_email(email)
-        user = self.model(email=email, **extra_fields)
+        user = self.model(email=email, name=name, phone=phone, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
         return user
 
-    def create_superuser(self, email, password=None, **extra_fields):
-        """Create a superuser (admin)"""
-        extra_fields.setdefault('is_staff', True)
-        extra_fields.setdefault('is_superuser', True)
-        extra_fields.setdefault('role', 'admin')
+    def create_superuser(self, email, name, phone, password=None, **extra_fields):
+        extra_fields.setdefault("is_staff", True)
+        extra_fields.setdefault("is_superuser", True)
+        extra_fields["role"] = User.Role.ADMIN
 
-        if extra_fields.get('is_staff') is not True or extra_fields.get('is_superuser') is not True:
-            raise ValueError('Superuser must have is_staff=True and is_superuser=True.')
+        return self.create_user(email, name, phone, password, **extra_fields)
 
-        return self.create_user(email, password, **extra_fields)
 
-class User(AbstractUser):
+class User(AbstractBaseUser, PermissionsMixin):
     """
     Custom user model
     - Uses email instead of username
-    - Contains different roles (institution, admin, user)
+    - No first_name / last_name
+    - Added role and phone
     """
     class Role(models.TextChoices):
         ORGANIZATION = "organization", "Organization"
         ADMIN = "admin", "Admin"
         USER = "user", "User"
 
-    # Remove username and use email
-    username = None
-    name = models.CharField(
-        max_length=255, 
-        blank=True,
-        verbose_name="Name",
-        help_text="Full user name"
-    )
     email = models.EmailField(
         unique=True,
         verbose_name="Email",
         help_text="Unique email address for the user"
+    )
+    name = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="Name",
+        help_text="Full user name"
     )
     phone = models.CharField(
         max_length=14,
         blank=True,
         verbose_name="Phone Number",
         help_text="User's phone number"
-    )
-    is_active = models.BooleanField(
-        default=True, 
-        verbose_name="Active",
-        help_text="Is the user active?"
     )
     role = models.CharField(
         max_length=20,
@@ -74,21 +67,15 @@ class User(AbstractUser):
         verbose_name="Role",
         help_text="User role in the system"
     )
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        verbose_name="Creation Date",
-        help_text="Date when the user was created"
-    )
-    ubdated_at = models.DateTimeField(
-        auto_now=True,
-        verbose_name="Update Date",
-        help_text="Date when the user was last updated"
-    )
-    
-    # Set email as the primary login field
-    USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['name', 'password', 'role', 'phone']
-    
+    is_active = models.BooleanField(default=True)
+    is_staff = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    # login with email
+    USERNAME_FIELD = "email"
+    REQUIRED_FIELDS = ['name', 'password', 'phone']
+
     objects = UserManager()
 
     def __str__(self):

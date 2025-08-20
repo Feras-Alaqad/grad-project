@@ -4,8 +4,6 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth.tokens import default_token_generator
-from django.utils.http import urlsafe_base64_encode
-from django.utils.encoding import force_bytes, force_str
 from django.conf import settings
 from django.core.mail import send_mail
 from rest_framework_simplejwt.tokens import UntypedToken
@@ -13,16 +11,18 @@ from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
-from django.contrib.auth.password_validation import validate_password
+from rest_framework.permissions import IsAdminUser
+from rest_framework_simplejwt.views import TokenObtainPairView
+
 from .models import User, Organization
 from .serializers import (
     UserSignupSerializer,
     UserSerializer,
-    ForgotPasswordSerializer, 
     ResetPasswordSerializer,
     ChangePasswordSerializer,
     OrganizationSignupSerializer,
-    OrganizationProfileSerializer
+    OrganizationProfileSerializer,
+    CustomTokenObtainPairSerializer
 )
 
 
@@ -49,35 +49,60 @@ class UserSignupView(APIView):
 
 class OrganizationSignupView(APIView):
     def post(self, request):
-        # التحقق من وجود البريد الإلكتروني مسبقًا
         email = request.data.get('email')
         if User.objects.filter(email=email).exists():
             return Response(
                 {"error": "This email is already in use."},
                 status=status.HTTP_400_BAD_REQUEST
-        )
+            )
 
         serializer = OrganizationSignupSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()  # إنشاء المستخدم والمؤسسة
 
-            # إنشاء التوكن
-            refresh = RefreshToken.for_user(user)
-            return Response({
-                "user": {
-                    "id": user.id,
-                    "email": user.email,
-                    "name": user.name,
-                    "phone": user.phone,
-                    "role": user.role
-                },
-                "refresh": str(refresh),
-                "access": str(refresh.access_token)
-            }, status=status.HTTP_201_CREATED)
+            # لا يتم إصدار التوكن بعد، لأن الحساب غير مفعل
+            return Response(
+                {"message": "Your registration request has been received. Please wait for admin approval."},
+                status=status.HTTP_201_CREATED
+            )
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+class OrganizationActivationView(APIView):
+    permission_classes = [IsAdminUser]
 
+    def post(self, request, org_id):
+        try:
+            org = Organization.objects.get(id=org_id)
+        except Organization.DoesNotExist:
+            return Response({"detail": "Organization not found."}, status=404)
+
+        if org.is_active:
+            return Response({"detail": "Organization is already active."}, status=400)
+
+        # تفعيل المؤسسة
+        org.is_active = True
+        org.save()
+
+        # إنشاء التوكن للمستخدم المرتبط
+        user = org.user
+        refresh = RefreshToken.for_user(user)
+
+        return Response({
+            "detail": "Organization activated successfully.",
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "name": user.name,
+                "phone": user.phone,
+                "role": user.role
+            },
+            "refresh": str(refresh),
+            "access": str(refresh.access_token)
+        }, status=200)
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer
 # views.py
 class ForgotPasswordAPIView(generics.GenericAPIView):
     """
@@ -201,7 +226,40 @@ class ProfileView(APIView):
             return Response(serializer.data)
         
         else:
-            # بيانات المستخدم العادي
             serializer = UserSerializer(user)
             return Response(serializer.data)
+
+    def put(self, request):
+        user = request.user
+
+        # 🚨 تحقق من الحقول إذا كان User عادي
+        forbidden_fields = ['website', 'location', 'description']
+        if user.role == user.Role.USER:
+            for field in forbidden_fields:
+                if field in request.data:
+                    return Response(
+                        {"detail": "You are a USER, not an ORGANIZATION."},
+                        status=403
+                    )
+
+        if user.role == user.Role.ORGANIZATION:
+            try:
+                organization = Organization.objects.get(user=user)
+            except Organization.DoesNotExist:
+                return Response({"detail": "Organization profile not found."}, status=404)
+
+            serializer = OrganizationProfileSerializer(
+                organization, data=request.data, partial=True
+            )
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data)
+            return Response(serializer.errors, status=400)
+        
+        else:
+            serializer = UserSerializer(user, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data)
+            return Response(serializer.errors, status=400)
     

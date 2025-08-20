@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 from django.utils.http import urlsafe_base64_decode
 from django.utils.encoding import force_str
 from django.contrib.auth.tokens import default_token_generator
-
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 
 from .models import (
@@ -12,6 +12,24 @@ from .models import (
     UserFavorite, Organization, OrganizationDocument,
     Notification, Review, HelpSupport
 )
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    def validate(self, attrs):
+        data = super().validate(attrs)
+        user = self.user
+
+        if user.role == User.Role.ORGANIZATION:
+            from .models import Organization  # عدّل حسب app
+            org = Organization.objects.filter(user=user).first()
+            if not org:
+                raise serializers.ValidationError({
+                    "detail": "Organization profile not found."
+                })
+            if not org.is_active:
+                raise serializers.ValidationError({
+                    "detail": "Your organization account is not active yet. Please wait for admin approval."
+                })
+
+        return data
 
 # =========================
 # 🔹 User Serializers
@@ -103,7 +121,7 @@ class OrganizationSignupSerializer(serializers.ModelSerializer):
             'location': validated_data.pop('location', ''),
             'rate': validated_data.pop('rate', 1),
             'verified': False,
-            'is_active': True,
+            'is_active': False,
         }
 
         # إنشاء المستخدم مع role ORGANIZATION
@@ -134,7 +152,7 @@ class UserSerializer(serializers.ModelSerializer):
             "role",
             "is_active",
             "created_at",
-            "ubdated_at"
+            "updated_at"
         ]
         read_only_fields = ('id', 'created_at', 'updated_at')
         extra_kwargs = {
@@ -212,18 +230,31 @@ class ChangePasswordSerializer(serializers.Serializer):
         return attrs
     
 class OrganizationProfileSerializer(serializers.ModelSerializer):
-
-    name = serializers.CharField(source='user.name', read_only=True)
-    email = serializers.EmailField(source='user.email', read_only=True)
-    phone = serializers.CharField(source='user.phone', read_only=True)
+    # هنا نخلي الحقول تبع اليوزر قابلة للقراءة والكتابة بنفس الوقت
+    name = serializers.CharField(source='user.name', required=False)
+    email = serializers.EmailField(source='user.email', required=False)
+    phone = serializers.CharField(source='user.phone', required=False)
 
     class Meta:
         model = Organization
         fields = [
-            'name', 'email', 'phone',  
-            'description', 'website', 'contact_phone', 'contact_email',
-            'location', 'rate', 'verified', 'is_active', 'created_at', 'updated_at'
+            'name', 'email', 'phone',
+            'description', 'website',
+            'location', 'rate', 'verified', 'is_active',
+            'created_at', 'updated_at'
         ]
+        read_only_fields = ['rate', 'verified', 'is_active', 'created_at', 'updated_at']
+
+    def update(self, instance, validated_data):
+        # تحديث بيانات اليوزر المرتبطة
+        user_data = validated_data.pop('user', {})
+        user = instance.user
+        for attr, value in user_data.items():
+            setattr(user, attr, value)
+        user.save()
+
+        # تحديث بيانات الـ Organization
+        return super().update(instance, validated_data)
 
 
 # =========================
