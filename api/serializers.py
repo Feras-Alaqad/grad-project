@@ -1,10 +1,11 @@
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
-from django.utils.http import urlsafe_base64_decode
-from django.utils.encoding import force_str
 from django.contrib.auth.tokens import default_token_generator
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
+from rest_framework_simplejwt.tokens import RefreshToken
+
 
 
 from .models import (
@@ -144,6 +145,20 @@ class OrganizationSignupSerializer(serializers.ModelSerializer):
         )
 
         return user
+    
+class LogoutSerializer(serializers.Serializer):
+    refresh = serializers.CharField()
+
+    def validate(self, attrs):
+        self.token = attrs['refresh']
+        return attrs
+
+    def save(self, **kwargs):
+        try:
+            token = RefreshToken(self.token)
+            token.blacklist()  # وضع الـ token في blacklist
+        except Exception as e:
+            raise serializers.ValidationError("Token is invalid or expired")
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -261,10 +276,49 @@ class OrganizationProfileSerializer(serializers.ModelSerializer):
         return super().update(instance, validated_data)
 
 class UserFavoriteSerializer(serializers.ModelSerializer):
+    application_id = serializers.IntegerField(source="application.id", read_only=True)
+    user = serializers.CharField(source="application.user.name", read_only=True)
+    announcement = serializers.CharField(source="application.announcement.title", read_only=True)
+
     class Meta:
         model = UserFavorite
-        fields = ['id', 'user', 'announcement', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'user', 'created_at', 'updated_at']
+        fields = ['id', 'application_id', 'user', 'announcement', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'application_id', 'user', 'announcement', 'created_at', 'updated_at']
+    
+    def validate_user(self, value):
+        if value.user_type != 'user':
+            raise serializers.ValidationError("Only users of type 'user' can add favorites.")
+        return value
+
+class OrganizationToggleActiveSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Organization
+        fields = ['is_active', 'block_reason']
+
+    def update(self, instance, validated_data):
+        is_active = validated_data.get('is_active', instance.is_active)
+
+        if not is_active:  # Blocking the organization
+            instance.is_active = False
+            instance.block_reason = validated_data.get('block_reason', '')
+
+            # إبطال كل التوكنات الصالحة للمؤسسة
+            tokens = OutstandingToken.objects.filter(user=instance.user)
+            for token in tokens:
+                BlacklistedToken.objects.get_or_create(token=token)
+
+        else:  # Reactivating
+            instance.is_active = True
+
+        instance.save()
+        return instance
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if instance.is_active:
+            data.pop('block_reason', None)
+        return data
+
 
 # =========================
 # 🔹 Models Serializers
@@ -665,14 +719,111 @@ class NotificationSerializer(serializers.ModelSerializer):
         read_only_fields = ("created_at",)
 
 
-class ReviewSerializer(serializers.ModelSerializer):
+class OrganizationBasicSerializer(serializers.ModelSerializer):
+    """Serializer للمؤسسات - للاستخدام في قائمة الاختيار"""
+    user_name = serializers.CharField(source='user.name', read_only=True)
+    
     class Meta:
-        model = Review
-        fields = "__all__"
+        model = Organization
+        fields = ['id', 'user_name', 'verified', 'is_active']
 
 
 class HelpSupportSerializer(serializers.ModelSerializer):
+    """Serializer for support requests"""
+    user_name = serializers.CharField(source='user.name', read_only=True)
+    user_email = serializers.CharField(source='user.email', read_only=True)
+    target_org_name = serializers.CharField(source='target_org.user.name', read_only=True)
+    type_display = serializers.CharField(source='get_type_display', read_only=True)
+    priority_display = serializers.CharField(source='get_priority_display', read_only=True)
+    
     class Meta:
         model = HelpSupport
-        fields = "__all__"
-        read_only_fields = ("created_at",)
+        fields = [
+            'id', 'user', 'user_name', 'user_email', 'description', 
+            'target_org', 'target_org_name', 'priority_display',
+            'type_display', 'created_at'
+        ]
+        read_only_fields = ['id', 'user', 'created_at']
+    
+    def validate_type(self, value):
+        """Validate request type"""
+        if value not in [choice[0] for choice in HelpSupport.SupportType.choices]:
+            raise serializers.ValidationError("Invalid request type")
+        return value
+    
+    def validate_priority(self, value):
+        """Validate priority - required only for complaints"""
+        request_type = self.initial_data.get('type')
+        if request_type == 'complaint' and not value:
+            raise serializers.ValidationError("Priority is required for complaints")
+        if request_type != 'complaint' and value:
+            raise serializers.ValidationError("Priority is only available for complaints")
+        return value
+    
+    def validate_target_org(self, value):
+        """Validate target organization - required only for complaints"""
+        request_type = self.initial_data.get('type')
+        if request_type == 'complaint' and not value:
+            raise serializers.ValidationError("Organization must be specified for complaints")
+        if request_type != 'complaint' and value:
+            raise serializers.ValidationError("Organization selection is only available for complaints")
+        return value
+    
+    def validate_description(self, value):
+        """Validate issue description"""
+        if len(value.strip()) < 10:
+            raise serializers.ValidationError("Issue description must be at least 10 characters long")
+        return value.strip()
+
+
+class HelpSupportCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating new support requests"""
+    
+    class Meta:
+        model = HelpSupport
+        fields = ['description', 'target_org', 'priority', 'type']
+    
+    def validate(self, attrs):
+        """Validate data based on request type"""
+        request_type = attrs.get('type')
+        
+        # For complaints
+        if request_type == 'complaint':
+            if not attrs.get('target_org'):
+                raise serializers.ValidationError("Organization must be specified for complaints")
+            if not attrs.get('priority'):
+                raise serializers.ValidationError("Priority must be specified for complaints")
+        
+        # For general requests and account issues
+        elif request_type in ['general', 'account']:
+            if attrs.get('target_org'):
+                raise serializers.ValidationError("Organization cannot be specified for this type of request")
+            if attrs.get('priority'):
+                raise serializers.ValidationError("Priority is only available for complaints")
+        
+        return attrs
+    
+class HelpSupportAdminSerializer(serializers.ModelSerializer):
+    # بيانات المستخدم
+    user_name = serializers.CharField(source='user.name', read_only=True)
+    user_email = serializers.CharField(source='user.email', read_only=True)
+    
+    # بيانات المؤسسة المستهدفة (إن وجدت)
+    target_org_name = serializers.CharField(source='target_org.user.name', read_only=True)
+    
+    # عرض النصوص المقروءة للنوع والحالة
+    type_display = serializers.CharField(source='get_type_display', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+
+    class Meta:
+        model = HelpSupport
+        fields = [
+            'id', 'user', 'user_name', 'user_email',
+            'description', 'type_display',
+            'priority', 'target_org', 'target_org_name',
+            'status_display', 'reply',
+            'created_at'
+        ]
+        read_only_fields = ['id', 'user', 'created_at', 'status', 'type']
+
+

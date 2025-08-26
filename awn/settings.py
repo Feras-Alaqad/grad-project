@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'api',  # Your API application
     'rest_framework',  # Django REST Framework for API support
     'rest_framework_simplejwt',  # JWT authentication support
+    'rest_framework_simplejwt.token_blacklist',  # Token blacklist for JWT
 ]
 
 MIDDLEWARE = [
