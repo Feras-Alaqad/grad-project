@@ -17,6 +17,7 @@ from .views import (
     RemoveFavoriteView,
     AnnouncementViewSet,
     AnnouncementCategoryViewSet,
+    ApplicationViewSet,
     CreateAnnouncementsView,
     UpdateAnnouncementView,
     OrganizationSearchView,
@@ -34,6 +35,7 @@ from .views import (
 router = DefaultRouter()
 router.register(r'announcements', AnnouncementViewSet, basename='announcement')
 router.register(r'announcement-categories', AnnouncementCategoryViewSet, basename='announcement-category')
+router.register(r'applications', ApplicationViewSet, basename='application')
 
 urlpatterns = [
     # Authentication endpoints

@@ -580,11 +580,122 @@ class AnnouncementApprovalSerializer(serializers.ModelSerializer):
         return value
 
 
-class ApplicationSerializer(serializers.ModelSerializer):
+# =========================
+# 🔹 Application Serializers
+# =========================
+class ApplicationCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating applications"""
+    
     class Meta:
         model = Application
-        fields = "__all__"
-        read_only_fields = ("created_at", "updated_at")
+        fields = ['announcement']
+        
+    def validate_announcement(self, value):
+        """Validate that announcement exists and is approved"""
+        if value.status != Announcement.Status.APPROVED:
+            raise serializers.ValidationError("You can only apply to approved announcements.")
+        return value
+        
+    def validate(self, attrs):
+        """Validate that user hasn't already applied to this announcement"""
+        user = self.context['request'].user
+        announcement = attrs['announcement']
+        
+        if Application.objects.filter(user=user, announcement=announcement).exists():
+            raise serializers.ValidationError("You have already applied to this announcement.")
+            
+        return attrs
+        
+    def create(self, validated_data):
+        """Create application with current user"""
+        validated_data['user'] = self.context['request'].user
+        return super().create(validated_data)
+
+
+class ApplicationListSerializer(serializers.ModelSerializer):
+    """Serializer for listing applications"""
+    announcement_title = serializers.CharField(source='announcement.title', read_only=True)
+    announcement_id = serializers.IntegerField(source='announcement.id', read_only=True)
+    organization_name = serializers.SerializerMethodField()
+    user_name = serializers.CharField(source='user.name', read_only=True)
+    user_email = serializers.CharField(source='user.email', read_only=True)
+    
+    class Meta:
+        model = Application
+        fields = [
+            'id', 'announcement_id', 'announcement_title', 'organization_name',
+            'user_name', 'user_email', 'status', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+        
+    def get_organization_name(self, obj):
+        """Get organization name from announcement"""
+        if obj.announcement.organization:
+            return obj.announcement.organization.user.name
+        return obj.announcement.organization_name or "N/A"
+
+
+class ApplicationDetailSerializer(serializers.ModelSerializer):
+    """Serializer for detailed application view"""
+    announcement = AnnouncementDetailSerializer(read_only=True)
+    user_name = serializers.CharField(source='user.name', read_only=True)
+    user_email = serializers.CharField(source='user.email', read_only=True)
+    user_phone = serializers.CharField(source='user.phone', read_only=True)
+    
+    class Meta:
+        model = Application
+        fields = [
+            'id', 'announcement', 'user_name', 'user_email', 'user_phone',
+            'status', 'admin_notes', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class ApplicationUpdateSerializer(serializers.ModelSerializer):
+    """Serializer for updating application status (admin only)"""
+    
+    class Meta:
+        model = Application
+        fields = ['status', 'admin_notes']
+        
+    def validate_status(self, value):
+        """Validate status transitions"""
+        if value not in [choice[0] for choice in Application.Status.choices]:
+            raise serializers.ValidationError("Invalid status value.")
+        return value
+        
+    def update(self, instance, validated_data):
+        """Update application and send notification if status changed"""
+        old_status = instance.status
+        updated_instance = super().update(instance, validated_data)
+        
+        # Send notification if status changed
+        if old_status != updated_instance.status:
+            # Here you can add notification logic
+            pass
+            
+        return updated_instance
+
+
+class UserApplicationSerializer(serializers.ModelSerializer):
+    """Serializer for user's own applications"""
+    announcement_title = serializers.CharField(source='announcement.title', read_only=True)
+    announcement_id = serializers.IntegerField(source='announcement.id', read_only=True)
+    organization_name = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Application
+        fields = [
+            'id', 'announcement_id', 'announcement_title', 'organization_name',
+            'status', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+        
+    def get_organization_name(self, obj):
+        """Get organization name from announcement"""
+        if obj.announcement.organization:
+            return obj.announcement.organization.user.name
+        return obj.announcement.organization_name or "N/A"
 
 
 class OrganizationSerializer(serializers.ModelSerializer):
