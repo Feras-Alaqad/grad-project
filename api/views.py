@@ -21,7 +21,7 @@ from .models import (
 )
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q
-from .models import User, Organization, Announcement, AnnouncementCategory
+from .models import User, Organization, Announcement, AnnouncementCategory, Application
 from .serializers import (
     UserSignupSerializer,
     UserSerializer,
@@ -37,7 +37,12 @@ from .serializers import (
     AnnouncementUpdateSerializer,
     AnnouncementAdminSerializer,
     AnnouncementApprovalSerializer,
-    AnnouncementCategorySerializer
+    AnnouncementCategorySerializer,
+    ApplicationCreateSerializer,
+    ApplicationListSerializer,
+    ApplicationDetailSerializer,
+    ApplicationUpdateSerializer,
+    UserApplicationSerializer
 )
 
 
@@ -524,6 +529,203 @@ class CreateAnnouncementsView(APIView):
             'message': 'Validation failed',
             'errors': serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ApplicationViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing applications to announcements.
+    Provides CRUD operations with proper permission handling.
+    """
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['status', 'announcement', 'announcement__organization']
+    search_fields = ['announcement__title', 'announcement__organization__name']
+    ordering_fields = ['created_at', 'updated_at']
+    ordering = ['-created_at']
+    
+    def get_queryset(self):
+        """
+        Return applications based on user role and permissions.
+        """
+        user = self.request.user
+        
+        if user.is_staff:  # Admin can see all applications
+            return Application.objects.all().select_related('user', 'announcement', 'announcement__organization')
+        elif hasattr(user, 'organization'):  # Organization can see applications to their announcements
+            return Application.objects.filter(
+                announcement__organization=user.organization
+            ).select_related('user', 'announcement', 'announcement__organization')
+        else:  # Regular users can only see their own applications
+            return Application.objects.filter(
+                user=user
+            ).select_related('user', 'announcement', 'announcement__organization')
+    
+    def get_serializer_class(self):
+        """
+        Return appropriate serializer based on action and user role.
+        """
+        if self.action == 'create':
+            return ApplicationCreateSerializer
+        elif self.action in ['update', 'partial_update']:
+            return ApplicationUpdateSerializer
+        elif self.action == 'list':
+            if hasattr(self.request.user, 'organization') or self.request.user.is_staff:
+                return ApplicationListSerializer
+            else:
+                return UserApplicationSerializer
+        else:  # retrieve
+            return ApplicationDetailSerializer
+    
+    def get_permissions(self):
+        """
+        Set permissions based on action.
+        """
+        if self.action == 'create':
+            permission_classes = [IsAuthenticated]
+        elif self.action in ['update', 'partial_update', 'destroy']:
+            permission_classes = [IsAuthenticated]  # Will check ownership in perform_update/destroy
+        else:
+            permission_classes = [IsAuthenticated]
+        
+        return [permission() for permission in permission_classes]
+    
+    def perform_create(self, serializer):
+        """
+        Set the user when creating an application.
+        """
+        serializer.save(user=self.request.user)
+    
+    def perform_update(self, serializer):
+        """
+        Only allow admins and organization owners to update applications.
+        """
+        application = self.get_object()
+        user = self.request.user
+        
+        # Check if user has permission to update this application
+        if not (user.is_staff or 
+                (hasattr(user, 'organization') and 
+                 application.announcement.organization == user.organization)):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("You don't have permission to update this application.")
+        
+        serializer.save()
+    
+    def perform_destroy(self, serializer):
+        """
+        Only allow users to delete their own applications or admins to delete any.
+        """
+        application = self.get_object()
+        user = self.request.user
+        
+        # Check if user has permission to delete this application
+        if not (user.is_staff or application.user == user):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("You don't have permission to delete this application.")
+        
+        application.delete()
+    
+    @action(detail=False, methods=['get'], url_path='my-applications')
+    def my_applications(self, request):
+        """
+        Get current user's applications.
+        """
+        applications = Application.objects.filter(
+            user=request.user
+        ).select_related('announcement', 'announcement__organization')
+        
+        serializer = UserApplicationSerializer(applications, many=True)
+        return Response({
+            'success': True,
+            'data': serializer.data
+        })
+    
+    @action(detail=True, methods=['patch'], url_path='approve')
+    def approve(self, request, pk=None):
+        """
+        Approve an application (admin and organization only).
+        """
+        application = self.get_object()
+        user = request.user
+        
+        # Check permissions
+        if not (user.is_staff or 
+                (hasattr(user, 'organization') and 
+                 application.announcement.organization == user.organization)):
+            return Response({
+                'success': False,
+                'message': 'You do not have permission to approve applications.'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        application.status = Application.Status.APPROVED
+        application.save()
+        
+        serializer = ApplicationDetailSerializer(application)
+        return Response({
+            'success': True,
+            'message': 'Application approved successfully',
+            'data': serializer.data
+        })
+    
+    @action(detail=True, methods=['patch'], url_path='reject')
+    def reject(self, request, pk=None):
+        """
+        Reject an application (admin and organization only).
+        """
+        application = self.get_object()
+        user = request.user
+        
+        # Check permissions
+        if not (user.is_staff or 
+                (hasattr(user, 'organization') and 
+                 application.announcement.organization == user.organization)):
+            return Response({
+                'success': False,
+                'message': 'You do not have permission to reject applications.'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        # Get admin notes from request
+        admin_notes = request.data.get('admin_notes', '')
+        
+        application.status = Application.Status.REJECTED
+        application.admin_notes = admin_notes
+        application.save()
+        
+        serializer = ApplicationDetailSerializer(application)
+        return Response({
+            'success': True,
+            'message': 'Application rejected successfully',
+            'data': serializer.data
+        })
+    
+    @action(detail=False, methods=['get'], url_path='pending')
+    def pending_applications(self, request):
+        """
+        Get pending applications (admin and organization only).
+        """
+        user = request.user
+        
+        if user.is_staff:
+            # Admin can see all pending applications
+            applications = Application.objects.filter(
+                status=Application.Status.PENDING
+            ).select_related('user', 'announcement', 'announcement__organization')
+        elif hasattr(user, 'organization'):
+            # Organization can see pending applications to their announcements
+            applications = Application.objects.filter(
+                status=Application.Status.PENDING,
+                announcement__organization=user.organization
+            ).select_related('user', 'announcement', 'announcement__organization')
+        else:
+            return Response({
+                'success': False,
+                'message': 'You do not have permission to view pending applications.'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        serializer = ApplicationListSerializer(applications, many=True)
+        return Response({
+            'success': True,
+            'data': serializer.data
+        })
 
 
 class OrganizationSearchView(APIView):

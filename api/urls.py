@@ -19,6 +19,7 @@ from .views import (
     RemoveFavoriteView,
     AnnouncementViewSet,
     AnnouncementCategoryViewSet,
+    ApplicationViewSet,
     CreateAnnouncementsView,
     UpdateAnnouncementView,
     OrganizationSearchView
@@ -28,6 +29,7 @@ from .views import (
 router = DefaultRouter()
 router.register(r'announcements', AnnouncementViewSet, basename='announcement')
 router.register(r'announcement-categories', AnnouncementCategoryViewSet, basename='announcement-category')
+router.register(r'applications', ApplicationViewSet, basename='application')
 
 urlpatterns = [
     # Authentication endpoints
@@ -55,7 +57,11 @@ urlpatterns = [
     path('api/announcements/<int:pk>/approve/', AnnouncementViewSet.as_view({'patch': 'approve'}), name='approve-announcement'),
     path('api/announcements/my-announcements/', AnnouncementViewSet.as_view({'get': 'my_announcements'}), name='my-announcements'),
     
-
+    # Application management endpoints
+    path('api/applications/my-applications/', ApplicationViewSet.as_view({'get': 'my_applications'}), name='my-applications'),
+    path('api/applications/pending/', ApplicationViewSet.as_view({'get': 'pending_applications'}), name='pending-applications'),
+    path('api/applications/<int:pk>/approve/', ApplicationViewSet.as_view({'patch': 'approve'}), name='approve-application'),
+    path('api/applications/<int:pk>/reject/', ApplicationViewSet.as_view({'patch': 'reject'}), name='reject-application'),
     
     # API endpoints (ViewSets)
     path('api/', include(router.urls)),
