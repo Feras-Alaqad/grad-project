@@ -1,11 +1,14 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import (
+    TokenObtainPairView,
     TokenRefreshView,
 )
 from .views import (
     UserSignupView,
     OrganizationSignupView,
+    OrganizationAcceptView,
+    OrganizationRejectionView,
     ForgotPasswordAPIView,
     ResetPasswordAPIView,
     ChangePasswordAPIView,
@@ -17,8 +20,10 @@ from .views import (
     OrganizationSearchView,
     OrganizationCreateAnnouncementView,
     DeleteAnnouncementView,
-    AnnouncementEditRequestViewSet
+    AnnouncementEditRequestViewSet,
     OrganizationToggleActiveView,
+    AddFavoriteView,
+    RemoveFavoriteView,
     LogoutView,
     create_support_request,
     get_user_support_requests,  
@@ -26,7 +31,6 @@ from .views import (
     admin_send_request,
     admin_reply_request,
     org_reply_request,
-
 )
 
 # Create router for ViewSets
@@ -45,8 +49,8 @@ urlpatterns = [
     path('api/logout/', LogoutView.as_view(), name='logout'),
     path("api/organization/<int:org_id>/accept/", OrganizationAcceptView.as_view(), name="organization-activate"),
     path('api/organization/<int:org_id>/reject/', OrganizationRejectionView.as_view(), name='organization-reject'),
-    path('api/favorites/add/<int:application_id>/', AddFavoriteView.as_view(), name='add-favorite'),
-    path('api/favorites/remove/<int:application_id>/', RemoveFavoriteView.as_view(), name='remove-favorite'),
+    path('api/favorites/add/<int:announcement_id>/', AddFavoriteView.as_view(), name='add-favorite'),
+    path('api/favorites/remove/<int:announcement_id>/', RemoveFavoriteView.as_view(), name='remove-favorite'),
     path('api/auth/forgot-password/', ForgotPasswordAPIView.as_view(), name='forgot_password'),
     path('api/auth/reset-password/', ResetPasswordAPIView.as_view(), name='reset_password'),
     path('api/auth/change-password/', ChangePasswordAPIView.as_view(), name='change_password'),

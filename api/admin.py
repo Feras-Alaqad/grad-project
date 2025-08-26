@@ -105,20 +105,16 @@ class UserFavoriteAdmin(admin.ModelAdmin):
         "created_at",
         "updated_at"
     )
-    search_fields = ("user__name", "application__announcement__title", "application__user__name")
+    search_fields = ("user__name", "announcement__title", "announcement__organization__user__name")
     readonly_fields = ("created_at", "updated_at")
 
     def get_announcement_user(self, obj):
         # صاحب الإعلان
-        return obj.application.user.name or obj.application.user.email
+        return obj.announcement.organization.user.name or obj.announcement.organization.user.email
     get_announcement_user.short_description = "Announcement Owner"
 
     def get_announcement(self, obj):
-        return obj.application.announcement.title
-    get_announcement.short_description = "Announcement"
-
-    def get_announcement(self, obj):
-        return obj.application.announcement.title
+        return obj.announcement.title
     get_announcement.short_description = "Announcement"
 
 # ----- Organization -----

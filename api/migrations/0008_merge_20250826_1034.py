@@ -6,8 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api', '0005_application_is_favorite'),
-        ('api', '0007_user_field_sync'),
+        ('api', '0004_rename_admin_response_helpsupport_reply_and_more'),
     ]
 
     operations = [

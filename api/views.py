@@ -20,9 +20,7 @@ from .models import (
     User, Organization,
     Announcement,
     UserFavorite,
-    AnnouncementEditRequest
-    Announcement, Application,
-    UserFavorite,
+    AnnouncementEditRequest,
     HelpSupport
 )
 from django_filters.rest_framework import DjangoFilterBackend
@@ -47,7 +45,7 @@ from .serializers import (
     AnnouncementEditRequestCreateSerializer,
     AnnouncementEditRequestListSerializer,
     AnnouncementEditRequestDetailSerializer,
-    AnnouncementEditRequestApprovalSerializer
+    AnnouncementEditRequestApprovalSerializer,
     OrganizationToggleActiveSerializer,
     LogoutSerializer,
     HelpSupportAdminSerializer,
@@ -562,6 +560,23 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
             permission_classes = [IsAuthenticated]
         
         return [permission() for permission in permission_classes]
+    
+    def list(self, request, *args, **kwargs):
+        """Override list to return standard format"""
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response({
+                'success': True,
+                'data': serializer.data
+            })
+        
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({
+            'success': True,
+            'data': serializer.data
+        }, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['patch'], url_path='approve')
     def approve(self, request, pk=None):
@@ -594,7 +609,6 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
         serializer = AnnouncementListSerializer(pending, many=True, context={'request': request})
         return Response({
             'success': True,
-            'count': pending.count(),
             'data': serializer.data
         }, status=status.HTTP_200_OK)
 
@@ -611,7 +625,6 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
         serializer = AnnouncementListSerializer(announcements, many=True, context={'request': request})
         return Response({
             'success': True,
-            'message': 'User announcements retrieved successfully',
             'data': serializer.data
         }, status=status.HTTP_200_OK)
 
@@ -674,7 +687,7 @@ class CreateAnnouncementsView(APIView):
         
         return Response({
             'success': True,
-            'count': queryset.count(),
+            'count': announcements.count(),
             'data': serializer.data
         }, status=status.HTTP_200_OK)
     
@@ -751,9 +764,9 @@ class DeleteAnnouncementView(APIView):
         
         if not announcement:
             return Response({
-                'success': False,
-                'message': 'Announcement not found or permission denied'
-            }, status=status.HTTP_404_NOT_FOUND)
+            'success': False,
+            'message': 'Announcement not found or permission denied'
+        }, status=status.HTTP_404_NOT_FOUND)
         
         # Store announcement title for response
         announcement_title = announcement.title
@@ -859,7 +872,6 @@ class UpdateAnnouncementView(APIView):
             return Response({
                 'success': True,
                 'message': 'Edit request created successfully. Waiting for admin approval.',
-                'edit_request_id': edit_request.id,
                 'data': response_serializer.data
             }, status=status.HTTP_201_CREATED)
         
@@ -884,7 +896,7 @@ class UpdateAnnouncementView(APIView):
             
             return Response({
                 'success': True,
-                'message': 'Announcement updated successfully',
+                'message': 'Announcement approved successfully',
                 'data': response_serializer.data
             }, status=status.HTTP_200_OK)
         
@@ -995,8 +1007,7 @@ class AnnouncementEditRequestViewSet(viewsets.ModelViewSet):
             }, status=status.HTTP_201_CREATED)
         
         return Response({
-            'success': False,
-            'message': 'Validation failed',
+            'detail': 'Validation failed',
             'errors': serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
     
@@ -1026,8 +1037,7 @@ class AnnouncementEditRequestViewSet(viewsets.ModelViewSet):
             }, status=status.HTTP_200_OK)
         
         return Response({
-            'success': False,
-            'message': 'Validation failed',
+            'detail': 'Validation failed',
             'errors': serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
     
@@ -1045,7 +1055,7 @@ class AnnouncementEditRequestViewSet(viewsets.ModelViewSet):
         
         return Response({
             'success': True,
-            'count': pending.count(),
+            'message': 'Pending edit requests retrieved successfully',
             'data': serializer.data
         }, status=status.HTTP_200_OK)
 
@@ -1114,7 +1124,7 @@ class OrganizationCreateAnnouncementView(APIView):
 class AddFavoriteView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def post(self, request, application_id):
+    def post(self, request, announcement_id):
         user = request.user
         try:
             announcement = Announcement.objects.get(id=announcement_id)
@@ -1126,21 +1136,15 @@ class AddFavoriteView(APIView):
 
         # التحقق من دور اليوزر
         if user.role != User.Role.USER:
-            return Response(
-                {"detail": "Only users with role 'user' can add favorites."},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
-        try:
-            application = Application.objects.get(id=application_id)
-        except Application.DoesNotExist:
-            return Response({"detail": "Application not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({
+                "success": False,
+                "message": "Only users with role 'user' can add favorites."
+            }, status=status.HTTP_403_FORBIDDEN)
 
         favorite, created = UserFavorite.objects.get_or_create(
-            application=application,
+            announcement=announcement,
             user=user
         )
-
 
         serializer = UserFavoriteSerializer(favorite)
         return Response({
@@ -1153,17 +1157,17 @@ class AddFavoriteView(APIView):
 class RemoveFavoriteView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def delete(self, request, application_id):
+    def delete(self, request, announcement_id):
         user = request.user
 
         if user.role != User.Role.USER:
-            return Response(
-                {"detail": "Only users with role 'user' can remove favorites."},
-                status=status.HTTP_403_FORBIDDEN
-            )
+            return Response({
+                "success": False,
+                "message": "Only users with role 'user' can remove favorites."
+            }, status=status.HTTP_403_FORBIDDEN)
 
         try:
-            favorite = UserFavorite.objects.get(application__id=application_id, user=user)
+            favorite = UserFavorite.objects.get(announcement__id=announcement_id, user=user)
         except UserFavorite.DoesNotExist:
             return Response({
                 "success": False,
@@ -1180,8 +1184,6 @@ class RemoveFavoriteView(APIView):
 
 # Application views removed - announcements handle their own status workflow
 # Users view approved announcements and apply through external URLs
-
-        return Response({"detail": "Favorite removed."}, status=status.HTTP_200_OK)
 
 class OrganizationToggleActiveView(generics.RetrieveUpdateAPIView):
     queryset = Organization.objects.all()

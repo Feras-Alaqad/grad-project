@@ -277,19 +277,14 @@ class OrganizationProfileSerializer(serializers.ModelSerializer):
         return super().update(instance, validated_data)
 
 class UserFavoriteSerializer(serializers.ModelSerializer):
-    application_id = serializers.IntegerField(source="application.id", read_only=True)
-    user = serializers.CharField(source="application.user.name", read_only=True)
-    announcement = serializers.CharField(source="application.announcement.title", read_only=True)
+    announcement_id = serializers.IntegerField(source="announcement.id", read_only=True)
+    announcement_title = serializers.CharField(source="announcement.title", read_only=True)
+    organization_name = serializers.CharField(source="announcement.organization.user.name", read_only=True)
 
     class Meta:
         model = UserFavorite
-        fields = ['id', 'application_id', 'user', 'announcement', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'application_id', 'user', 'announcement', 'created_at', 'updated_at']
-    
-    def validate_user(self, value):
-        if value.user_type != 'user':
-            raise serializers.ValidationError("Only users of type 'user' can add favorites.")
-        return value
+        fields = ['id', 'announcement_id', 'announcement_title', 'organization_name', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'announcement_id', 'announcement_title', 'organization_name', 'created_at', 'updated_at']
 
 class OrganizationToggleActiveSerializer(serializers.ModelSerializer):
     class Meta:

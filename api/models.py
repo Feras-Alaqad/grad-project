@@ -396,26 +396,25 @@ class UserFavorite(models.Model):
         on_delete=models.CASCADE,
         related_name='favorites'
     )
-    application = models.ForeignKey(   
-        Application,
+    announcement = models.ForeignKey(   
+        Announcement,
         on_delete=models.CASCADE,
         related_name='favorited_by',
-        verbose_name="Application"
+        verbose_name="Announcement"
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.application.user.name or self.application.user.email} - Application #{self.application.id}"
-
+        return f"{self.user.name or self.user.email} - Announcement: {self.announcement.title}"
 
     class Meta:
         verbose_name = "Favorite"
         verbose_name_plural = "Favorites"
         constraints = [
             models.UniqueConstraint(
-            fields=['application', 'user'],
-            name='unique_application_favorite'
+            fields=['announcement', 'user'],
+            name='unique_announcement_favorite'
             )
         ]
 

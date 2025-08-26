@@ -24,10 +24,7 @@ class Migration(migrations.Migration):
             model_name='application',
             name='api_applica_user_id_32dae2_idx',
         ),
-        migrations.RemoveField(
-            model_name='application',
-            name='is_favorite',
-        ),
+
         migrations.AlterField(
             model_name='application',
             name='admin_notes',
