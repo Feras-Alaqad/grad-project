@@ -6,21 +6,18 @@ from rest_framework_simplejwt.views import (
 from .views import (
     UserSignupView,
     OrganizationSignupView,
-    OrganizationAcceptView,
     ForgotPasswordAPIView,
     ResetPasswordAPIView,
     ChangePasswordAPIView,
     ProfileView,
-    CustomTokenObtainPairView,
-    OrganizationRejectionView,
-    AddFavoriteView,
-    RemoveFavoriteView,
     AnnouncementViewSet,
     AnnouncementCategoryViewSet,
-    ApplicationViewSet,
     CreateAnnouncementsView,
     UpdateAnnouncementView,
     OrganizationSearchView,
+    OrganizationCreateAnnouncementView,
+    DeleteAnnouncementView,
+    AnnouncementEditRequestViewSet
     OrganizationToggleActiveView,
     LogoutView,
     create_support_request,
@@ -29,17 +26,18 @@ from .views import (
     admin_send_request,
     admin_reply_request,
     org_reply_request,
+
 )
 
 # Create router for ViewSets
 router = DefaultRouter()
 router.register(r'announcements', AnnouncementViewSet, basename='announcement')
 router.register(r'announcement-categories', AnnouncementCategoryViewSet, basename='announcement-category')
-router.register(r'applications', ApplicationViewSet, basename='application')
+router.register(r'announcement-edit-requests', AnnouncementEditRequestViewSet, basename='announcement-edit-request')
 
 urlpatterns = [
     # Authentication endpoints
-    path('api/auth/login/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path("api/auth/profile/", ProfileView.as_view(), name="user-profile"),
     path("api/auth/signup/user/", UserSignupView.as_view(), name="user-signup"),
@@ -55,13 +53,23 @@ urlpatterns = [
     
     # Announcement endpoints
     path('api/create-announcements/', CreateAnnouncementsView.as_view(), name='create-announcements'),
+    path('api/organizations/create-announcement/', OrganizationCreateAnnouncementView.as_view(), name='organization-create-announcement'),
     path('api/update-announcement/<int:pk>/', UpdateAnnouncementView.as_view(), name='update-announcement'),
+    path('api/delete-announcement/<int:pk>/', DeleteAnnouncementView.as_view(), name='delete-announcement'),
     path('api/organizations/search/', OrganizationSearchView.as_view(), name='organization-search'),
     
     # Admin approval workflow endpoints
     path('api/announcements/pending/', AnnouncementViewSet.as_view({'get': 'pending_announcements'}), name='pending-announcements'),
     path('api/announcements/<int:pk>/approve/', AnnouncementViewSet.as_view({'patch': 'approve'}), name='approve-announcement'),
     path('api/announcements/my-announcements/', AnnouncementViewSet.as_view({'get': 'my_announcements'}), name='my-announcements'),
+
+    # Edit request endpoints
+    path('api/edit-requests/pending/', AnnouncementEditRequestViewSet.as_view({'get': 'pending_edit_requests'}), name='pending-edit-requests'),
+    path('api/edit-requests/<int:pk>/approve-reject/', AnnouncementEditRequestViewSet.as_view({'patch': 'approve_reject'}), name='approve-reject-edit-request'),
+    
+    # Application URLs removed - announcements handle their own status workflow
+    # Users view approved announcements and apply through external URLs
+    
     path('api/organization/<int:pk>/toggle-active/', OrganizationToggleActiveView.as_view(), name='toggle-organization-active'),
 
     # Support request endpoints 
@@ -71,6 +79,7 @@ urlpatterns = [
     path('api/admin/send-to-org/<int:pk>/', admin_send_request, name='admin-send-to-org'),
     path('api/admin/reply/<int:pk>/', admin_reply_request, name='admin-reply-request'),
     path('api/org/reply/<int:pk>/', org_reply_request, name='org-reply-request'),
+
     
     # API endpoints (ViewSets)
     path('api/', include(router.urls)),
