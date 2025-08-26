@@ -5,6 +5,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated, BasePermission
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth.tokens import default_token_generator
 from django.conf import settings
+from rest_framework import permissions
 from django.core.mail import send_mail
 from rest_framework_simplejwt.tokens import UntypedToken
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
@@ -13,11 +14,13 @@ from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAdminUser
 from rest_framework_simplejwt.views import TokenObtainPairView
+from django.shortcuts import get_object_or_404
 
 from .models import (
     User, Organization,
     Announcement, Application,
-    UserFavorite
+    UserFavorite,
+    HelpSupport
 )
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q
@@ -37,8 +40,14 @@ from .serializers import (
     AnnouncementUpdateSerializer,
     AnnouncementAdminSerializer,
     AnnouncementApprovalSerializer,
-    AnnouncementCategorySerializer
+    AnnouncementCategorySerializer,
+    OrganizationToggleActiveSerializer,
+    LogoutSerializer,
+    HelpSupportAdminSerializer,
+    HelpSupportSerializer,
+    HelpSupportCreateSerializer,
 )
+
 
 
 # =========================
@@ -171,7 +180,17 @@ class OrganizationRejectionView(APIView):
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
-# views.py
+
+class LogoutView(generics.GenericAPIView):
+    serializer_class = LogoutSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({"detail": "Successfully logged out."}, status=status.HTTP_200_OK)
+
 class ForgotPasswordAPIView(generics.GenericAPIView):
     """
     API for requesting password reset
@@ -260,23 +279,6 @@ class ChangePasswordAPIView(generics.GenericAPIView):
             'message': 'Password changed successfully'
         }, status=status.HTTP_200_OK)
 
-@api_view(['POST'])
-@permission_classes([AllowAny])
-def verify_jwt_token(request):
-    """
-    تحقق من صحة توكن JWT ويرجع رسالة مناسبة
-    """
-    token = request.data.get('token')
-
-    if not token:
-        return Response({"valid": False, "message": "Token is required"}, status=status.HTTP_400_BAD_REQUEST)
-
-    try:
-        # التحقق من التوكن
-        UntypedToken(token)
-        return Response({"valid": True, "message": "Token is valid"}, status=status.HTTP_200_OK)
-    except (InvalidToken, TokenError) as e:
-        return Response({"valid": False, "message": "Invalid or expired token"}, status=status.HTTP_401_UNAUTHORIZED)
     
 class ProfileView(APIView):
     permission_classes = [IsAuthenticated]
@@ -647,21 +649,26 @@ class UpdateAnnouncementView(APIView):
 class AddFavoriteView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def post(self, request, announcement_id):
+    def post(self, request, application_id):
         user = request.user
-        try:
-            announcement = Announcement.objects.get(id=announcement_id)
-        except Announcement.DoesNotExist:
-            return Response({"detail": "Announcement not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        # التحقق من وجود Application مع is_favorite = True
+        # التحقق من دور اليوزر
+        if user.role != User.Role.USER:
+            return Response(
+                {"detail": "Only users with role 'user' can add favorites."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         try:
-            app = Application.objects.get(user=user, announcement=announcement, is_favorite=True)
+            application = Application.objects.get(id=application_id)
         except Application.DoesNotExist:
-            return Response({"detail": "Cannot add to favorites. Application is not marked as favorite."},
-                            status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": "Application not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        favorite, created = UserFavorite.objects.get_or_create(user=user, announcement=announcement)
+        favorite, created = UserFavorite.objects.get_or_create(
+            application=application,
+            user=user
+        )
+
         serializer = UserFavoriteSerializer(favorite)
         return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
 
@@ -669,12 +676,216 @@ class AddFavoriteView(APIView):
 class RemoveFavoriteView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def delete(self, request, announcement_id):
+    def delete(self, request, application_id):
         user = request.user
+
+        if user.role != User.Role.USER:
+            return Response(
+                {"detail": "Only users with role 'user' can remove favorites."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         try:
-            favorite = UserFavorite.objects.get(user=user, announcement_id=announcement_id)
+            favorite = UserFavorite.objects.get(application__id=application_id, user=user)
         except UserFavorite.DoesNotExist:
             return Response({"detail": "Favorite not found."}, status=status.HTTP_404_NOT_FOUND)
 
         favorite.delete()
-        return Response({"detail": "Announcement removed from favorites."}, status=status.HTTP_200_OK)
+        return Response({"detail": "Favorite removed."}, status=status.HTTP_200_OK)
+
+class OrganizationToggleActiveView(generics.RetrieveUpdateAPIView):
+    queryset = Organization.objects.all()
+    serializer_class = OrganizationToggleActiveSerializer
+    permission_classes = [IsAdminUser]
+
+class IsUserRole(permissions.BasePermission):
+    """Permission to ensure user has 'user' role"""
+    
+    def has_permission(self, request, view):
+        return (
+            request.user and 
+            request.user.is_authenticated and 
+            request.user.role == User.Role.USER
+        )
+
+class IsAdminRole(permissions.BasePermission):
+    """
+    Permission للتحقق أن المستخدم لديه دور ADMIN
+    """
+    def has_permission(self, request, view):
+        return (
+            request.user and 
+            request.user.is_authenticated and 
+            request.user.role == User.Role.ADMIN
+        )
+
+class IsOrganizationRole(permissions.BasePermission):
+    """
+    Permission للتحقق أن المستخدم لديه دور ORGANIZATION
+    """
+    def has_permission(self, request, view):
+        return (
+            request.user and 
+            request.user.is_authenticated and 
+            request.user.role == User.Role.ORGANIZATION
+        )
+    
+@api_view(['POST'])
+@permission_classes([IsAuthenticated, IsUserRole])
+def create_support_request(request):
+    """
+    Create a new support request
+    - User must be authenticated
+    - User must have 'user' role
+    - New requests start with status PENDING
+    """
+    serializer = HelpSupportCreateSerializer(data=request.data)
+    
+    if serializer.is_valid():
+        # Save request with current user and set status to PENDING
+        support_request = serializer.save(user=request.user, status=HelpSupport.Status.PENDING)
+        
+        # Return created request data
+        response_serializer = HelpSupportSerializer(support_request)
+        
+        return Response({
+            'success': True,
+            'message': 'Support request sent successfully',
+            'data': response_serializer.data
+        }, status=status.HTTP_201_CREATED)
+    
+    return Response({
+        'success': False,
+        'message': 'Invalid data provided',
+        'errors': serializer.errors
+    }, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsUserRole])
+def get_user_support_requests(request):
+    """
+    Get support requests for the authenticated user
+    """
+    # Filter requests by type (optional)
+    request_type = request.query_params.get('type')
+    
+    queryset = HelpSupport.objects.filter(user=request.user)
+    
+    if request_type:
+        queryset = queryset.filter(type=request_type)
+    
+    # Order by creation date (newest first)
+    queryset = queryset.order_by('-created_at')
+    
+    serializer = HelpSupportSerializer(queryset, many=True)
+    
+    return Response({
+        'success': True,
+        'data': serializer.data
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsUserRole])
+def get_support_request_detail(request, pk):
+    """
+    Get details of a specific support request
+    - Must belong to the authenticated user
+    """
+    support_request = get_object_or_404(
+        HelpSupport, 
+        pk=pk, 
+        user=request.user
+    )
+    
+    serializer = HelpSupportSerializer(support_request)
+    
+    return Response({
+        'success': True,
+        'data': serializer.data
+    }, status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+@permission_classes([IsAdminRole])
+def admin_send_request(request, pk):
+
+    support_request = get_object_or_404(HelpSupport, pk=pk)
+
+    if support_request.type == 'complaint':
+        # تحقق من وجود target_org
+        if not support_request.target_org:
+            return Response(
+                {'success': False, 'message': 'There must be a target organization for this complaint'},
+                status=400
+            )
+
+    # تحديث الحالة إلى انتظار الرد
+    support_request.status = HelpSupport.Status.WAITING_RESPONSE
+    support_request.save()
+
+    serializer = HelpSupportAdminSerializer(support_request)
+    return Response({
+        'success': True,
+        'message': 'Complaint sent to organization and waiting for response',
+        'data': serializer.data
+    })
+
+@api_view(['POST'])
+@permission_classes([IsAdminRole])
+def admin_reply_request(request, pk):
+    """
+    الرد على طلب عام أو حسابي من قبل الأدمن → CLOSED
+    """
+    support_request = get_object_or_404(
+        HelpSupport,
+        pk=pk,
+        type__in=['general', 'account']  # فقط الطلبات العامة والحسابية
+    )
+
+    reply = request.data.get('reply')
+    if not reply:
+        return Response({'success': False, 'message': 'Reply is required'}, status=400)
+
+    # حفظ الرد وتحويل الحالة إلى مغلق
+    support_request.reply = reply
+    support_request.status = HelpSupport.Status.CLOSED
+    support_request.save()
+
+    serializer = HelpSupportAdminSerializer(support_request)
+    return Response({
+        'success': True,
+        'message': 'Request closed after admin reply',
+        'data': serializer.data
+    })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated, IsOrganizationRole])
+def org_reply_request(request, pk):
+    """
+    المؤسسة ترد على شكوى → الطلب يصبح CLOSED
+    - فقط المستخدم الذي لديه دور المؤسسة صاحب الطلب يمكنه الرد
+    """
+    support_request = get_object_or_404(
+        HelpSupport, 
+        pk=pk, 
+        target_org__user=request.user,  # تأكيد أن المستخدم صاحب المؤسسة
+        type='complaint'
+    )
+
+    reply = request.data.get('reply')
+    if not reply:
+        return Response({'success': False, 'message': 'Reply is required'}, status=400)
+
+    # حفظ الرد وتحويل الحالة إلى مغلق
+    support_request.reply = reply
+    support_request.status = HelpSupport.Status.CLOSED
+    support_request.save()
+
+    serializer = HelpSupportAdminSerializer(support_request)
+    return Response({
+        'success': True,
+        'message': 'Complaint closed after organization response',
+        'data': serializer.data
+    })

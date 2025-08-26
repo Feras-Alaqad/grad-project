@@ -31,7 +31,7 @@ class AnnouncementCategoryAdmin(admin.ModelAdmin):
 # ----- Application -----
 @admin.register(Application)
 class ApplicationAdmin(admin.ModelAdmin):
-    list_display = ("id", "announcement", "user", "status", "created_at", "updated_at", "is_favorite")
+    list_display = ("id", "announcement", "user", "status", "created_at", "updated_at")
     list_filter = ("status",)
     search_fields = ("user__name", "announcement__title")
     readonly_fields = ("created_at", "updated_at")
@@ -39,9 +39,29 @@ class ApplicationAdmin(admin.ModelAdmin):
 # ----- UserFavorite -----
 @admin.register(UserFavorite)
 class UserFavoriteAdmin(admin.ModelAdmin):
-    list_display = ("id", "user", "announcement", "created_at", "updated_at")
-    search_fields = ("user__name", "announcement__title")
+    list_display = (
+        "id",
+        "user",               # الشخص الذي أضاف الـ favorite
+        "get_announcement_user", # صاحب الإعلان
+        "get_announcement",
+        "created_at",
+        "updated_at"
+    )
+    search_fields = ("user__name", "application__announcement__title", "application__user__name")
     readonly_fields = ("created_at", "updated_at")
+
+    def get_announcement_user(self, obj):
+        # صاحب الإعلان
+        return obj.application.user.name or obj.application.user.email
+    get_announcement_user.short_description = "Announcement Owner"
+
+    def get_announcement(self, obj):
+        return obj.application.announcement.title
+    get_announcement.short_description = "Announcement"
+
+    def get_announcement(self, obj):
+        return obj.application.announcement.title
+    get_announcement.short_description = "Announcement"
 
 # ----- Organization -----
 @admin.register(Organization)
@@ -88,7 +108,25 @@ class ReviewAdmin(admin.ModelAdmin):
 # ----- HelpSupport -----
 @admin.register(HelpSupport)
 class HelpSupportAdmin(admin.ModelAdmin):
-    list_display = ("id", "user", "type", "created_at")
-    list_filter = ("type",)
-    search_fields = ("user__name", "description")
+    list_display = (
+        "id", "user", "type", "status", "target_org", 
+        "priority", "created_at"
+    )
+    list_filter = ("type", "status", "priority", "created_at")
+    search_fields = ("user__name", "description", "target_org__user__name")
     readonly_fields = ("created_at",)
+
+    fieldsets = (
+        ("User Info", {
+            "fields": ("user", "type", "description")
+        }),
+        ("Complaint Details", {
+            "fields": ("target_org", "priority")
+        }),
+        ("Status & Response", {
+            "fields": ("status", "admin_response")
+        }),
+        ("Metadata", {
+            "fields": ("created_at",)
+        }),
+    )
