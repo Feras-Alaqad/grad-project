@@ -1,10 +1,12 @@
-from django.contrib.auth.models import AbstractUser, BaseUserManager
+from django.contrib.auth.models import BaseUserManager
 
 from django.db import models
 from django.contrib.auth.models import BaseUserManager, AbstractBaseUser, PermissionsMixin
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.conf import settings
+
 
 
 
@@ -69,6 +71,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         help_text="User role in the system"
     )
     is_active = models.BooleanField(default=True)
+
     is_staff = models.BooleanField(default=False)
 
     created_at = models.DateTimeField(
@@ -85,10 +88,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     # login with email
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ['name', 'password', 'phone']
-    
-    # Set email as the primary login field
-    USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['name', 'password', 'role', 'phone']
+
     
     objects = UserManager()
 
@@ -174,13 +174,13 @@ class Announcement(models.Model):
         default="https://example.com"  # ضع الرابط الافتراضي هنا
     )
     category = models.ForeignKey(
-        'AnnouncementCategory',
-        on_delete=models.CASCADE,
-        related_name='announcements',
-        verbose_name="Category",
-        help_text="Announcement category",
-        default=1
+        'AnnouncementCategory', 
+        on_delete=models.CASCADE, 
+        related_name='announcements', 
+        null=True, 
+        blank=True
     )
+
     status = models.CharField(
         max_length=20,
         choices=Status.choices,
@@ -191,11 +191,10 @@ class Announcement(models.Model):
     created_by = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='created_announcements',
-        verbose_name="Created By",
-        help_text="User who created this announcement",
-        default=1
-    )
+        related_name='created_announcements', 
+        null=True, blank=True
+        )
+
     admin_notes = models.TextField(
         blank=True,
         verbose_name="Admin Notes",
@@ -342,6 +341,7 @@ class AnnouncementEditRequest(models.Model):
         auto_now=True,
         verbose_name="Last Updated"
     )
+
     reviewed_at = models.DateTimeField(
         null=True,
         blank=True,
@@ -388,52 +388,39 @@ class AnnouncementEditRequest(models.Model):
 class UserFavorite(models.Model):
     """
     User favorites model
-    - Allows users to add announcements to favorites
-    - Many-to-many relationship between users and announcements
-    - Prevents adding same announcement to favorites more than once
+    - Allows users to mark announcements as favorites
+    - Supports quick access to favorite announcements
     """
     user = models.ForeignKey(
-        User,
+        "User",
         on_delete=models.CASCADE,
-        related_name='favorites',
-        verbose_name="User",
-        help_text="User who added announcement to favorites"
+        related_name='favorites'
     )
-    announcement = models.ForeignKey(
-        Announcement,
+    application = models.ForeignKey(   
+        Application,
         on_delete=models.CASCADE,
         related_name='favorited_by',
-        verbose_name="Announcement",
-        help_text="Announcement added to favorites"
+        verbose_name="Application"
     )
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        verbose_name="Addition Date",
-        help_text="Date announcement was added to favorites"
-    )
-    updated_at = models.DateTimeField(
-        auto_now=True,
-        verbose_name="Update Date",
-        help_text="Date when favorite was last updated"
-    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.user.name or self.user.email} - {self.announcement.title}"
+        return f"{self.application.user.name or self.application.user.email} - Application #{self.application.id}"
+
 
     class Meta:
         verbose_name = "Favorite"
         verbose_name_plural = "Favorites"
-        # Prevent adding same announcement to favorites more than once by same user
         constraints = [
             models.UniqueConstraint(
-                fields=['user', 'announcement'], 
-                name='unique_user_favorite'
+            fields=['application', 'user'],
+            name='unique_application_favorite'
             )
         ]
+
         ordering = ['-created_at']
-        indexes = [
-            models.Index(fields=['user', '-created_at']),
-        ]
+
 
 class Organization(models.Model):
     """
@@ -477,6 +464,11 @@ class Organization(models.Model):
         default=True,
         verbose_name="Active",
         help_text="Is the organization currently active?"
+    )
+    block_reason = models.TextField(
+        blank=True,
+        verbose_name="Block Reason",
+        help_text="Reason why the organization was blocked by admin"
     )
     is_rejected = models.BooleanField(
         default=False
@@ -613,43 +605,43 @@ class Notification(models.Model):
 
 # Review model removed - no longer needed without applications
 
-
 class HelpSupport(models.Model):
-    """
-    Help and support model
-    - Allows users to send support requests
-    - Supports different types of support requests
-    """
     class SupportType(models.TextChoices):
         ACCOUNT = "account", "Account Issue"
         GENERAL = "general", "General Inquiry"
         COMPLAINT = "complaint", "Complaint"
 
-    user = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name='support_requests',
-        verbose_name="User",
-        help_text="User who sent the support request"
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        WAITING_RESPONSE = "waiting_response", "Waiting for Response"
+        CLOSED = "closed", "Closed"
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='support_requests')
+    description = models.TextField()
+    target_org = models.ForeignKey(
+        'Organization', null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='complaints'
     )
-    description = models.TextField(
-        verbose_name="Issue Description",
-        help_text="Detailed description of the issue or inquiry"
+    priority = models.CharField(
+        max_length=10,
+        choices=[("low","Low"),("medium","Medium"),("high","High")],
+        null=True, blank=True
     )
     type = models.CharField(
         max_length=20,
         choices=SupportType.choices,
-        default=SupportType.GENERAL,
-        verbose_name="Request Type",
-        help_text="Type of support request"
+        default=SupportType.GENERAL
     )
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        verbose_name="Send Date"
+    status = models.CharField(
+        max_length=30,
+        choices=Status.choices,
+        default=Status.PENDING
     )
+    reply = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Support request from {self.user.name or self.user.email} - {self.get_type_display()}"
+        return f"{self.user} - {self.get_type_display()} - {self.get_status_display()}"
 
     class Meta:
         verbose_name = "Support Request"
