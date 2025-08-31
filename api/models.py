@@ -509,6 +509,12 @@ class OrganizationDocument(models.Model):
     - Contains all documents required for organization verification
     - Supports different types of documents
     """
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ]
+
     organization = models.ForeignKey(
         Organization,
         on_delete=models.CASCADE,
@@ -539,7 +545,12 @@ class OrganizationDocument(models.Model):
         verbose_name="Financial Report",
         help_text="Organization financial reports"
     )
-
+    status = models.CharField(
+        max_length=10, 
+        choices=STATUS_CHOICES, 
+        default='pending'
+    )
+    rejection_reason = models.TextField(blank=True)
     created_at = models.DateTimeField(default=timezone.now)
 
 

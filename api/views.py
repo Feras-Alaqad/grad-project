@@ -20,8 +20,9 @@ from .models import (
     User, Organization,
     Announcement,
     UserFavorite,
+    HelpSupport,
+    OrganizationDocument,
     AnnouncementEditRequest,
-    HelpSupport
 )
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q
@@ -51,6 +52,7 @@ from .serializers import (
     HelpSupportAdminSerializer,
     HelpSupportSerializer,
     HelpSupportCreateSerializer,
+    OrganizationDocumentSerializer
 )
 
 
@@ -440,16 +442,32 @@ class ProfileView(APIView):
     def put(self, request):
         user = request.user
 
-        forbidden_fields = ['website', 'location', 'description']
-        if user.role == user.Role.USER:
-            for field in forbidden_fields:
-                if field in request.data:
-                    return Response({
-                        "success": False,
-                        "message": "You are a USER, not an ORGANIZATION."
-                    }, status=403)
+        # حقول ممنوعة للمستخدم العادي
+        forbidden_fields_user = ['description', 'website', 'location', 'role']
 
-        if user.role == user.Role.ORGANIZATION:
+        # USER العادي
+        if user.role == user.Role.USER:
+            for field in forbidden_fields_user:
+                if field in request.data:
+                    return Response(
+                        {"detail": f"You are not allowed to update the field '{field}'."},
+                        status=403
+                    )
+
+            # التحقق من البريد قبل الحفظ
+            email = request.data.get('email')
+            if email and User.objects.exclude(pk=user.pk).filter(email=email).exists():
+                return Response({"email": ["This email is already used by another account."]}, status=400)
+
+            # تحديث بيانات User العادية
+            for field in ['name', 'email', 'phone']:
+                if field in request.data:
+                    setattr(user, field, request.data[field])
+            user.save()
+            return Response(UserSerializer(user, context={'request': request}).data)
+
+        # ORGANIZATION
+        elif user.role == user.Role.ORGANIZATION:
             try:
                 organization = Organization.objects.get(user=user)
             except Organization.DoesNotExist:
@@ -458,36 +476,41 @@ class ProfileView(APIView):
                     "message": "Organization profile not found"
                 }, status=404)
 
+            # منع تعديل role
+            if 'role' in request.data:
+                return Response({"detail": "You cannot change your role."}, status=403)
+
+            # التحقق من البريد قبل الحفظ
+            email = request.data.get('email')
+            if email and User.objects.exclude(pk=user.pk).filter(email=email).exists():
+                return Response({"email": ["This email is already used by another account."]}, status=400)
+
+            # تحديث بيانات User الشخصية
+            for field in ['name', 'email', 'phone']:
+                if field in request.data:
+                    setattr(user, field, request.data[field])
+            user.save()
+
+            # تحديث بيانات المؤسسة (description, website, location)
             serializer = OrganizationProfileSerializer(
-                organization, data=request.data, partial=True
+                organization, data=request.data, partial=True, context={'request': request}
             )
             if serializer.is_valid():
                 serializer.save()
-                return Response({
-                    "success": True,
-                    "message": "Organization profile updated successfully",
-                    "data": serializer.data
-                })
-            return Response({
-                "success": False,
-                "message": "Validation failed",
-                "errors": serializer.errors
-            }, status=400)
-        
+                return Response(serializer.data)
+            return Response(serializer.errors, status=400)
+
+        # Admin أو أدوار أخرى
+
         else:
-            serializer = UserSerializer(user, data=request.data, partial=True)
+            serializer = UserSerializer(user, data=request.data, partial=True, context={'request': request})
             if serializer.is_valid():
                 serializer.save()
-                return Response({
-                    "success": True,
-                    "message": "User profile updated successfully",
-                    "data": serializer.data
-                })
-            return Response({
-                "success": False,
-                "message": "Validation failed",
-                "errors": serializer.errors
-            }, status=400)
+                return Response(serializer.data)
+            return Response(serializer.errors, status=400)
+
+
+
 # =========================
 # 🔹 Announcement Views
 # =========================
@@ -668,6 +691,7 @@ class CreateAnnouncementsView(APIView):
         status_filter = request.query_params.get('status')
         search = request.query_params.get('search')
         
+
         if category:
             queryset = queryset.filter(category_id=category)
         if organization:
@@ -1403,3 +1427,42 @@ def org_reply_request(request, pk):
         'data': serializer.data
     })
 
+class OrganizationDocumentCreateView(generics.CreateAPIView):
+    """
+    API لرفع وثائق المؤسسة
+    المؤسسة تؤخذ تلقائياً من المستخدم المسجل دخول
+    """
+    serializer_class = OrganizationDocumentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save()
+
+class OrganizationDocumentApproveRejectView(generics.UpdateAPIView):
+    permission_classes = [permissions.IsAdminUser]
+    queryset = OrganizationDocument.objects.all()
+    lookup_field = 'id'  # أو أي identifier
+
+    def patch(self, request, *args, **kwargs):
+        doc = self.get_object()
+        action = request.data.get('action')  # "approve" أو "reject"
+        reason = request.data.get('rejection_reason', '')
+
+        if action == 'approve':
+            doc.status = 'approved'
+            doc.organization.verified = True
+            doc.organization.is_rejected = False
+            doc.organization.rejection_reason = ''
+            doc.organization.save()
+        elif action == 'reject':
+            doc.status = 'rejected'
+            doc.organization.verified = False
+            doc.organization.is_rejected = True
+            doc.organization.rejection_reason = reason
+            doc.organization.save()
+        else:
+            return Response({"error": "Invalid action"}, status=status.HTTP_400_BAD_REQUEST)
+
+        doc.rejection_reason = reason
+        doc.save()
+        return Response({"status": doc.status})

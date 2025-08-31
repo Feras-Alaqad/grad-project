@@ -174,16 +174,15 @@ class UserSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at"
         ]
-        read_only_fields = ('id', 'created_at', 'updated_at')
+        read_only_fields = ('id', 'created_at', 'updated_at')  # role محمي من التغيير
         extra_kwargs = {
             'email': {'required': True, 'allow_blank': False},
             'name': {'required': True, 'allow_blank': False},
             'phone': {'required': False, 'allow_blank': True},
-            'role': {'required': True, 'allow_blank': False}
         }
 
 
-# serializer.py
+
 class ForgotPasswordSerializer(serializers.Serializer):
     email = serializers.EmailField()
 
@@ -839,3 +838,31 @@ class HelpSupportAdminSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'user', 'created_at', 'status', 'type']
 
 
+class OrganizationDocumentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OrganizationDocument
+        fields = [
+            "id",
+            "registration_docs",
+            "financial_report",
+            "activity_proof",
+            "address_proof",
+            "created_at"
+        ]
+        read_only_fields = ["id", "created_at"]
+
+    def create(self, validated_data):
+        request = self.context.get("request")
+        user = request.user
+
+        # تأكد أن المستخدم هو مؤسسة
+        if user.role != user.Role.ORGANIZATION:
+            raise serializers.ValidationError("Only organizations can upload documents.")
+        # الحصول على المؤسسة الخاصة بالمستخدم
+        try:
+            organization = Organization.objects.get(user=user)
+        except Organization.DoesNotExist:
+            raise serializers.ValidationError("This user does not have an organization.")
+
+        validated_data["organization"] = organization
+        return super().create(validated_data)
