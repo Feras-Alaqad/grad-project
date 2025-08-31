@@ -1182,6 +1182,27 @@ class RemoveFavoriteView(APIView):
         }, status=status.HTTP_200_OK)
 
 
+class ListFavoritesView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        if user.role != User.Role.USER:
+            return Response({
+                "success": False,
+                "message": "Only users with role 'user' can view favorites."
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        favorites = UserFavorite.objects.filter(user=user).order_by('-created_at')
+        serializer = UserFavoriteSerializer(favorites, many=True)
+        
+        return Response({
+            "success": True,
+            "data": serializer.data
+        }, status=status.HTTP_200_OK)
+
+
 # Application views removed - announcements handle their own status workflow
 # Users view approved announcements and apply through external URLs
 

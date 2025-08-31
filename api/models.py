@@ -555,7 +555,7 @@ class Notification(models.Model):
     """
     Notifications model
     - Sends notifications to users about various events
-    - Supports read/unread notification states
+    - Supports shown/hidden notification states
     """
     user = models.ForeignKey(
         User,
@@ -565,31 +565,36 @@ class Notification(models.Model):
         help_text="User receiving the notification"
     )
     title = models.CharField(
-        max_length=50,
+        max_length=255,
         blank=False,
-        default="Notification",
+        verbose_name="Title",
+        help_text="Notification title"
     )
     message = models.TextField(
         verbose_name="Notification Message",
         help_text="Notification text sent to user"
     )
-    read_status = models.BooleanField(
+    shown = models.BooleanField(
         default=False,
-        verbose_name="Read Status",
-        help_text="Has the notification been read?"
+        verbose_name="Shown Status",
+        help_text="Has the notification been shown to user?"
     )
     created_at = models.DateTimeField(
         auto_now_add=True,
-        verbose_name="Send Date"
+        verbose_name="Creation Date"
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name="Update Date"
     )
 
     def __str__(self):
-        status = "Read" if self.read_status else "Unread"
+        status = "Shown" if self.shown else "Not Shown"
         return f"Notification to {self.user.name or self.user.email} - {status}"
 
-    def mark_as_read(self):
-        """Mark notification as read"""
-        self.read_status = True
+    def mark_as_shown(self):
+        """Mark notification as shown"""
+        self.shown = True
         self.save()
 
     class Meta:
@@ -597,7 +602,7 @@ class Notification(models.Model):
         verbose_name_plural = "Notifications"
         ordering = ['-created_at']
         indexes = [
-            models.Index(fields=['user', 'read_status']),
+            models.Index(fields=['user', 'shown']),
             models.Index(fields=['-created_at']),
         ]
 

@@ -148,10 +148,10 @@ class OrganizationDocumentAdmin(admin.ModelAdmin):
 # ----- Notification -----
 @admin.register(Notification)
 class NotificationAdmin(admin.ModelAdmin):
-    list_display = ("id", "user", "title", "read_status", "created_at")
-    list_filter = ("read_status",)
+    list_display = ("id", "user", "title", "shown", "created_at")
+    list_filter = ("shown",)
     search_fields = ("user__name", "title", "message")
-    readonly_fields = ("created_at",)
+    readonly_fields = ("created_at", "updated_at")
 
 # ----- Review -----
 # Review admin removed - dependent on Application model which was removed
