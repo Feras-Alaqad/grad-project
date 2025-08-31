@@ -28,6 +28,8 @@ from .views import (
     admin_send_request,
     admin_reply_request,
     org_reply_request,
+    OrganizationDocumentCreateView,
+    OrganizationDocumentApproveRejectView
 )
 
 # Create router for ViewSets
@@ -40,6 +42,7 @@ urlpatterns = [
     path('api/auth/login/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path("api/auth/profile/", ProfileView.as_view(), name="user-profile"),
+    path("api/auth/update-profile/", ProfileView.as_view(), name="update-profile"),
     path("api/auth/signup/user/", UserSignupView.as_view(), name="user-signup"),
     path("api/auth/signup/organization/", OrganizationSignupView.as_view(), name="organization-signup"),
     path('api/logout/', LogoutView.as_view(), name='logout'),
@@ -60,7 +63,7 @@ urlpatterns = [
     path('api/announcements/pending/', AnnouncementViewSet.as_view({'get': 'pending_announcements'}), name='pending-announcements'),
     path('api/announcements/<int:pk>/approve/', AnnouncementViewSet.as_view({'patch': 'approve'}), name='approve-announcement'),
     path('api/announcements/my-announcements/', AnnouncementViewSet.as_view({'get': 'my_announcements'}), name='my-announcements'),
-    path('api/organization/<int:pk>/toggle-active/', OrganizationToggleActiveView.as_view(), name='toggle-organization-active'),
+    path('api/organization/<int:pk>/block/', OrganizationToggleActiveView.as_view(), name='toggle-organization-active'),
 
     # Support request endpoints 
     path('api/support/create/', create_support_request, name='create_support_request'),
@@ -70,6 +73,11 @@ urlpatterns = [
     path('api/admin/reply/<int:pk>/', admin_reply_request, name='admin-reply-request'),
     path('api/org/reply/<int:pk>/', org_reply_request, name='org-reply-request'),
     
+    # Organization Document Management
+    path("api/organization/documents/create/", OrganizationDocumentCreateView.as_view(), name="organization-documents-create"),
+    path('api/admin/organization-documents/<int:id>/verify/', OrganizationDocumentApproveRejectView.as_view(), name='organization-documents-review'),
+
+
     # API endpoints (ViewSets)
     path('api/', include(router.urls)),
 ]
