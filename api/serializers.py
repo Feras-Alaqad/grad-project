@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.contrib.auth.tokens import default_token_generator
+from django.utils import timezone
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -9,9 +10,9 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 
 from .models import (
-    User, Announcement, AnnouncementCategory, Application,
-    UserFavorite, Organization, OrganizationDocument,
-    Notification, Review, HelpSupport
+    User, Announcement, AnnouncementCategory,
+    AnnouncementEditRequest, UserFavorite, Organization, OrganizationDocument,
+    Notification, HelpSupport
 )
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
@@ -275,19 +276,14 @@ class OrganizationProfileSerializer(serializers.ModelSerializer):
         return super().update(instance, validated_data)
 
 class UserFavoriteSerializer(serializers.ModelSerializer):
-    application_id = serializers.IntegerField(source="application.id", read_only=True)
-    user = serializers.CharField(source="application.user.name", read_only=True)
-    announcement = serializers.CharField(source="application.announcement.title", read_only=True)
+    announcement_id = serializers.IntegerField(source="announcement.id", read_only=True)
+    announcement_title = serializers.CharField(source="announcement.title", read_only=True)
+    organization_name = serializers.CharField(source="announcement.organization.user.name", read_only=True)
 
     class Meta:
         model = UserFavorite
-        fields = ['id', 'application_id', 'user', 'announcement', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'application_id', 'user', 'announcement', 'created_at', 'updated_at']
-    
-    def validate_user(self, value):
-        if value.user_type != 'user':
-            raise serializers.ValidationError("Only users of type 'user' can add favorites.")
-        return value
+        fields = ['id', 'announcement_id', 'announcement_title', 'organization_name', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'announcement_id', 'announcement_title', 'organization_name', 'created_at', 'updated_at']
 
 class OrganizationToggleActiveSerializer(serializers.ModelSerializer):
     class Meta:
@@ -339,8 +335,46 @@ class AnnouncementCategorySerializer(serializers.ModelSerializer):
 
 
 class AnnouncementListSerializer(serializers.ModelSerializer):
-    """Serializer for listing announcements (public view)"""
+    """Improved serializer for listing announcements with conditional admin fields"""
     category_name = serializers.CharField(source='category.name', read_only=True)
+    organization_name = serializers.SerializerMethodField()
+    creator_name = serializers.SerializerMethodField()
+    admin_notes = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Announcement
+        fields = [
+            'id', 'title', 'description', 'start_date', 'end_date',
+            'url', 'category_name', 'organization_name', 'creator_name',
+            'status', 'admin_notes', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'status', 'created_at', 'updated_at']
+    
+    def get_creator_name(self, obj):
+        """Return creator name or 'Admin' if created by admin"""
+        if obj.created_by.role == User.Role.ADMIN:
+            return "Admin"
+        return obj.created_by.name
+    
+    def get_organization_name(self, obj):
+        """Return organization name or None if no organization"""
+        if obj.organization_name:
+            return obj.organization_name
+        elif obj.organization:
+            return obj.organization.user.name
+        return None
+    
+    def get_admin_notes(self, obj):
+        """Return admin_notes only for admin users, empty string for others"""
+        request = self.context.get('request')
+        if request and request.user.is_authenticated and request.user.role == User.Role.ADMIN:
+            return obj.admin_notes or ""
+        return ""
+
+
+class AnnouncementDetailSerializer(serializers.ModelSerializer):
+    """Serializer for detailed announcement view"""
+    category = AnnouncementCategorySerializer(read_only=True)
     organization_name = serializers.SerializerMethodField()
     creator_name = serializers.SerializerMethodField()
     
@@ -348,7 +382,7 @@ class AnnouncementListSerializer(serializers.ModelSerializer):
         model = Announcement
         fields = [
             'id', 'title', 'description', 'start_date', 'end_date',
-            'url', 'category_name', 'organization_name', 'creator_name',
+            'url', 'category', 'organization_name', 'creator_name',
             'status', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'status', 'created_at', 'updated_at']
@@ -367,39 +401,7 @@ class AnnouncementListSerializer(serializers.ModelSerializer):
             return obj.organization.user.name
         return None
 
-
-class AnnouncementDetailSerializer(serializers.ModelSerializer):
-    """Serializer for detailed announcement view"""
-    category = AnnouncementCategorySerializer(read_only=True)
-    organization_name = serializers.SerializerMethodField()
-    creator_name = serializers.SerializerMethodField()
-    applications_count = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = Announcement
-        fields = [
-            'id', 'title', 'description', 'start_date', 'end_date',
-            'url', 'category', 'organization_name', 'creator_name',
-            'applications_count', 'status', 'created_at', 'updated_at'
-        ]
-        read_only_fields = ['id', 'status', 'created_at', 'updated_at']
-    
-    def get_creator_name(self, obj):
-        """Return creator name or 'Admin' if created by admin"""
-        if obj.created_by.role == User.Role.ADMIN:
-            return "Admin"
-        return obj.created_by.name
-    
-    def get_organization_name(self, obj):
-        """Return organization name or None if no organization"""
-        if obj.organization_name:
-            return obj.organization_name
-        elif obj.organization:
-            return obj.organization.user.name
-        return None
-
-    def get_applications_count(self, obj):
-        return obj.applications.count()
+    # Applications count removed - no longer applicable
 
 
 class AnnouncementCreateSerializer(serializers.ModelSerializer):
@@ -579,11 +581,130 @@ class AnnouncementApprovalSerializer(serializers.ModelSerializer):
         return value
 
 
-class ApplicationSerializer(serializers.ModelSerializer):
+# Application serializers removed - announcements handle their own status workflow
+# Users view approved announcements and apply through external URLs
+
+
+class AnnouncementEditRequestCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating announcement edit requests"""
+    # Make all proposed fields optional to allow partial edits
+    proposed_title = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    proposed_description = serializers.CharField(required=False, allow_blank=True)
+    proposed_start_date = serializers.DateTimeField(required=False, allow_null=True)
+    proposed_end_date = serializers.DateTimeField(required=False, allow_null=True)
+    proposed_url = serializers.URLField(required=False, allow_blank=True)
+    proposed_category = serializers.PrimaryKeyRelatedField(
+        queryset=AnnouncementCategory.objects.all(),
+        required=False,
+        allow_null=True
+    )
+    
     class Meta:
-        model = Application
-        fields = "__all__"
-        read_only_fields = ("created_at", "updated_at")
+        model = AnnouncementEditRequest
+        fields = [
+            'original_announcement', 'proposed_title', 'proposed_description',
+            'proposed_start_date', 'proposed_end_date', 'proposed_url', 'proposed_category'
+        ]
+    
+    def validate_original_announcement(self, value):
+        """Ensure the announcement is approved and belongs to the requesting user's organization"""
+        if value.status != Announcement.Status.APPROVED:
+            raise serializers.ValidationError("Only approved announcements can have edit requests")
+        
+        user = self.context['request'].user
+        if user.role == User.Role.ORGANIZATION:
+            if value.created_by != user:
+                raise serializers.ValidationError("You can only request edits for your own announcements")
+        
+        return value
+    
+    def validate(self, attrs):
+        """Validate proposed dates and ensure at least one field is provided"""
+        # Ensure at least one proposed field is provided
+        proposed_fields = [
+            'proposed_title', 'proposed_description', 'proposed_start_date',
+            'proposed_end_date', 'proposed_url', 'proposed_category'
+        ]
+        
+        if not any(field in attrs and attrs[field] is not None and attrs[field] != '' for field in proposed_fields):
+            raise serializers.ValidationError(
+                "At least one proposed field must be provided for the edit request."
+            )
+        
+        # Validate proposed dates
+        start_date = attrs.get('proposed_start_date')
+        end_date = attrs.get('proposed_end_date')
+        
+        if start_date and end_date and end_date <= start_date:
+            raise serializers.ValidationError("Proposed end date must be after start date")
+        
+        return attrs
+
+
+class AnnouncementEditRequestListSerializer(serializers.ModelSerializer):
+    """Serializer for listing announcement edit requests"""
+    original_announcement_title = serializers.CharField(source='original_announcement.title', read_only=True)
+    requested_by_name = serializers.CharField(source='requested_by.name', read_only=True)
+    requested_by_email = serializers.CharField(source='requested_by.email', read_only=True)
+    reviewed_by_name = serializers.CharField(source='reviewed_by.name', read_only=True)
+    
+    class Meta:
+        model = AnnouncementEditRequest
+        fields = [
+            'id', 'original_announcement_title', 'proposed_title', 'status',
+            'requested_by_name', 'requested_by_email', 'reviewed_by_name',
+            'created_at', 'reviewed_at'
+        ]
+
+
+class AnnouncementEditRequestDetailSerializer(serializers.ModelSerializer):
+    """Serializer for detailed view of announcement edit requests"""
+    original_announcement = AnnouncementDetailSerializer(read_only=True)
+    requested_by_name = serializers.CharField(source='requested_by.name', read_only=True)
+    requested_by_email = serializers.CharField(source='requested_by.email', read_only=True)
+    reviewed_by_name = serializers.CharField(source='reviewed_by.name', read_only=True)
+    proposed_category_name = serializers.CharField(source='proposed_category.name', read_only=True)
+    
+    class Meta:
+        model = AnnouncementEditRequest
+        fields = [
+            'id', 'original_announcement', 'requested_by_name', 'requested_by_email',
+            'proposed_title', 'proposed_description', 'proposed_start_date',
+            'proposed_end_date', 'proposed_url', 'proposed_category', 'proposed_category_name',
+            'status', 'admin_notes', 'reviewed_by_name', 'created_at', 'updated_at', 'reviewed_at'
+        ]
+
+
+class AnnouncementEditRequestApprovalSerializer(serializers.ModelSerializer):
+    """Serializer for admin to approve/reject edit requests"""
+    
+    class Meta:
+        model = AnnouncementEditRequest
+        fields = ['status', 'admin_notes']
+    
+    def validate_status(self, value):
+        if value not in [AnnouncementEditRequest.Status.APPROVED, AnnouncementEditRequest.Status.REJECTED]:
+            raise serializers.ValidationError("Status must be either approved or rejected")
+        return value
+    
+    def update(self, instance, validated_data):
+        """Update edit request and apply changes if approved"""
+        user = self.context['request'].user
+        
+        # Set review information
+        instance.reviewed_by = user
+        instance.reviewed_at = timezone.now()
+        
+        # Update status and notes
+        instance.status = validated_data.get('status', instance.status)
+        instance.admin_notes = validated_data.get('admin_notes', instance.admin_notes)
+        instance.save()
+        
+        # Apply changes to original announcement if approved
+        if instance.status == AnnouncementEditRequest.Status.APPROVED:
+            instance.apply_changes()
+        
+        return instance
 
 
 class OrganizationSerializer(serializers.ModelSerializer):
@@ -604,7 +725,8 @@ class NotificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Notification
         fields = "__all__"
-        read_only_fields = ("created_at",)
+        read_only_fields = ("created_at", "updated_at")
+
 
 
 class OrganizationBasicSerializer(serializers.ModelSerializer):
@@ -614,6 +736,7 @@ class OrganizationBasicSerializer(serializers.ModelSerializer):
     class Meta:
         model = Organization
         fields = ['id', 'user_name', 'verified', 'is_active']
+
 
 
 class HelpSupportSerializer(serializers.ModelSerializer):

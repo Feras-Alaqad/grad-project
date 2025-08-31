@@ -181,7 +181,7 @@ class Migration(migrations.Migration):
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('updated_at', models.DateTimeField(auto_now=True)),
-                ('application', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='favorited_by', to='api.application', verbose_name='Application')),
+                ('announcement', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='favorited_by', to='api.announcement', verbose_name='Announcement')),
                 ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='favorites', to=settings.AUTH_USER_MODEL)),
             ],
             options={
@@ -236,6 +236,6 @@ class Migration(migrations.Migration):
         ),
         migrations.AddConstraint(
             model_name='userfavorite',
-            constraint=models.UniqueConstraint(fields=('application', 'user'), name='unique_application_favorite'),
+            constraint=models.UniqueConstraint(fields=('announcement', 'user'), name='unique_announcement_favorite'),
         ),
     ]

@@ -47,7 +47,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 
 
     name = models.CharField(
-        max_length=255, 
+        max_length=255,
         blank=True,
         verbose_name="Name",
         help_text="Full user name"
@@ -71,17 +71,24 @@ class User(AbstractBaseUser, PermissionsMixin):
         help_text="User role in the system"
     )
     is_active = models.BooleanField(default=True)
-    is_staff = models.BooleanField(
-        default=False,
-        verbose_name="Staff Status",
-        help_text="Designates whether the user can log into the admin site."
+
+    is_staff = models.BooleanField(default=False)
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Creation Date",
+        help_text="Date when the user was created"
     )
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name="Update Date",
+        help_text="Date when the user was last updated"
+    )
 
     # login with email
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ['name', 'password', 'phone']
+
     
     objects = UserManager()
 
@@ -157,7 +164,7 @@ class Announcement(models.Model):
         blank=True,
         null=True,
         verbose_name="Organization Name",
-        help_text="Custom organization name (for admin use)"
+        help_text="Custom organization name (for admin use) if the announcement is not associated with an organization or non registered organization"
     )
     url = models.URLField(
         blank=False,
@@ -224,77 +231,157 @@ class Announcement(models.Model):
             models.Index(fields=['-created_at']),
         ]
 
-class Application(models.Model):
+# Application model removed - announcements handle their own status workflow
+# Users view approved announcements and apply through external URLs
+
+
+class AnnouncementEditRequest(models.Model):
     """
-    Applications model for announcement applications
-    - Links user and announcement
-    - Tracks application status and admin notes
-    - Prevents duplicate applications from same user to same announcement
+    Model to track edit requests for approved announcements
+    - When organizations want to edit approved announcements, they create an edit request
+    - Admins can approve or reject these edit requests
+    - Original announcement remains unchanged until admin approves the edit
     """
+    
     class Status(models.TextChoices):
-        PENDING = "pending", "Pending"
+        PENDING = "pending", "Pending Review"
         APPROVED = "approved", "Approved"
         REJECTED = "rejected", "Rejected"
-        IN_REVIEW = "in_review", "In Review"
-        WITHDRAWN = "withdrawn", "Withdrawn"
-
-    # Basic relationships
-    announcement = models.ForeignKey(
+    
+    # Reference to the original announcement
+    original_announcement = models.ForeignKey(
         Announcement,
         on_delete=models.CASCADE,
-        related_name='applications',
-        verbose_name="Announcement",
-        help_text="Announcement being applied to"
-    )
-    user = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name='applications',
-        verbose_name="User",
-        help_text="User applying"
+        related_name='edit_requests',
+        verbose_name="Original Announcement",
+        help_text="The announcement being requested for edit"
     )
     
-    # Application status and notes
+    # User who requested the edit
+    requested_by = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='edit_requests',
+        verbose_name="Requested By",
+        help_text="User who requested the edit"
+    )
+    
+    # Proposed changes - all fields are optional to allow partial edits
+    proposed_title = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        verbose_name="Proposed Title",
+        help_text="Proposed new title"
+    )
+    proposed_description = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name="Proposed Description",
+        help_text="Proposed new description"
+    )
+    proposed_start_date = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name="Proposed Start Date",
+        help_text="Proposed new start date"
+    )
+    proposed_end_date = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name="Proposed End Date",
+        help_text="Proposed new end date"
+    )
+    proposed_url = models.URLField(
+        blank=True,
+        null=True,
+        verbose_name="Proposed URL",
+        help_text="Proposed new URL"
+    )
+    proposed_category = models.ForeignKey(
+        'AnnouncementCategory',
+        on_delete=models.CASCADE,
+        blank=True,
+        null=True,
+        verbose_name="Proposed Category",
+        help_text="Proposed new category"
+    )
+    
+    # Edit request status and admin response
     status = models.CharField(
         max_length=20,
         choices=Status.choices,
         default=Status.PENDING,
         verbose_name="Status",
-        help_text="Application status"
+        help_text="Edit request status"
     )
+    
     admin_notes = models.TextField(
         blank=True,
         verbose_name="Admin Notes",
-        help_text="Admin notes about the application"
+        help_text="Admin notes about the edit request approval/rejection"
+    )
+    
+    reviewed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reviewed_edit_requests',
+        verbose_name="Reviewed By",
+        help_text="Admin who reviewed this edit request"
     )
     
     # Timestamps
     created_at = models.DateTimeField(
         auto_now_add=True,
-        verbose_name="Application Date"
+        verbose_name="Request Date"
     )
     updated_at = models.DateTimeField(
         auto_now=True,
-        verbose_name="Update Date"
+        verbose_name="Last Updated"
     )
 
+    reviewed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Review Date",
+        help_text="Date when the edit request was reviewed"
+    )
+    
     def __str__(self):
-        return f"{self.user.name or self.user.email} - {self.announcement.title} - {self.get_status_display()}"
-
+        return f"Edit request for '{self.original_announcement.title}' by {self.requested_by.name or self.requested_by.email}"
+    
+    def apply_changes(self):
+        """Apply the proposed changes to the original announcement"""
+        if self.status == self.Status.APPROVED:
+            announcement = self.original_announcement
+            
+            # Only update fields that have non-null proposed values
+            if self.proposed_title is not None:
+                announcement.title = self.proposed_title
+            if self.proposed_description is not None:
+                announcement.description = self.proposed_description
+            if self.proposed_start_date is not None:
+                announcement.start_date = self.proposed_start_date
+            if self.proposed_end_date is not None:
+                announcement.end_date = self.proposed_end_date
+            if self.proposed_url is not None:
+                announcement.url = self.proposed_url
+            if self.proposed_category is not None:
+                announcement.category = self.proposed_category
+                
+            announcement.save()
+            return True
+        return False
+    
     class Meta:
-        verbose_name = "Application"
-        verbose_name_plural = "Applications"
-        # Prevent duplicate applications from same user to same announcement
-        constraints = [
-            models.UniqueConstraint(
-                fields=['announcement', 'user'], 
-                name='unique_application'
-            )
-        ]
+        verbose_name = "Announcement Edit Request"
+        verbose_name_plural = "Announcement Edit Requests"
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['status', '-created_at']),
-            models.Index(fields=['user', 'status']),
+            models.Index(fields=['original_announcement', '-created_at']),
         ]
 
 
@@ -309,26 +396,25 @@ class UserFavorite(models.Model):
         on_delete=models.CASCADE,
         related_name='favorites'
     )
-    application = models.ForeignKey(   
-        Application,
+    announcement = models.ForeignKey(   
+        Announcement,
         on_delete=models.CASCADE,
         related_name='favorited_by',
-        verbose_name="Application"
+        verbose_name="Announcement"
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.application.user.name or self.application.user.email} - Application #{self.application.id}"
-
+        return f"{self.user.name or self.user.email} - Announcement: {self.announcement.title}"
 
     class Meta:
         verbose_name = "Favorite"
         verbose_name_plural = "Favorites"
         constraints = [
             models.UniqueConstraint(
-            fields=['application', 'user'],
-            name='unique_application_favorite'
+            fields=['announcement', 'user'],
+            name='unique_announcement_favorite'
             )
         ]
 
@@ -480,7 +566,7 @@ class Notification(models.Model):
     """
     Notifications model
     - Sends notifications to users about various events
-    - Supports read/unread notification states
+    - Supports shown/hidden notification states
     """
     user = models.ForeignKey(
         User,
@@ -490,31 +576,36 @@ class Notification(models.Model):
         help_text="User receiving the notification"
     )
     title = models.CharField(
-        max_length=50,
+        max_length=255,
         blank=False,
-        default="Notification",
+        verbose_name="Title",
+        help_text="Notification title"
     )
     message = models.TextField(
         verbose_name="Notification Message",
         help_text="Notification text sent to user"
     )
-    read_status = models.BooleanField(
+    shown = models.BooleanField(
         default=False,
-        verbose_name="Read Status",
-        help_text="Has the notification been read?"
+        verbose_name="Shown Status",
+        help_text="Has the notification been shown to user?"
     )
     created_at = models.DateTimeField(
         auto_now_add=True,
-        verbose_name="Send Date"
+        verbose_name="Creation Date"
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name="Update Date"
     )
 
     def __str__(self):
-        status = "Read" if self.read_status else "Unread"
+        status = "Shown" if self.shown else "Not Shown"
         return f"Notification to {self.user.name or self.user.email} - {status}"
 
-    def mark_as_read(self):
-        """Mark notification as read"""
-        self.read_status = True
+    def mark_as_shown(self):
+        """Mark notification as shown"""
+        self.shown = True
         self.save()
 
     class Meta:
@@ -522,53 +613,12 @@ class Notification(models.Model):
         verbose_name_plural = "Notifications"
         ordering = ['-created_at']
         indexes = [
-            models.Index(fields=['user', 'read_status']),
+            models.Index(fields=['user', 'shown']),
             models.Index(fields=['-created_at']),
         ]
 
 
-class Review(models.Model):
-    """
-    Reviews and ratings model
-    - Allows users to rate applications
-    - Contains comments and numerical rating
-    """
-    application = models.ForeignKey(
-        Application,
-        on_delete=models.CASCADE,
-        related_name='reviews',
-        verbose_name="Application",
-        help_text="Application to be reviewed"
-    )
-    comment = models.TextField(
-        blank=True,
-        verbose_name="Comment",
-        help_text="Comment or notes about the application"
-    )
-    rating = models.PositiveSmallIntegerField(
-    validators=[MinValueValidator(1), MaxValueValidator(5)]
-    )
-    created_at = models.DateTimeField(default=timezone.now)
-
-
-    def __str__(self):
-        return f"Review for {self.application.user.name} application - {self.rating}/5"
-
-    def clean(self):
-        """Validate rating"""
-        if self.rating < 1 or self.rating > 5:
-            raise ValidationError('Rating must be between 1 and 5')
-
-    class Meta:
-        verbose_name = "Review"
-        verbose_name_plural = "Reviews"
-        # Prevent reviewing same application more than once by same reviewer
-        constraints = [
-            models.UniqueConstraint(
-                fields=['application'], 
-                name='unique_application_review'
-            )
-        ]
+# Review model removed - no longer needed without applications
 
 class HelpSupport(models.Model):
     class SupportType(models.TextChoices):
