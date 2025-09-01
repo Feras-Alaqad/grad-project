@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'corsheaders',  # CORS headers for frontend access
     'awn',  # Your main application
     'api',  # Your API application
     'rest_framework',  # Django REST Framework for API support
@@ -48,6 +49,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',  # CORS middleware (must be at the top)
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -177,3 +179,38 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'feras.kh.aqad@gmail.com'  # بريدك الإلكتروني
 EMAIL_HOST_PASSWORD = 'olfs nrix nxyl jnif'  # استخدم App Password
 DEFAULT_FROM_EMAIL = 'EMAIL_HOST_USER'
+
+# CORS settings
+CORS_ALLOWED_ORIGINS = [
+    "https://preview--chime-comms.lovable.app",
+    "https://chime-comms.lovable.app",
+    "https://lovable.app",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "https://awn-three.vercel.app",
+]
+
+CORS_ALLOW_CREDENTIALS = True
+
+CORS_ALLOW_ALL_ORIGINS = False  # Set to True only for development
+
+CORS_ALLOWED_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
