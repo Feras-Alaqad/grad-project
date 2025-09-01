@@ -660,9 +660,7 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
 # 🔹 Dedicated Announcement Creation View
 # =========================
 
-class git add .
-git commit -m "✅ Added django-extensions, Werkzeug, SSL support for runserver_plus"
-ouncementsView(APIView):
+class CreateAnnouncementsView(APIView):
     """
     Dedicated view for announcement creation and listing
     GET: List announcements (with filtering)
