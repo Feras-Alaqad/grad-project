@@ -676,44 +676,14 @@ class CreateAnnouncementsView(APIView):
     
     def get(self, request):
         """
-        List announcements with filtering and search
+        This endpoint is deprecated for listing announcements.
+        Use /awn/api/announcements/ for viewing announcements with filtering.
         """
-        # Base queryset
-        if request.user.role == User.Role.ADMIN:
-            queryset = Announcement.objects.all()
-        else:
-            # Regular users see only approved announcements
-            queryset = Announcement.objects.filter(status=Announcement.Status.APPROVED)
-        
-        # Apply filters
-        category = request.query_params.get('category')
-        organization = request.query_params.get('organization')
-        status_filter = request.query_params.get('status')
-        search = request.query_params.get('search')
-        
-
-        if category:
-            queryset = queryset.filter(category_id=category)
-        if organization:
-            queryset = queryset.filter(organization_id=organization)
-        if status_filter and request.user.role == User.Role.ADMIN:
-            queryset = queryset.filter(status=status_filter)
-        if search:
-            queryset = queryset.filter(
-                Q(title__icontains=search) | Q(description__icontains=search)
-            )
-        
-        # Order by creation date
-        queryset = queryset.order_by('-created_at')
-        
-        # Serialize data with request context
-        serializer = AnnouncementListSerializer(queryset, many=True, context={'request': request})
-        
         return Response({
-            'success': True,
-            'count': announcements.count(),
-            'data': serializer.data
-        }, status=status.HTTP_200_OK)
+            'success': False,
+            'message': 'Use /awn/api/announcements/ for viewing announcements with filtering capabilities.',
+            'redirect_to': '/awn/api/announcements/'
+        }, status=status.HTTP_301_MOVED_PERMANENTLY)
     
     def post(self, request):
         """
@@ -1229,6 +1199,10 @@ class ListFavoritesView(APIView):
 
 # Application views removed - announcements handle their own status workflow
 # Users view approved announcements and apply through external URLs
+
+'''------------------------------------------------------------------------------------------------------------------------'''
+
+
 
 class OrganizationToggleActiveView(generics.RetrieveUpdateAPIView):
     queryset = Organization.objects.all()
