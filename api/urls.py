@@ -7,8 +7,6 @@ from rest_framework_simplejwt.views import (
 from .views import (
     UserSignupView,
     OrganizationSignupView,
-    OrganizationAcceptView,
-    OrganizationRejectionView,
     ForgotPasswordAPIView,
     ResetPasswordAPIView,
     ChangePasswordAPIView,
@@ -33,7 +31,7 @@ from .views import (
     admin_reply_request,
     org_reply_request,
     OrganizationDocumentCreateView,
-    OrganizationDocumentApproveRejectView
+    OrganizationDocumentApproveRejectView,
 )
 
 # Create router for ViewSets
@@ -51,8 +49,6 @@ urlpatterns = [
     path("api/auth/signup/user/", UserSignupView.as_view(), name="user-signup"),
     path("api/auth/signup/organization/", OrganizationSignupView.as_view(), name="organization-signup"),
     path('api/logout/', LogoutView.as_view(), name='logout'),
-    path("api/organization/<int:org_id>/accept/", OrganizationAcceptView.as_view(), name="organization-activate"),
-    path('api/organization/<int:org_id>/reject/', OrganizationRejectionView.as_view(), name='organization-reject'),
     path('api/favorites/add/<int:announcement_id>/', AddFavoriteView.as_view(), name='add-favorite'),
     path('api/favorites/remove/<int:announcement_id>/', RemoveFavoriteView.as_view(), name='remove-favorite'),
     path('api/favorites/', ListFavoritesView.as_view(), name='list-favorites'),

@@ -63,6 +63,13 @@ class User(AbstractBaseUser, PermissionsMixin):
         verbose_name="Phone Number",
         help_text="User's phone number"
     )
+    profile_image = models.ImageField(
+        upload_to='profile/users/', 
+        blank=True,
+        null=True,
+        default='defaults/user_default.png',
+        verbose_name="Profile Image"
+    )
     role = models.CharField(
         max_length=20,
         choices=Role.choices,
@@ -133,6 +140,13 @@ class Announcement(models.Model):
         max_length=255,
         verbose_name="Title",
         help_text="Announcement title"
+    )
+    image = models.ImageField(
+        upload_to='announcements/images/',
+        blank=True,
+        null=True,
+        default='defaults/announcement_default.png',  # صورة افتراضية
+        verbose_name="Announcement Image"
     )
     description = models.TextField(
         verbose_name="Description",
@@ -468,12 +482,6 @@ class Organization(models.Model):
         blank=True,
         verbose_name="Block Reason",
         help_text="Reason why the organization was blocked by admin"
-    )
-    is_rejected = models.BooleanField(
-        default=False
-    )
-    rejection_reason = models.TextField(
-        blank=True
     )
     created_at = models.DateTimeField(
         auto_now_add=True,

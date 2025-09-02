@@ -1,5 +1,7 @@
 from django.contrib import admin
 from django.utils import timezone
+from django.utils.html import format_html
+
 from .models import (
     User, Announcement, AnnouncementCategory,
     UserFavorite, Organization, OrganizationDocument,
@@ -9,10 +11,16 @@ from .models import (
 # ----- User -----
 @admin.register(User)
 class UserAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "email", "role", "is_active", "created_at", "updated_at")
+    list_display = ("id", "profile_image_tag", "name", "email", "role", "is_active", "created_at", "updated_at")
     list_filter = ("role", "is_active")
     search_fields = ("name", "email")
     readonly_fields = ("created_at", "updated_at", "last_login")
+
+    def profile_image_tag(self, obj):
+        if obj.profile_image:
+            return format_html('<img src="{}" width="50" height="50" style="border-radius:50%;" />', obj.profile_image.url)
+        return format_html('<img src="/media/defaults/user_default.png" width="50" height="50" style="border-radius:50%;" />')
+    profile_image_tag.short_description = 'Profile Image'
 
 
 # ----- Announcement -----
@@ -51,7 +59,7 @@ class AnnouncementCategoryAdmin(admin.ModelAdmin):
 # ----- AnnouncementEditRequest -----
 @admin.register(AnnouncementEditRequest)
 class AnnouncementEditRequestAdmin(admin.ModelAdmin):
-    list_display = ("id", "original_announcement", "requested_by", "status", "created_at", "reviewed_at")
+    list_display = ("id", "image_tag", "original_announcement", "requested_by", "status", "created_at", "reviewed_at")
     list_filter = ("status", "created_at", "reviewed_at")
     search_fields = ("original_announcement__title", "requested_by__name", "requested_by__email")
     readonly_fields = ("created_at", "updated_at", "reviewed_by", "reviewed_at")
@@ -90,6 +98,12 @@ class AnnouncementEditRequestAdmin(admin.ModelAdmin):
         """Show pending edit requests first"""
         qs = super().get_queryset(request)
         return qs.order_by('status', '-created_at')
+    
+    def image_tag(self, obj):
+        if obj.image:
+            return format_html('<img src="{}" width="50" height="50" />', obj.image.url)
+        return format_html('<img src="/media/defaults/announcement_default.png" width="50" height="50" />')
+    image_tag.short_description = 'Image'
 
 # Application admin removed - announcements handle their own status workflow
 # Users view approved announcements and apply through external URLs
@@ -121,17 +135,17 @@ class UserFavoriteAdmin(admin.ModelAdmin):
 @admin.register(Organization)
 class OrganizationAdmin(admin.ModelAdmin):
     list_display = (
-        "id", "user", "verified", "is_active", "is_rejected", "rate", "created_at", "updated_at"
+        "id", "user", "verified", "is_active", "rate", "created_at", "updated_at"
     )
-    list_filter = ("verified", "is_active", "is_rejected")
-    search_fields = ("description", "rejection_reason", "user__name", "user__email")
+    list_filter = ("verified", "is_active")
+    search_fields = ("description", "user__name", "user__email")
     readonly_fields = ("created_at", "updated_at")
     fieldsets = (
         (None, {
             "fields": ("user", "description", "website", "location", "rate")
         }),
         ("Status", {
-            "fields": ("verified", "is_active", "is_rejected", "rejection_reason")
+            "fields": ("verified", "is_active")
         }),
         ("Timestamps", {
             "fields": ("created_at", "updated_at")

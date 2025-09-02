@@ -14,28 +14,6 @@ from .models import (
     AnnouncementEditRequest, UserFavorite, Organization, OrganizationDocument,
     Notification, HelpSupport
 )
-class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
-    def validate(self, attrs):
-        data = super().validate(attrs)
-        user = self.user
-
-        if user.role == User.Role.ORGANIZATION:
-            org = Organization.objects.filter(user=user).first()
-            if not org:
-                raise serializers.ValidationError({"detail": "Organization profile not found."})
-            
-            if org.is_rejected:
-                raise serializers.ValidationError({
-                    "detail": f"Your organization registration has been rejected: {org.rejection_reason}"
-                })
-            
-            if not org.is_active:
-                raise serializers.ValidationError({
-                    "detail": "Your organization account is not active yet. Please wait for admin approval."
-                })
-
-        return data
-
 
 # =========================
 # 🔹 User Serializers
@@ -47,10 +25,14 @@ class BaseSignupSerializer(serializers.ModelSerializer):
     password_confirm = serializers.CharField(
         write_only=True, style={'input_type': 'password'}
     )
+    profile_image = serializers.ImageField(
+        required=False,
+        allow_null=True
+    )
 
     class Meta:
         model = User
-        fields = ('email', 'name', 'phone', 'password', 'password_confirm')  # بدون role
+        fields = ('email', 'name', 'phone', 'profile_image', 'password', 'password_confirm') 
 
     def validate_email(self, value):
         if User.objects.filter(email=value).exists():
@@ -80,22 +62,24 @@ class UserSignupSerializer(BaseSignupSerializer):
             password=validated_data['password'],
             phone=validated_data.get('phone', ''),
             name=validated_data.get('name', ''),
-            role=User.Role.USER 
+            profile_image=validated_data.get('profile_image', None),
+            role=User.Role.USER
         )
+
     
 class OrganizationSignupSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=8, style={'input_type': 'password'})
     password_confirm = serializers.CharField(write_only=True, style={'input_type': 'password'})
-
     description = serializers.CharField(required=False, allow_blank=True)
     website = serializers.URLField(required=False, allow_blank=True)
     location = serializers.CharField(required=False, allow_blank=True)
     rate = serializers.IntegerField(required=False, min_value=1, max_value=5)
+    profile_image = serializers.ImageField(required=False, allow_null=True)
 
     class Meta:
         model = User
         fields = (
-            'email', 'name', 'phone', 'password', 'password_confirm',
+            'email', 'name', 'phone', 'profile_image', 'password', 'password_confirm',
             'description', 'website', 'location', 'rate'
         )
 
@@ -120,33 +104,31 @@ class OrganizationSignupSerializer(serializers.ModelSerializer):
         password = validated_data.pop('password')
         validated_data.pop('password_confirm', None)
 
-        # بيانات المؤسسة فقط
         org_data = {
             'description': validated_data.pop('description', ''),
             'website': validated_data.pop('website', ''),
             'location': validated_data.pop('location', ''),
             'rate': validated_data.pop('rate', 1),
-            'verified': False,
-            'is_active': False,
+            'verified': False,       
+            'is_active': True,       
         }
 
-        # إنشاء المستخدم مع role ORGANIZATION
         user = User.objects.create_user(
             email=validated_data['email'],
             password=password,
             name=validated_data.get('name', ''),
             phone=validated_data.get('phone', ''),
+            profile_image=validated_data.get('profile_image', None),
             role=User.Role.ORGANIZATION
         )
 
-        # إنشاء المنظمة وربطها بالمستخدم
         Organization.objects.create(
             user=user,
             **org_data
         )
 
         return user
-    
+
 class LogoutSerializer(serializers.Serializer):
     refresh = serializers.CharField()
 
@@ -162,6 +144,8 @@ class LogoutSerializer(serializers.Serializer):
             raise serializers.ValidationError("Token is invalid or expired")
 
 class UserSerializer(serializers.ModelSerializer):
+    profile_image = serializers.ImageField(read_only=True)  # يمكن جعله read_only أو للسماح بالتعديل
+
     class Meta:
         model = User
         fields = [
@@ -170,17 +154,17 @@ class UserSerializer(serializers.ModelSerializer):
             "email",
             "phone",
             "role",
+            "profile_image",  
             "is_active",
             "created_at",
             "updated_at"
         ]
-        read_only_fields = ('id', 'created_at', 'updated_at')  # role محمي من التغيير
+        read_only_fields = ('id', 'created_at', 'updated_at')  
         extra_kwargs = {
             'email': {'required': True, 'allow_blank': False},
             'name': {'required': True, 'allow_blank': False},
             'phone': {'required': False, 'allow_blank': True},
         }
-
 
 
 class ForgotPasswordSerializer(serializers.Serializer):
@@ -249,15 +233,16 @@ class ChangePasswordSerializer(serializers.Serializer):
         return attrs
     
 class OrganizationProfileSerializer(serializers.ModelSerializer):
-    # هنا نخلي الحقول تبع اليوزر قابلة للقراءة والكتابة بنفس الوقت
+
     name = serializers.CharField(source='user.name', required=False)
     email = serializers.EmailField(source='user.email', required=False)
     phone = serializers.CharField(source='user.phone', required=False)
+    profile_image = serializers.ImageField(source='user.profile_image', required=False, allow_null=True) 
 
     class Meta:
         model = Organization
         fields = [
-            'name', 'email', 'phone',
+            'name', 'email', 'phone', 'profile_image',  
             'description', 'website',
             'location', 'rate', 'verified', 'is_active',
             'created_at', 'updated_at'

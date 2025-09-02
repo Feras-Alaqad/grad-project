@@ -34,7 +34,6 @@ from .serializers import (
     ChangePasswordSerializer,
     OrganizationSignupSerializer,
     OrganizationProfileSerializer,
-    CustomTokenObtainPairSerializer,
     UserFavoriteSerializer,
     AnnouncementListSerializer,
     AnnouncementDetailSerializer,
@@ -97,173 +96,69 @@ class UserSignupView(APIView):
             user = serializer.save()
             # إنشاء توكن وريفريش
             refresh = RefreshToken.for_user(user)
-            return Response({
-                "success": True,
-                "message": "User created successfully",
-                "data": {
-                    "user": {
-                        "id": user.id,
-                        "email": user.email,
-                        "name": user.name,
-                        "phone": user.phone
+            return Response(
+                {
+                    "success": True,
+                    "message": "User created successfully",
+                    "data": {
+                        "user": {
+                            "id": user.id,
+                            "email": user.email,
+                            "name": user.name,
+                            "phone": user.phone,
+                            "profile_image": request.build_absolute_uri(user.profile_image.url) if user.profile_image else None
+                        }
                     },
-                    "tokens": {
-                        "refresh": str(refresh),
-                        "access": str(refresh.access_token)
-                    }
-                }
-            }, status=status.HTTP_201_CREATED)
+                    "refresh": str(refresh),
+                    "access": str(refresh.access_token)
+                },
+                status=status.HTTP_201_CREATED
+            )
+
         return Response({
             "success": False,
             "message": "Validation failed",
             "errors": serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
+
 
 class OrganizationSignupView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        email = request.data.get('email')
-        if User.objects.filter(email=email).exists():
-            return Response({
-                "success": False,
-                "message": "This email is already in use."
-            }, status=status.HTTP_400_BAD_REQUEST)
-
         serializer = OrganizationSignupSerializer(data=request.data)
         if serializer.is_valid():
-            user = serializer.save()  # إنشاء المستخدم والمؤسسة
+            user = serializer.save()  # إنشاء المستخدم والمؤسسة مباشرة
 
-            # لا يتم إصدار التوكن بعد، لأن الحساب غير مفعل
+            # إنشاء التوكنات
+            refresh = RefreshToken.for_user(user)
+            access = refresh.access_token
+
             return Response({
-                "success": True,
-                "message": "Your registration request has been received. Please wait for admin approval."
-            }, status=status.HTTP_201_CREATED)
-
-        return Response({
-            "success": False,
-            "message": "Validation failed",
-            "errors": serializer.errors
-        }, status=status.HTTP_400_BAD_REQUEST)
-
-class OrganizationAcceptView(APIView):
-    permission_classes = [IsAdminUser]
-
-    def post(self, request, org_id):
-        try:
-            org = Organization.objects.get(id=org_id)
-        except Organization.DoesNotExist:
-            return Response({
-                "success": False,
-                "message": "Organization not found."
-            }, status=status.HTTP_404_NOT_FOUND)
-
-        if org.is_active:
-            return Response({
-                "success": False,
-                "message": "Organization is already active."
-            }, status=status.HTTP_400_BAD_REQUEST)
-
-        # تفعيل المؤسسة
-        org.is_active = True
-        org.is_rejected = False       # إعادة ضبط الرفض
-        org.rejection_reason = ''
-        org.save()
-
-        # إنشاء التوكن للمستخدم المرتبط
-        user = org.user
-        refresh = RefreshToken.for_user(user)
-
-        return Response({
-            "success": True,
-            "message": "Organization activated successfully.",
-            "data": {
-                "user": {
-                    "id": user.id,
-                    "email": user.email,
-                    "name": user.name,
-                    "phone": user.phone,
-                    "role": user.role
-                },
-                "tokens": {
-                    "refresh": str(refresh),
-                    "access": str(refresh.access_token)
-                }
+        "success": True,
+        "message": "Organization registered successfully and account is active.",
+        "data": {
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "role": user.role
             }
-        }, status=status.HTTP_200_OK)
+        },
+        "refresh": str(refresh),
+        "access": str(access),
+    },
+    status=status.HTTP_201_CREATED
+)
 
-class OrganizationRejectionView(APIView):
-    permission_classes = [IsAdminUser]
-
-    def post(self, request, org_id):
-        reason = request.data.get("reason", "")
-        if not reason:
-            return Response({
+        return Response(
+            {
                 "success": False,
-                "message": "Rejection reason is required."
-            }, status=status.HTTP_400_BAD_REQUEST)
+                "message": "Validation failed",
+                "errors": serializer.errors
+            },
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
-        try:
-            org = Organization.objects.get(id=org_id)
-        except Organization.DoesNotExist:
-            return Response({
-                "success": False,
-                "message": "Organization not found."
-            }, status=status.HTTP_404_NOT_FOUND)
-
-        org.is_rejected = True
-        org.rejection_reason = reason
-        org.is_active = False
-        org.save()
-
-        return Response({
-            "success": True,
-            "message": "Organization has been rejected.",
-            "data": {
-                "reason": reason
-            }
-        }, status=status.HTTP_200_OK)
-
-class CustomTokenObtainPairView(TokenObtainPairView):
-    serializer_class = CustomTokenObtainPairSerializer
-    def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        
-        try:
-            serializer.is_valid(raise_exception=True)
-        except TokenError as e:
-            return Response({
-                'success': False,
-                'message': 'Invalid credentials'
-            }, status=status.HTTP_401_UNAUTHORIZED)
-        except Exception as e:
-            return Response({
-                'success': False,
-                'message': 'Authentication failed',
-                'errors': serializer.errors if hasattr(serializer, 'errors') else str(e)
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Get user data
-        user = serializer.user
-        
-        return Response({
-            'success': True,
-            'message': 'Login successful',
-            'data': {
-                'tokens': {
-                    'refresh': serializer.validated_data['refresh'],
-                    'access': serializer.validated_data['access']
-                },
-                'user': {
-                    'id': user.id,
-                    'email': user.email,
-                    'name': user.name,
-                    'phone': user.phone,
-                    'role': user.role
-                }
-            }
-        }, status=status.HTTP_200_OK)
-# views.py
 
 class LogoutView(generics.GenericAPIView):
     serializer_class = LogoutSerializer
@@ -1425,14 +1320,10 @@ class OrganizationDocumentApproveRejectView(generics.UpdateAPIView):
         if action == 'approve':
             doc.status = 'approved'
             doc.organization.verified = True
-            doc.organization.is_rejected = False
-            doc.organization.rejection_reason = ''
             doc.organization.save()
         elif action == 'reject':
             doc.status = 'rejected'
             doc.organization.verified = False
-            doc.organization.is_rejected = True
-            doc.organization.rejection_reason = reason
             doc.organization.save()
         else:
             return Response({"error": "Invalid action"}, status=status.HTTP_400_BAD_REQUEST)

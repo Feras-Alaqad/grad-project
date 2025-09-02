@@ -177,3 +177,6 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'feras.kh.aqad@gmail.com'  # بريدك الإلكتروني
 EMAIL_HOST_PASSWORD = 'olfs nrix nxyl jnif'  # استخدم App Password
 DEFAULT_FROM_EMAIL = 'EMAIL_HOST_USER'
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
