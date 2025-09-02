@@ -195,6 +195,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3001",
     "http://127.0.0.1:3002",
     "https://awn-three.vercel.app",
+    "https://awn-aao5ksjjj-ahmedalabadlas-projects.vercel.app",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
