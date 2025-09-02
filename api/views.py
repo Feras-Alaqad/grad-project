@@ -321,19 +321,22 @@ class ProfileView(APIView):
                     "message": "Organization profile not found"
                 }, status=404)
             
-            serializer = OrganizationProfileSerializer(organization)
+            serializer = OrganizationProfileSerializer(organization, context={'request': request})
             return Response({
                 "success": True,
                 "message": "Organization profile retrieved successfully",
                 "data": serializer.data
             })
+        
+        # للمستخدم العادي
         else:
-            serializer = UserSerializer(user)
+            serializer = UserSerializer(user, context={'request': request})
             return Response({
                 "success": True,
                 "message": "User profile retrieved successfully",
                 "data": serializer.data
             })
+
     def put(self, request):
         user = request.user
 
@@ -359,7 +362,13 @@ class ProfileView(APIView):
                 if field in request.data:
                     setattr(user, field, request.data[field])
             user.save()
-            return Response(UserSerializer(user, context={'request': request}).data)
+            
+            # إرجاع البيانات مع الرابط الكامل للصورة
+            return Response({
+                "success": True,
+                "message": "Profile updated successfully",
+                "data": UserSerializer(user, context={'request': request}).data
+            })
 
         # ORGANIZATION
         elif user.role == user.Role.ORGANIZATION:
@@ -392,19 +401,32 @@ class ProfileView(APIView):
             )
             if serializer.is_valid():
                 serializer.save()
-                return Response(serializer.data)
-            return Response(serializer.errors, status=400)
+                return Response({
+                    "success": True,
+                    "message": "Organization profile updated successfully",
+                    "data": serializer.data
+                })
+            return Response({
+                "success": False,
+                "message": "Validation error",
+                "errors": serializer.errors
+            }, status=400)
 
         # Admin أو أدوار أخرى
-
         else:
             serializer = UserSerializer(user, data=request.data, partial=True, context={'request': request})
             if serializer.is_valid():
                 serializer.save()
-                return Response(serializer.data)
-            return Response(serializer.errors, status=400)
-
-
+                return Response({
+                    "success": True,
+                    "message": "Profile updated successfully",
+                    "data": serializer.data
+                })
+            return Response({
+                "success": False,
+                "message": "Validation error",
+                "errors": serializer.errors
+            }, status=400)
 
 # =========================
 # 🔹 Announcement Views

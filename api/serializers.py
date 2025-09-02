@@ -233,21 +233,29 @@ class ChangePasswordSerializer(serializers.Serializer):
         return attrs
     
 class OrganizationProfileSerializer(serializers.ModelSerializer):
-
     name = serializers.CharField(source='user.name', required=False)
     email = serializers.EmailField(source='user.email', required=False)
     phone = serializers.CharField(source='user.phone', required=False)
-    profile_image = serializers.ImageField(source='user.profile_image', required=False, allow_null=True) 
+    profile_image = serializers.SerializerMethodField()
 
     class Meta:
         model = Organization
         fields = [
-            'name', 'email', 'phone', 'profile_image',  
-            'description', 'website',
-            'location', 'rate', 'verified', 'is_active',
+            'name', 'email', 'phone', 'profile_image',
+            'description', 'website', 'location', 'rate', 'verified', 'is_active',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['rate', 'verified', 'is_active', 'created_at', 'updated_at']
+
+    def get_profile_image(self, obj):
+        if obj.user.profile_image:
+            request = self.context.get('request', None)
+            if request:
+                return request.build_absolute_uri(obj.user.profile_image.url)
+            else:
+                from django.conf import settings
+                return f"{settings.BASE_URL}{obj.user.profile_image.url}"
+        return None
 
     def update(self, instance, validated_data):
         # تحديث بيانات اليوزر المرتبطة
@@ -259,6 +267,8 @@ class OrganizationProfileSerializer(serializers.ModelSerializer):
 
         # تحديث بيانات الـ Organization
         return super().update(instance, validated_data)
+
+
 
 class UserFavoriteSerializer(serializers.ModelSerializer):
     announcement_id = serializers.IntegerField(source="announcement.id", read_only=True)
