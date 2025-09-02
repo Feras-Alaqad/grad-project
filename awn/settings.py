@@ -196,6 +196,10 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3002",
     "https://awn-three.vercel.app",
     "https://awn-aao5ksjjj-ahmedalabadlas-projects.vercel.app",
+    "http://mrs.infnet.tech",
+    "https://mrs.infnet.tech",
+    "http://infnet.tech",
+    "https://infnet.tech",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
