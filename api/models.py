@@ -16,8 +16,6 @@ class UserManager(BaseUserManager):
             raise ValueError("Email field must be set")
         if not name:
             raise ValueError("Name field must be set")
-        if not phone:
-            raise ValueError("Phone field must be set")
 
         email = self.normalize_email(email)
         user = self.model(email=email, name=name, phone=phone, **extra_fields)
@@ -94,7 +92,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     # login with email
     USERNAME_FIELD = "email"
-    REQUIRED_FIELDS = ['name', 'password', 'phone']
+    REQUIRED_FIELDS = ['name', 'phone']
 
     
     objects = UserManager()

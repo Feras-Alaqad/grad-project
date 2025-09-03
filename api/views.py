@@ -128,36 +128,39 @@ class OrganizationSignupView(APIView):
     def post(self, request):
         serializer = OrganizationSignupSerializer(data=request.data)
         if serializer.is_valid():
-            user = serializer.save()  # إنشاء المستخدم والمؤسسة مباشرة
+            try:
+                user = serializer.save() 
+            except ValueError as e:  
+                return Response({
+                    "success": False,
+                    "message": "Validation failed",
+                    "errors": str(e),  
+                }, status=status.HTTP_400_BAD_REQUEST)
 
             # إنشاء التوكنات
             refresh = RefreshToken.for_user(user)
             access = refresh.access_token
 
             return Response({
-        "success": True,
-        "message": "Organization registered successfully and account is active.",
-        "data": {
-            "user": {
-                "id": user.id,
-                "email": user.email,
-                "role": user.role
-            }
-        },
-        "refresh": str(refresh),
-        "access": str(access),
-    },
-    status=status.HTTP_201_CREATED
-)
+                "success": True,
+                "message": "Organization registered successfully and account is active.",
+                "data": {
+                    "user": {
+                        "id": user.id,
+                        "email": user.email,
+                        "role": user.role
+                    }
+                },
+                "refresh": str(refresh),
+                "access": str(access),
+            }, status=status.HTTP_201_CREATED)
 
-        return Response(
-            {
-                "success": False,
-                "message": "Validation failed",
-                "errors": serializer.errors
-            },
-            status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response({
+            "success": False,
+            "message": "Validation failed",
+            "errors": serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 class LogoutView(generics.GenericAPIView):
@@ -170,6 +173,32 @@ class LogoutView(generics.GenericAPIView):
         serializer.save()
         return Response({"detail": "Successfully logged out."}, status=status.HTTP_200_OK)
 
+class DeleteUserView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request):
+        user = request.user
+        password = request.data.get("password")  
+
+        if not password:
+            return Response({
+                "success": False,
+                "message": "Password is required to confirm account deletion."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        if not user.check_password(password):
+            return Response({
+                "success": False,
+                "message": "Incorrect password. Account deletion aborted."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        user.is_active = False
+        user.save()
+
+        return Response({
+            "success": True,
+            "message": "Your account has been deactivated."
+        }, status=status.HTTP_200_OK)
 
 class ForgotPasswordAPIView(generics.GenericAPIView):
     """
@@ -195,8 +224,7 @@ class ForgotPasswordAPIView(generics.GenericAPIView):
 
         token = default_token_generator.make_token(user)
 
-        # استخدم user.id بدل uidb64
-        reset_url = f"https://awn-three.vercel.app/reset-password/register/{user.id}/{token}/"
+        reset_url = f"http://localhost:3000/reset-password/{user.id}/{token}/"
 
         # Email content
         message = f"""
@@ -271,40 +299,6 @@ class ChangePasswordAPIView(generics.GenericAPIView):
             'success': True,
             'message': 'Password changed successfully'
         }, status=status.HTTP_200_OK)
-
-@api_view(['POST'])
-@permission_classes([AllowAny])
-def verify_jwt_token(request):
-    """
-    تحقق من صحة توكن JWT ويرجع رسالة مناسبة
-    """
-    token = request.data.get('token')
-
-    if not token:
-        return Response({
-            "success": False,
-            "message": "Token is required"
-        }, status=status.HTTP_400_BAD_REQUEST)
-
-    try:
-        # التحقق من التوكن
-        UntypedToken(token)
-        return Response({
-            "success": True,
-            "message": "Token is valid",
-            "data": {
-                "valid": True
-            }
-        }, status=status.HTTP_200_OK)
-    except (InvalidToken, TokenError) as e:
-        return Response({
-            "success": False,
-            "message": "Invalid or expired token",
-            "data": {
-                "valid": False
-            }
-        }, status=status.HTTP_401_UNAUTHORIZED)
-
     
 class ProfileView(APIView):
     permission_classes = [IsAuthenticated]

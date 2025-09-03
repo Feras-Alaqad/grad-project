@@ -32,6 +32,7 @@ from .views import (
     org_reply_request,
     OrganizationDocumentCreateView,
     OrganizationDocumentApproveRejectView,
+    DeleteUserView,
 )
 
 # Create router for ViewSets
@@ -48,7 +49,8 @@ urlpatterns = [
     path("api/auth/update-profile/", ProfileView.as_view(), name="update-profile"),
     path("api/auth/signup/user/", UserSignupView.as_view(), name="user-signup"),
     path("api/auth/signup/organization/", OrganizationSignupView.as_view(), name="organization-signup"),
-    path('api/logout/', LogoutView.as_view(), name='logout'),
+    path('api/auth/logout/', LogoutView.as_view(), name='logout'),
+    path('api/auth/delete-account/', DeleteUserView.as_view(), name='delete-account'),
     path('api/favorites/add/<int:announcement_id>/', AddFavoriteView.as_view(), name='add-favorite'),
     path('api/favorites/remove/<int:announcement_id>/', RemoveFavoriteView.as_view(), name='remove-favorite'),
     path('api/favorites/', ListFavoritesView.as_view(), name='list-favorites'),

@@ -70,11 +70,12 @@ class UserSignupSerializer(BaseSignupSerializer):
 class OrganizationSignupSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=8, style={'input_type': 'password'})
     password_confirm = serializers.CharField(write_only=True, style={'input_type': 'password'})
-    description = serializers.CharField(required=False, allow_blank=True)
-    website = serializers.URLField(required=False, allow_blank=True)
-    location = serializers.CharField(required=False, allow_blank=True)
-    rate = serializers.IntegerField(required=False, min_value=1, max_value=5)
+    description = serializers.CharField()   
+    website = serializers.URLField()        
+    location = serializers.CharField()      
+    rate = serializers.IntegerField(default=1 ,min_value=1, max_value=5)  
     profile_image = serializers.ImageField(required=False, allow_null=True)
+    phone = serializers.CharField(required=True, allow_blank=False)
 
     class Meta:
         model = User
@@ -82,6 +83,7 @@ class OrganizationSignupSerializer(serializers.ModelSerializer):
             'email', 'name', 'phone', 'profile_image', 'password', 'password_confirm',
             'description', 'website', 'location', 'rate'
         )
+
 
     def validate_email(self, value):
         if User.objects.filter(email=value).exists():
@@ -99,6 +101,11 @@ class OrganizationSignupSerializer(serializers.ModelSerializer):
         if attrs['password'] != attrs['password_confirm']:
             raise serializers.ValidationError({"password_confirm": "Passwords do not match"})
         return attrs
+
+    def validate_phone(self, value):
+        if not value:
+            raise serializers.ValidationError("Phone number is required.")
+        return value
 
     def create(self, validated_data):
         password = validated_data.pop('password')
