@@ -197,7 +197,7 @@ class DeleteUserView(APIView):
 
         return Response({
             "success": True,
-            "message": "Your account has been deactivated."
+            "message": "Your account has been deleted."
         }, status=status.HTTP_200_OK)
 
 class ForgotPasswordAPIView(generics.GenericAPIView):
