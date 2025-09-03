@@ -15,6 +15,7 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAdminUser
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.shortcuts import get_object_or_404
+from django.http import Http404
 
 from .models import (
     User, Organization,
@@ -443,7 +444,7 @@ class AnnouncementCategoryViewSet(viewsets.ModelViewSet):
 class AnnouncementViewSet(viewsets.ModelViewSet):
     """ViewSet for announcements with different permissions"""
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['category', 'organization', 'status']
+    filterset_fields = ['id', 'category', 'organization', 'status']
     search_fields = ['title', 'description']
     ordering_fields = ['created_at', 'start_date', 'end_date']
     ordering = ['-created_at']
@@ -496,8 +497,19 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
         return [permission() for permission in permission_classes]
     
     def list(self, request, *args, **kwargs):
-        """Override list to return standard format"""
+        """Override list to return standard format with validation for ID filter"""
+        # Check if filtering by ID
+        id_filter = request.query_params.get('id')
+        
         queryset = self.filter_queryset(self.get_queryset())
+        
+        # If filtering by ID and no results found, return error
+        if id_filter and not queryset.exists():
+            return Response({
+                'success': False,
+                'message': f'No announcement found with ID: {id_filter}'
+            }, status=status.HTTP_404_NOT_FOUND)
+            
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
@@ -512,6 +524,21 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
             'data': serializer.data
         }, status=status.HTTP_200_OK)
 
+    def retrieve(self, request, *args, **kwargs):
+        """Override retrieve to handle not found errors with custom message"""
+        try:
+            instance = self.get_object()
+            serializer = self.get_serializer(instance)
+            return Response({
+                'success': True,
+                'data': serializer.data
+            }, status=status.HTTP_200_OK)
+        except Http404:
+            return Response({
+                'success': False,
+                'message': f'No announcement found with ID: {kwargs.get("pk")}'
+            }, status=status.HTTP_404_NOT_FOUND)
+    
     @action(detail=True, methods=['patch'], url_path='approve')
     def approve(self, request, pk=None):
         """Admin action to approve/reject announcements"""
