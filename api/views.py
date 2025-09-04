@@ -174,20 +174,6 @@ class LogoutView(generics.GenericAPIView):
         serializer.save()
         return Response({"detail": "Successfully logged out."}, status=status.HTTP_200_OK)
 
-class DeleteUserView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def delete(self, request):
-        user = request.user
-
-        user.is_active = False
-        user.save()
-
-        return Response({
-            "success": True,
-            "message": "Your account has been deleted."
-        }, status=status.HTTP_200_OK)
-
 class ForgotPasswordAPIView(generics.GenericAPIView):
     """
     API for requesting password reset
@@ -1169,21 +1155,10 @@ class IsOrganizationRole(permissions.BasePermission):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated, IsUserRole])
 def create_support_request(request):
-    """
-    Create a new support request
-    - User must be authenticated
-    - User must have 'user' role
-    - New requests start with status PENDING
-    """
     serializer = HelpSupportCreateSerializer(data=request.data)
-    
     if serializer.is_valid():
-        # Save request with current user and set status to PENDING
         support_request = serializer.save(user=request.user, status=HelpSupport.Status.PENDING)
-        
-        # Return created request data
         response_serializer = HelpSupportSerializer(support_request)
-        
         return Response({
             'success': True,
             'message': 'Support request sent successfully',
@@ -1200,66 +1175,35 @@ def create_support_request(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated, IsUserRole])
 def get_user_support_requests(request):
-    """
-    Get support requests for the authenticated user
-    """
-    # Filter requests by type (optional)
     request_type = request.query_params.get('type')
-    
     queryset = HelpSupport.objects.filter(user=request.user)
-    
     if request_type:
         queryset = queryset.filter(type=request_type)
-    
-    # Order by creation date (newest first)
     queryset = queryset.order_by('-created_at')
-    
     serializer = HelpSupportSerializer(queryset, many=True)
-    
-    return Response({
-        'success': True,
-        'data': serializer.data
-    }, status=status.HTTP_200_OK)
+    return Response({'success': True, 'data': serializer.data}, status=status.HTTP_200_OK)
 
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated, IsUserRole])
 def get_support_request_detail(request, pk):
-    """
-    Get details of a specific support request
-    - Must belong to the authenticated user
-    """
-    support_request = get_object_or_404(
-        HelpSupport, 
-        pk=pk, 
-        user=request.user
-    )
-    
+    support_request = get_object_or_404(HelpSupport, pk=pk, user=request.user)
     serializer = HelpSupportSerializer(support_request)
-    
-    return Response({
-        'success': True,
-        'data': serializer.data
-    }, status=status.HTTP_200_OK)
+    return Response({'success': True, 'data': serializer.data}, status=status.HTTP_200_OK)
+
 
 @api_view(['POST'])
 @permission_classes([IsAdminRole])
 def admin_send_request(request, pk):
-
     support_request = get_object_or_404(HelpSupport, pk=pk)
-
     if support_request.type == 'complaint':
-        # تحقق من وجود target_org
         if not support_request.target_org:
             return Response(
                 {'success': False, 'message': 'There must be a target organization for this complaint'},
                 status=400
             )
-
-    # تحديث الحالة إلى انتظار الرد
     support_request.status = HelpSupport.Status.WAITING_RESPONSE
     support_request.save()
-
     serializer = HelpSupportAdminSerializer(support_request)
     return Response({
         'success': True,
@@ -1267,27 +1211,21 @@ def admin_send_request(request, pk):
         'data': serializer.data
     })
 
+
 @api_view(['POST'])
 @permission_classes([IsAdminRole])
 def admin_reply_request(request, pk):
-    """
-    الرد على طلب عام أو حسابي من قبل الأدمن → CLOSED
-    """
     support_request = get_object_or_404(
         HelpSupport,
         pk=pk,
-        type__in=['general', 'account']  # فقط الطلبات العامة والحسابية
+        type__in=['general', 'account']
     )
-
     reply = request.data.get('reply')
     if not reply:
         return Response({'success': False, 'message': 'Reply is required'}, status=400)
-
-    # حفظ الرد وتحويل الحالة إلى مغلق
     support_request.reply = reply
     support_request.status = HelpSupport.Status.CLOSED
     support_request.save()
-
     serializer = HelpSupportAdminSerializer(support_request)
     return Response({
         'success': True,
@@ -1299,26 +1237,18 @@ def admin_reply_request(request, pk):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated, IsOrganizationRole])
 def org_reply_request(request, pk):
-    """
-    المؤسسة ترد على شكوى → الطلب يصبح CLOSED
-    - فقط المستخدم الذي لديه دور المؤسسة صاحب الطلب يمكنه الرد
-    """
     support_request = get_object_or_404(
         HelpSupport, 
         pk=pk, 
-        target_org__user=request.user,  # تأكيد أن المستخدم صاحب المؤسسة
+        target_org__user=request.user,
         type='complaint'
     )
-
     reply = request.data.get('reply')
     if not reply:
         return Response({'success': False, 'message': 'Reply is required'}, status=400)
-
-    # حفظ الرد وتحويل الحالة إلى مغلق
     support_request.reply = reply
     support_request.status = HelpSupport.Status.CLOSED
     support_request.save()
-
     serializer = HelpSupportAdminSerializer(support_request)
     return Response({
         'success': True,

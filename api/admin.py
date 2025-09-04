@@ -175,9 +175,9 @@ class NotificationAdmin(admin.ModelAdmin):
 class HelpSupportAdmin(admin.ModelAdmin):
     list_display = (
         "id", "user", "type", "status", "target_org", 
-        "priority", "created_at"
+        "created_at"
     )
-    list_filter = ("type", "status", "priority", "created_at")
+    list_filter = ("type", "status", "created_at")
     search_fields = ("user__name", "description", "target_org__user__name")
     readonly_fields = ("created_at",)
 
@@ -186,7 +186,7 @@ class HelpSupportAdmin(admin.ModelAdmin):
             "fields": ("user", "type", "description")
         }),
         ("Complaint Details", {
-            "fields": ("target_org", "priority")
+            "fields": ("target_org",)
         }),
         ("Status & Response", {
             "fields": ("status", "admin_response")

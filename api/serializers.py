@@ -151,7 +151,7 @@ class LogoutSerializer(serializers.Serializer):
             raise serializers.ValidationError("Token is invalid or expired")
 
 class UserSerializer(serializers.ModelSerializer):
-    profile_image = serializers.ImageField(read_only=True)  # يمكن جعله read_only أو للسماح بالتعديل
+    profile_image = serializers.ImageField(required=False, allow_null=True)  
 
     class Meta:
         model = User
@@ -244,7 +244,7 @@ class OrganizationProfileSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(source='user.email', required=False)
     phone = serializers.CharField(source='user.phone', required=False)
     profile_image = serializers.ImageField(source='user.profile_image', required=False)
-    
+
     class Meta:
         model = Organization
         fields = [
@@ -791,31 +791,45 @@ class HelpSupportSerializer(serializers.ModelSerializer):
 
 class HelpSupportCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating new support requests"""
-    
+
+    description = serializers.CharField(required=True)
+    target_org = serializers.PrimaryKeyRelatedField(
+        queryset=Organization.objects.all(),
+        required=False,  # إلزامي فقط إذا type = "organization"
+        allow_null=True
+    )
+    type = serializers.ChoiceField(
+        choices=HelpSupport.SupportType.choices,
+        required=True
+    )
+
     class Meta:
         model = HelpSupport
-        fields = ['description', 'target_org', 'priority', 'type']
-    
+        fields = ['description', 'target_org', 'type']
+
     def validate(self, attrs):
-        """Validate data based on request type"""
         request_type = attrs.get('type')
-        
-        # For complaints
-        if request_type == 'complaint':
+
+        # إذا كان من نوع "organization" يجب تحديد المؤسسة
+        if request_type == HelpSupport.SupportType.ORGANIZATION:
             if not attrs.get('target_org'):
-                raise serializers.ValidationError("Organization must be specified for complaints")
-            if not attrs.get('priority'):
-                raise serializers.ValidationError("Priority must be specified for complaints")
-        
-        # For general requests and account issues
-        elif request_type in ['general', 'account']:
-            if attrs.get('target_org'):
-                raise serializers.ValidationError("Organization cannot be specified for this type of request")
-            if attrs.get('priority'):
-                raise serializers.ValidationError("Priority is only available for complaints")
-        
+                raise serializers.ValidationError({
+                    'target_org': "Organization must be specified for organization complaints."
+                })
+
+        # إذا كان من نوع "system" يجب عدم إدخال المؤسسة
+        elif request_type == HelpSupport.SupportType.SYSTEM:
+            if attrs.get('target_org') is not None:
+                raise serializers.ValidationError({
+                    'target_org': "Organization must not be specified for system issues."
+                })
+
+        # description مطلوب دائمًا
+        if not attrs.get('description'):
+            raise serializers.ValidationError({'description': 'Description is required.'})
+
         return attrs
-    
+
 class HelpSupportAdminSerializer(serializers.ModelSerializer):
     # بيانات المستخدم
     user_name = serializers.CharField(source='user.name', read_only=True)
