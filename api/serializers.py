@@ -342,13 +342,14 @@ class AnnouncementListSerializer(serializers.ModelSerializer):
     organization_name = serializers.SerializerMethodField()
     creator_name = serializers.SerializerMethodField()
     admin_notes = serializers.SerializerMethodField()
+    image = serializers.ImageField(read_only=True)
     
     class Meta:
         model = Announcement
         fields = [
             'id', 'title', 'description', 'start_date', 'end_date',
             'url', 'category_name', 'organization_name', 'creator_name',
-            'status', 'admin_notes', 'created_at', 'updated_at'
+            'status', 'admin_notes', 'created_at', 'updated_at', 'image'
         ]
         read_only_fields = ['id', 'status', 'created_at', 'updated_at']
     
@@ -379,13 +380,14 @@ class AnnouncementDetailSerializer(serializers.ModelSerializer):
     category = AnnouncementCategorySerializer(read_only=True)
     organization_name = serializers.SerializerMethodField()
     creator_name = serializers.SerializerMethodField()
+    image = serializers.ImageField(read_only=True)
     
     class Meta:
         model = Announcement
         fields = [
             'id', 'title', 'description', 'start_date', 'end_date',
             'url', 'category', 'organization_name', 'creator_name',
-            'status', 'created_at', 'updated_at'
+            'status', 'created_at', 'updated_at', 'image'
         ]
         read_only_fields = ['id', 'status', 'created_at', 'updated_at']
     
@@ -410,6 +412,7 @@ class AnnouncementCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating announcements"""
     organization_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
     organization_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    image = serializers.ImageField(required=False, allow_null=True)
     
     # Response fields
     creator_name = serializers.SerializerMethodField()
@@ -420,7 +423,7 @@ class AnnouncementCreateSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'title', 'description', 'start_date', 'end_date',
             'url', 'category', 'organization_id', 'organization_name', 'status', 'created_at',
-            'creator_name', 'organization_display_name'
+            'creator_name', 'organization_display_name', 'image'
         ]
         read_only_fields = ['id', 'status', 'created_at', 'creator_name', 'organization_display_name']
     
@@ -507,12 +510,13 @@ class AnnouncementCreateSerializer(serializers.ModelSerializer):
 
 class AnnouncementUpdateSerializer(serializers.ModelSerializer):
     """Serializer for updating announcements"""
+    image = serializers.ImageField(required=False, allow_null=True)
     
     class Meta:
         model = Announcement
         fields = [
             'title', 'description', 'start_date', 'end_date',
-            'url', 'category'
+            'url', 'category', 'image'
         ]
     
     def validate(self, attrs):
@@ -545,13 +549,14 @@ class AnnouncementAdminSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source='category.name', read_only=True)
     organization_name = serializers.SerializerMethodField()
     creator_name = serializers.SerializerMethodField()
+    image = serializers.ImageField(read_only=True)
     
     class Meta:
         model = Announcement
         fields = [
             'id', 'title', 'description', 'start_date', 'end_date',
             'url', 'category_name', 'organization_name', 'creator_name',
-            'status', 'admin_notes', 'created_at', 'updated_at'
+            'status', 'admin_notes', 'created_at', 'updated_at', 'image'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'created_by']
     
@@ -600,12 +605,14 @@ class AnnouncementEditRequestCreateSerializer(serializers.ModelSerializer):
         required=False,
         allow_null=True
     )
+    proposed_image = serializers.ImageField(required=False, allow_null=True)
     
     class Meta:
         model = AnnouncementEditRequest
         fields = [
             'original_announcement', 'proposed_title', 'proposed_description',
-            'proposed_start_date', 'proposed_end_date', 'proposed_url', 'proposed_category'
+            'proposed_start_date', 'proposed_end_date', 'proposed_url', 'proposed_category',
+            'proposed_image'
         ]
     
     def validate_original_announcement(self, value):
@@ -625,7 +632,7 @@ class AnnouncementEditRequestCreateSerializer(serializers.ModelSerializer):
         # Ensure at least one proposed field is provided
         proposed_fields = [
             'proposed_title', 'proposed_description', 'proposed_start_date',
-            'proposed_end_date', 'proposed_url', 'proposed_category'
+            'proposed_end_date', 'proposed_url', 'proposed_category', 'proposed_image'
         ]
         
         if not any(field in attrs and attrs[field] is not None and attrs[field] != '' for field in proposed_fields):
@@ -673,7 +680,8 @@ class AnnouncementEditRequestDetailSerializer(serializers.ModelSerializer):
             'id', 'original_announcement', 'requested_by_name', 'requested_by_email',
             'proposed_title', 'proposed_description', 'proposed_start_date',
             'proposed_end_date', 'proposed_url', 'proposed_category', 'proposed_category_name',
-            'status', 'admin_notes', 'reviewed_by_name', 'created_at', 'updated_at', 'reviewed_at'
+            'proposed_image', 'status', 'admin_notes', 'reviewed_by_name', 'created_at', 
+            'updated_at', 'reviewed_at'
         ]
 
 

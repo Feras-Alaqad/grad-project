@@ -319,6 +319,14 @@ class AnnouncementEditRequest(models.Model):
         help_text="Proposed new category"
     )
     
+    proposed_image = models.ImageField(
+        upload_to='announcements/images/',
+        blank=True,
+        null=True,
+        verbose_name="Proposed Image",
+        help_text="Proposed new image for the announcement"
+    )
+    
     # Edit request status and admin response
     status = models.CharField(
         max_length=20,
@@ -382,6 +390,8 @@ class AnnouncementEditRequest(models.Model):
                 announcement.url = self.proposed_url
             if self.proposed_category is not None:
                 announcement.category = self.proposed_category
+            if self.proposed_image is not None:
+                announcement.image = self.proposed_image
                 
             announcement.save()
             return True
