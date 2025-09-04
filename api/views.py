@@ -1159,7 +1159,7 @@ def create_support_request(request):
     if serializer.is_valid():
         support_request = serializer.save(
             user=request.user,
-            status=HelpSupport.Status.PENDING  # الحالة عند الإنشاء
+            status=HelpSupport.Status.PENDING
         )
         response_serializer = HelpSupportSerializer(support_request)
         return Response({
@@ -1194,26 +1194,61 @@ def get_support_request_detail(request, pk):
 
 @api_view(['POST'])
 @permission_classes([IsAdminRole])
-def admin_send_request(request, pk):
+def send_request_to_organization(request, pk):
+    # Get the support request
     support_request = get_object_or_404(HelpSupport, pk=pk)
 
-    if support_request.type == HelpSupport.SupportType.ORGANIZATION:
-        if not support_request.target_org:
-            return Response({
-                'success': False,
-                'message': 'There must be a target organization for this request'
-            }, status=400)
+    # Check type
+    if support_request.type != HelpSupport.SupportType.ORGANIZATION:
+        return Response({
+            "success": False,
+            "message": "This request is not of type 'Organization Complaint'."
+        }, status=status.HTTP_400_BAD_REQUEST)
 
-    # تغيير الحالة إلى WAITING_RESPONSE عند إرسال الطلب
+    # Check target organization
+    if not support_request.target_org:
+        return Response({
+            "success": False,
+            "message": "An organization request must have a target organization (target_org)."
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    # Update status
     support_request.status = HelpSupport.Status.WAITING_RESPONSE
     support_request.save()
 
+    # Serialize response
     serializer = HelpSupportAdminSerializer(support_request)
     return Response({
-        'success': True,
-        'message': 'Request sent to organization and waiting for response',
-        'data': serializer.data
-    })
+        "success": True,
+        "message": "Request sent to the organization and is now waiting for a response.",
+        "data": serializer.data
+    }, status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+@permission_classes([IsOrganizationRole])  # صلاحية المؤسسة فقط
+def organization_admin_requests(request):
+    # جلب المؤسسة المرتبطة بالمستخدم الحالي
+    try:
+        organization = Organization.objects.get(user=request.user)
+    except Organization.DoesNotExist:
+        return Response({
+            "success": False,
+            "message": "This user is not linked to any organization."
+        }, status=403)
+
+    # جلب الطلبات المرسلة من الأدمن للمؤسسة الحالية
+    requests_qs = HelpSupport.objects.filter(
+        target_org=organization,
+        status=HelpSupport.Status.WAITING_RESPONSE
+    ).order_by('-created_at')  # الأحدث أولاً
+
+    serializer = HelpSupportAdminSerializer(requests_qs, many=True)
+    return Response({
+        "success": True,
+        "count": requests_qs.count(),
+        "message": "All requests sent by admin to your organization.",
+        "data": serializer.data
+    }, status=200)
 
 @api_view(['POST'])
 @permission_classes([IsAdminRole])
