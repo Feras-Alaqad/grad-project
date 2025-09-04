@@ -243,8 +243,8 @@ class OrganizationProfileSerializer(serializers.ModelSerializer):
     name = serializers.CharField(source='user.name', required=False)
     email = serializers.EmailField(source='user.email', required=False)
     phone = serializers.CharField(source='user.phone', required=False)
-    profile_image = serializers.SerializerMethodField()
-
+    profile_image = serializers.ImageField(source='user.profile_image', required=False)
+    
     class Meta:
         model = Organization
         fields = [
