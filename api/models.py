@@ -628,8 +628,8 @@ class Notification(models.Model):
 
 class HelpSupport(models.Model):
     class SupportType(models.TextChoices):
-        ACCOUNT = "account", "Account Issue"
-        GENERAL = "general", "General Inquiry"
+        ACCOUNT = "account", "Account Issueu"
+        GENERAL = "general", "General Inqiry"
         COMPLAINT = "complaint", "Complaint"
 
     class Status(models.TextChoices):

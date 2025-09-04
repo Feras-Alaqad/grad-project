@@ -178,19 +178,6 @@ class DeleteUserView(APIView):
 
     def delete(self, request):
         user = request.user
-        password = request.data.get("password")  
-
-        if not password:
-            return Response({
-                "success": False,
-                "message": "Password is required to confirm account deletion."
-            }, status=status.HTTP_400_BAD_REQUEST)
-
-        if not user.check_password(password):
-            return Response({
-                "success": False,
-                "message": "Incorrect password. Account deletion aborted."
-            }, status=status.HTTP_400_BAD_REQUEST)
 
         user.is_active = False
         user.save()
@@ -224,7 +211,7 @@ class ForgotPasswordAPIView(generics.GenericAPIView):
 
         token = default_token_generator.make_token(user)
 
-        reset_url = f"http://localhost:3000/reset-password/{user.id}/{token}/"
+        reset_url = f"https://awn-three.vercel.app/reset-password/{user.id}/{token}/"
 
         # Email content
         message = f"""
