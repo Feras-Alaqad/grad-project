@@ -157,3 +157,7 @@ Thumbs.db
 # Additional
 .installed.cfg
 *.egg-info/
+
+# Media files
+!media/
+!media/defaults/
