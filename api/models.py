@@ -642,6 +642,7 @@ class HelpSupport(models.Model):
         CLOSED = "closed", "Closed"
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='support_requests')
+    title = models.CharField(max_length=100)
     description = models.TextField()
     target_org = models.ForeignKey(
         'Organization', null=True, blank=True,

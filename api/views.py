@@ -1157,7 +1157,10 @@ class IsOrganizationRole(permissions.BasePermission):
 def create_support_request(request):
     serializer = HelpSupportCreateSerializer(data=request.data)
     if serializer.is_valid():
-        support_request = serializer.save(user=request.user, status=HelpSupport.Status.PENDING)
+        support_request = serializer.save(
+            user=request.user,
+            status=HelpSupport.Status.PENDING  # الحالة عند الإنشاء
+        )
         response_serializer = HelpSupportSerializer(support_request)
         return Response({
             'success': True,
@@ -1171,7 +1174,6 @@ def create_support_request(request):
         'errors': serializer.errors
     }, status=status.HTTP_400_BAD_REQUEST)
 
-
 @api_view(['GET'])
 @permission_classes([IsAuthenticated, IsUserRole])
 def get_user_support_requests(request):
@@ -1183,34 +1185,35 @@ def get_user_support_requests(request):
     serializer = HelpSupportSerializer(queryset, many=True)
     return Response({'success': True, 'data': serializer.data}, status=status.HTTP_200_OK)
 
-
 @api_view(['GET'])
 @permission_classes([IsAuthenticated, IsUserRole])
 def get_support_request_detail(request, pk):
     support_request = get_object_or_404(HelpSupport, pk=pk, user=request.user)
-    serializer = HelpSupportSerializer(support_request)
+    serializer = HelpSupportSerializer(support_request)  
     return Response({'success': True, 'data': serializer.data}, status=status.HTTP_200_OK)
-
 
 @api_view(['POST'])
 @permission_classes([IsAdminRole])
 def admin_send_request(request, pk):
     support_request = get_object_or_404(HelpSupport, pk=pk)
-    if support_request.type == 'complaint':
+
+    if support_request.type == HelpSupport.SupportType.ORGANIZATION:
         if not support_request.target_org:
-            return Response(
-                {'success': False, 'message': 'There must be a target organization for this complaint'},
-                status=400
-            )
+            return Response({
+                'success': False,
+                'message': 'There must be a target organization for this request'
+            }, status=400)
+
+    # تغيير الحالة إلى WAITING_RESPONSE عند إرسال الطلب
     support_request.status = HelpSupport.Status.WAITING_RESPONSE
     support_request.save()
+
     serializer = HelpSupportAdminSerializer(support_request)
     return Response({
         'success': True,
-        'message': 'Complaint sent to organization and waiting for response',
+        'message': 'Request sent to organization and waiting for response',
         'data': serializer.data
     })
-
 
 @api_view(['POST'])
 @permission_classes([IsAdminRole])
@@ -1218,21 +1221,24 @@ def admin_reply_request(request, pk):
     support_request = get_object_or_404(
         HelpSupport,
         pk=pk,
-        type__in=['general', 'account']
+        type__in=[HelpSupport.SupportType.OTHER, HelpSupport.SupportType.SYSTEM]
     )
+
     reply = request.data.get('reply')
     if not reply:
         return Response({'success': False, 'message': 'Reply is required'}, status=400)
+
+    # حفظ الرد وتحويل الحالة إلى CLOSED بعد الرد
     support_request.reply = reply
     support_request.status = HelpSupport.Status.CLOSED
     support_request.save()
+
     serializer = HelpSupportAdminSerializer(support_request)
     return Response({
         'success': True,
         'message': 'Request closed after admin reply',
         'data': serializer.data
     })
-
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated, IsOrganizationRole])
@@ -1241,20 +1247,53 @@ def org_reply_request(request, pk):
         HelpSupport, 
         pk=pk, 
         target_org__user=request.user,
-        type='complaint'
+        type=HelpSupport.SupportType.ORGANIZATION
     )
+
     reply = request.data.get('reply')
     if not reply:
         return Response({'success': False, 'message': 'Reply is required'}, status=400)
+
+    # حفظ الرد وتحويل الحالة إلى CLOSED بعد الرد من المؤسسة
     support_request.reply = reply
     support_request.status = HelpSupport.Status.CLOSED
     support_request.save()
+
     serializer = HelpSupportAdminSerializer(support_request)
     return Response({
         'success': True,
-        'message': 'Complaint closed after organization response',
+        'message': 'Request closed after organization response',
         'data': serializer.data
     })
+
+@api_view(['POST'])
+@permission_classes([IsAdminUser])
+def approve_support_request(request, pk):
+    """
+    Admin approves a support request.
+    - Only admin can perform this action
+    - Changes the status to WAITING_RESPONSE
+    """
+    support_request = get_object_or_404(HelpSupport, pk=pk)
+
+    # تحقق من أن الطلب لم يتم الرد عليه مسبقاً
+    if support_request.status != HelpSupport.Status.PENDING:
+        return Response({
+            'success': False,
+            'message': f"Cannot approve request with status '{support_request.status}'"
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    # تغيير الحالة إلى WAITING_RESPONSE
+    support_request.status = HelpSupport.Status.WAITING_RESPONSE
+    support_request.save()
+
+    # إعادة البيانات بعد التحديث
+    serializer = HelpSupportAdminSerializer(support_request)
+    return Response({
+        'success': True,
+        'message': 'Support request approved and waiting for response',
+        'data': serializer.data
+    }, status=status.HTTP_200_OK)
 
 class OrganizationDocumentCreateView(generics.CreateAPIView):
     """

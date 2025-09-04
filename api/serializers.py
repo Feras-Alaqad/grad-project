@@ -747,55 +747,42 @@ class HelpSupportSerializer(serializers.ModelSerializer):
     user_email = serializers.CharField(source='user.email', read_only=True)
     target_org_name = serializers.CharField(source='target_org.user.name', read_only=True)
     type_display = serializers.CharField(source='get_type_display', read_only=True)
-    priority_display = serializers.CharField(source='get_priority_display', read_only=True)
-    
+    status = serializers.CharField(read_only=True)  # إضافة حالة الطلب
+
     class Meta:
         model = HelpSupport
         fields = [
-            'id', 'user', 'user_name', 'user_email', 'description', 
-            'target_org', 'target_org_name', 'priority_display',
-            'type_display', 'created_at'
+            'id', 'user', 'user_name', 'user_email', 'title', 'description',
+            'target_org', 'target_org_name', 'type_display', 'status', 'created_at'
         ]
-        read_only_fields = ['id', 'user', 'created_at']
+        read_only_fields = ['id', 'user', 'created_at', 'status']
     
     def validate_type(self, value):
-        """Validate request type"""
         if value not in [choice[0] for choice in HelpSupport.SupportType.choices]:
             raise serializers.ValidationError("Invalid request type")
         return value
     
-    def validate_priority(self, value):
-        """Validate priority - required only for complaints"""
-        request_type = self.initial_data.get('type')
-        if request_type == 'complaint' and not value:
-            raise serializers.ValidationError("Priority is required for complaints")
-        if request_type != 'complaint' and value:
-            raise serializers.ValidationError("Priority is only available for complaints")
-        return value
-    
     def validate_target_org(self, value):
-        """Validate target organization - required only for complaints"""
         request_type = self.initial_data.get('type')
-        if request_type == 'complaint' and not value:
-            raise serializers.ValidationError("Organization must be specified for complaints")
-        if request_type != 'complaint' and value:
-            raise serializers.ValidationError("Organization selection is only available for complaints")
+        if request_type == HelpSupport.SupportType.ORGANIZATION and not value:
+            raise serializers.ValidationError("Organization must be specified for organization requests")
+        if request_type == HelpSupport.SupportType.SYSTEM and value is not None:
+            raise serializers.ValidationError("Organization must not be specified for system issues")
         return value
     
     def validate_description(self, value):
-        """Validate issue description"""
         if len(value.strip()) < 10:
             raise serializers.ValidationError("Issue description must be at least 10 characters long")
         return value.strip()
 
-
 class HelpSupportCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating new support requests"""
 
+    title = serializers.CharField(required=True)
     description = serializers.CharField(required=True)
     target_org = serializers.PrimaryKeyRelatedField(
         queryset=Organization.objects.all(),
-        required=False,  # إلزامي فقط إذا type = "organization"
+        required=False,
         allow_null=True
     )
     type = serializers.ChoiceField(
@@ -805,7 +792,7 @@ class HelpSupportCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = HelpSupport
-        fields = ['description', 'target_org', 'type']
+        fields = ['title', 'description', 'target_org', 'type']
 
     def validate(self, attrs):
         request_type = attrs.get('type')
@@ -824,35 +811,32 @@ class HelpSupportCreateSerializer(serializers.ModelSerializer):
                     'target_org': "Organization must not be specified for system issues."
                 })
 
-        # description مطلوب دائمًا
+        # description و title مطلوبان دائمًا
         if not attrs.get('description'):
             raise serializers.ValidationError({'description': 'Description is required.'})
+        if not attrs.get('title'):
+            raise serializers.ValidationError({'title': 'Title is required.'})
 
         return attrs
 
 class HelpSupportAdminSerializer(serializers.ModelSerializer):
-    # بيانات المستخدم
     user_name = serializers.CharField(source='user.name', read_only=True)
     user_email = serializers.CharField(source='user.email', read_only=True)
-    
-    # بيانات المؤسسة المستهدفة (إن وجدت)
     target_org_name = serializers.CharField(source='target_org.user.name', read_only=True)
-    
-    # عرض النصوص المقروءة للنوع والحالة
     type_display = serializers.CharField(source='get_type_display', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
+    status = serializers.CharField(read_only=True)  # إضافة حالة الطلب
 
     class Meta:
         model = HelpSupport
         fields = [
             'id', 'user', 'user_name', 'user_email',
-            'description', 'type_display',
-            'priority', 'target_org', 'target_org_name',
-            'status_display', 'reply',
+            'title', 'description', 'type_display',
+            'target_org', 'target_org_name',
+            'status', 'status_display', 'reply',
             'created_at'
         ]
         read_only_fields = ['id', 'user', 'created_at', 'status', 'type']
-
 
 class OrganizationDocumentSerializer(serializers.ModelSerializer):
     class Meta:
