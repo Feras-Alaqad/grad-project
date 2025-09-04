@@ -23,5 +23,5 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('awn/', include('api.urls'))
 ]
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+# Serve media files regardless of DEBUG setting
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
