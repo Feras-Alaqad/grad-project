@@ -510,6 +510,9 @@ class AnnouncementCreateSerializer(serializers.ModelSerializer):
 
 class AnnouncementUpdateSerializer(serializers.ModelSerializer):
     """Serializer for updating announcements"""
+    title = serializers.CharField(required=False)
+    description = serializers.CharField(required=False)
+    url = serializers.URLField(required=False)
     image = serializers.ImageField(required=False, allow_null=True)
     
     class Meta:
