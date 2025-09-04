@@ -18,6 +18,10 @@ class UserManager(BaseUserManager):
             raise ValueError("Name field must be set")
 
         email = self.normalize_email(email)
+
+        if extra_fields.get("profile_image") is None:
+            extra_fields.pop("profile_image", None)
+
         user = self.model(email=email, name=name, phone=phone, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
@@ -638,9 +642,9 @@ class Notification(models.Model):
 
 class HelpSupport(models.Model):
     class SupportType(models.TextChoices):
-        ACCOUNT = "account", "Account Issueu"
-        GENERAL = "general", "General Inqiry"
-        COMPLAINT = "complaint", "Complaint"
+        SYSTEM = "system", "System Issue"
+        ORGANIZATION = "organization", "Organization Complaint"
+        OTHER = "other", "Other"
 
     class Status(models.TextChoices):
         PENDING = "pending", "Pending"
@@ -653,15 +657,10 @@ class HelpSupport(models.Model):
         'Organization', null=True, blank=True,
         on_delete=models.SET_NULL, related_name='complaints'
     )
-    priority = models.CharField(
-        max_length=10,
-        choices=[("low","Low"),("medium","Medium"),("high","High")],
-        null=True, blank=True
-    )
     type = models.CharField(
         max_length=20,
         choices=SupportType.choices,
-        default=SupportType.GENERAL
+        default=SupportType.SYSTEM
     )
     status = models.CharField(
         max_length=30,
