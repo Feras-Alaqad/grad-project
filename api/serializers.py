@@ -172,6 +172,26 @@ class UserSerializer(serializers.ModelSerializer):
             'name': {'required': True, 'allow_blank': False},
             'phone': {'required': False, 'allow_blank': True},
         }
+    
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        
+        # Handle profile image - return default if no image is set
+        if not instance.profile_image:
+            request = self.context.get('request', None)
+            if request:
+                data['profile_image'] = request.build_absolute_uri('/media/defaults/user_default.png')
+            else:
+                from django.conf import settings
+                data['profile_image'] = f"{settings.MEDIA_URL}defaults/user_default.png"
+        else:
+            request = self.context.get('request', None)
+            if request:
+                data['profile_image'] = request.build_absolute_uri(instance.profile_image.url)
+            else:
+                data['profile_image'] = instance.profile_image.url
+                
+        return data
 
 
 class ForgotPasswordSerializer(serializers.Serializer):
@@ -243,7 +263,7 @@ class OrganizationProfileSerializer(serializers.ModelSerializer):
     name = serializers.CharField(source='user.name', required=False)
     email = serializers.EmailField(source='user.email', required=False)
     phone = serializers.CharField(source='user.phone', required=False)
-    profile_image = serializers.ImageField(source='user.profile_image', required=False)
+    profile_image = serializers.SerializerMethodField()
 
     class Meta:
         model = Organization
@@ -262,7 +282,14 @@ class OrganizationProfileSerializer(serializers.ModelSerializer):
             else:
                 from django.conf import settings
                 return f"{settings.BASE_URL}{obj.user.profile_image.url}"
-        return None
+        else:
+            # Return default image when no profile image is set
+            request = self.context.get('request', None)
+            if request:
+                return request.build_absolute_uri('/media/defaults/user_default.png')
+            else:
+                from django.conf import settings
+                return f"{settings.MEDIA_URL}defaults/user_default.png"
 
     def update(self, instance, validated_data):
         # تحديث بيانات اليوزر المرتبطة
