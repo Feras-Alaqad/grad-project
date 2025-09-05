@@ -33,12 +33,14 @@ from .views import (
     organization_admin_requests,
     OrganizationDocumentCreateView,
     OrganizationDocumentApproveRejectView,
+    list_all_documents,
     OrganizationListAPIView,
     ToggleBlockUserAPIView,
     UserListAPIView,
     UserDetailAPIView,
     UserSearchAPIView,
-    OrganizationDetailAPIView
+    OrganizationDetailAPIView,
+    VerifiedOrganizationListAPIView
 )
 
 # Create router for ViewSets
@@ -100,10 +102,13 @@ urlpatterns = [
     # Organization Document Management
     path("api/organization/documents/create/", OrganizationDocumentCreateView.as_view(), name="organization-documents-create"),
     path('api/admin/organization-documents/<int:id>/verify/', OrganizationDocumentApproveRejectView.as_view(), name='organization-documents-review'),
+    path('api/admin/organizationdocuments/', list_all_documents, name='organization-documents-list'),
 
     # organization endpoints
     path('api/organizations/', OrganizationListAPIView.as_view(), name='organization-list'),
     path('api/organizations/<int:id>/', OrganizationDetailAPIView.as_view(), name='organization-detail'),
+    path('api/organizations/verified/', VerifiedOrganizationListAPIView.as_view(), name='verified-organizations'),
+
     # API endpoints (ViewSets)
     path('api/', include(router.urls)),
 ]

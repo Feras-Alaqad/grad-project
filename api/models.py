@@ -573,7 +573,7 @@ class OrganizationDocument(models.Model):
 
 
     def __str__(self):
-        return f"{self.organization.name} Documents"
+        return f"{self.organization.user.name} Documents"
 
     class Meta:
         verbose_name = "Organization Document"

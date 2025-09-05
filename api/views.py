@@ -1464,6 +1464,24 @@ class OrganizationDocumentApproveRejectView(generics.UpdateAPIView):
         doc.save()
         return Response({"status": doc.status})
 
+@api_view(['GET'])
+@permission_classes([IsAdminUser])  
+def list_all_documents(request):
+    status_filter = request.GET.get('status') 
+
+    documents = OrganizationDocument.objects.all().order_by('-created_at')
+
+    if status_filter in ['pending', 'approved', 'rejected']:
+        documents = documents.filter(status=status_filter)
+
+    serializer = OrganizationDocumentSerializer(documents, many=True)
+    return Response({
+        'success': True,
+        'count': documents.count(),
+        'data': serializer.data
+    })
+
+
 class OrganizationListAPIView(generics.ListAPIView):
     serializer_class = OrganizationSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -1484,6 +1502,24 @@ class OrganizationListAPIView(generics.ListAPIView):
     
 class OrganizationDetailAPIView(generics.RetrieveAPIView):
     serializer_class = OrganizationSerializer
-    permission_classes = [permissions.IsAuthenticated]  # يمكن تخصيصها لاحقاً
+    permission_classes = [permissions.IsAuthenticated]  
     queryset = Organization.objects.all()
     lookup_field = 'id'
+
+class VerifiedOrganizationListAPIView(generics.ListAPIView):
+    serializer_class = OrganizationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        if self.request.user.role == User.Role.ORGANIZATION:
+            return Organization.objects.none()  
+        
+        return Organization.objects.filter(verified=True, is_active=True)
+
+    def list(self, request, *args, **kwargs):
+        if request.user.role == User.Role.ORGANIZATION:
+            return Response(
+                {"success": False, "message": "Organizations cannot access this endpoint."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return super().list(request, *args, **kwargs)
