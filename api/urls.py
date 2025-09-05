@@ -29,8 +29,6 @@ from .views import (
     get_support_request_detail,
     send_request_to_organization,
     organization_admin_requests,
-    admin_reply_request,
-    org_reply_request,
     OrganizationDocumentCreateView,
     OrganizationDocumentApproveRejectView,
     OrganizationListAPIView,
@@ -94,9 +92,7 @@ urlpatterns = [
     path('api/support/my-request/<int:pk>/', get_support_request_detail, name='support_request_detail'),
     path('api/admin/send-to-org/<int:pk>/', send_request_to_organization, name='admin-send-to-org'),
     path("api/received_admin_requests/", organization_admin_requests, name="received_admin_requests"),
-    path('api/admin/reply/<int:pk>/', admin_reply_request, name='admin-reply-request'),
-    path('api/org/reply/<int:pk>/', org_reply_request, name='org-reply-request'),
-    
+
     # Organization Document Management
     path("api/organization/documents/create/", OrganizationDocumentCreateView.as_view(), name="organization-documents-create"),
     path('api/admin/organization-documents/<int:id>/verify/', OrganizationDocumentApproveRejectView.as_view(), name='organization-documents-review'),

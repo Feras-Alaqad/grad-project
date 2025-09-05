@@ -758,15 +758,17 @@ class HelpSupportSerializer(serializers.ModelSerializer):
     user_email = serializers.CharField(source='user.email', read_only=True)
     target_org_name = serializers.CharField(source='target_org.user.name', read_only=True)
     type_display = serializers.CharField(source='get_type_display', read_only=True)
-    status = serializers.CharField(read_only=True)  # إضافة حالة الطلب
+    status = serializers.CharField(read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
 
     class Meta:
         model = HelpSupport
         fields = [
             'id', 'user', 'user_name', 'user_email', 'title', 'description',
-            'target_org', 'target_org_name', 'type_display', 'status', 'created_at'
+            'target_org', 'target_org_name', 'type_display',
+            'status', 'status_display', 'created_at'
         ]
-        read_only_fields = ['id', 'user', 'created_at', 'status']
+        read_only_fields = ['id', 'user', 'created_at', 'status', 'status_display']
     
     def validate_type(self, value):
         if value not in [choice[0] for choice in HelpSupport.SupportType.choices]:
@@ -800,10 +802,11 @@ class HelpSupportCreateSerializer(serializers.ModelSerializer):
         choices=HelpSupport.SupportType.choices,
         required=True
     )
+    status = serializers.CharField(read_only=True, default=HelpSupport.Status.PENDING)
 
     class Meta:
         model = HelpSupport
-        fields = ['title', 'description', 'target_org', 'type']
+        fields = ['title', 'description', 'target_org', 'type', 'status']
 
     def validate(self, attrs):
         request_type = attrs.get('type')

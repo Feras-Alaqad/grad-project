@@ -639,15 +639,15 @@ class Notification(models.Model):
 # Review model removed - no longer needed without applications
 
 class HelpSupport(models.Model):
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending" 
+        SENT = "sent", "Sent to Organization"
+
     class SupportType(models.TextChoices):
         SYSTEM = "system", "System Issue"
         ORGANIZATION = "organization", "Organization Complaint"
         OTHER = "other", "Other"
-
-    class Status(models.TextChoices):
-        PENDING = "pending", "Pending"
-        WAITING_RESPONSE = "waiting_response", "Waiting for Response"
-        CLOSED = "closed", "Closed"
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='support_requests')
     title = models.CharField(max_length=100)
@@ -661,12 +661,7 @@ class HelpSupport(models.Model):
         choices=SupportType.choices,
         default=SupportType.SYSTEM
     )
-    status = models.CharField(
-        max_length=30,
-        choices=Status.choices,
-        default=Status.PENDING
-    )
-    reply = models.TextField(blank=True)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
