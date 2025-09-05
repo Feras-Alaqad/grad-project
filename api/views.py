@@ -13,7 +13,6 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAdminUser
-from rest_framework_simplejwt.views import TokenObtainPairView
 from django.shortcuts import get_object_or_404
 from django.http import Http404
 
@@ -1120,6 +1119,51 @@ class OrganizationToggleActiveView(generics.RetrieveUpdateAPIView):
     queryset = Organization.objects.all()
     serializer_class = OrganizationToggleActiveSerializer
     permission_classes = [IsAdminUser]
+
+from rest_framework import status, permissions
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from django.shortcuts import get_object_or_404
+from .models import User
+
+class ToggleBlockUserAPIView(APIView):
+    permission_classes = [permissions.IsAdminUser]  # فقط admins
+
+    def patch(self, request, user_id):
+        """
+        Toggle block/unblock user using PATCH.
+        إذا المستخدم مفعل سيتم حظره، وإذا محظور سيتم إلغاء الحظر.
+        """
+        user = get_object_or_404(User, id=user_id)
+
+        if user.role == "admin":
+            return Response(
+                {"success": False, "message": "Cannot block/unblock an admin user."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # تغيير حالة التفعيل
+        user.is_active = not user.is_active
+        user.save()
+
+        status_str = "unblocked" if user.is_active else "blocked"
+        return Response(
+            {"success": True, "message": f"User {user.email} has been {status_str}."},
+            status=status.HTTP_200_OK
+        )
+
+class UserListAPIView(generics.ListAPIView):
+    serializer_class = UserSerializer
+    permission_classes = [permissions.IsAdminUser] 
+
+    def get_queryset(self):
+        return User.objects.all().order_by('-created_at')
+    
+class UserDetailAPIView(generics.RetrieveAPIView):
+    serializer_class = UserSerializer
+    permission_classes = [permissions.IsAdminUser]  
+    queryset = User.objects.all()
+    lookup_field = 'id'
 
 class IsUserRole(permissions.BasePermission):
     """Permission to ensure user has 'user' role"""

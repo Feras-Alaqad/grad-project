@@ -34,6 +34,9 @@ from .views import (
     OrganizationDocumentCreateView,
     OrganizationDocumentApproveRejectView,
     OrganizationListAPIView,
+    ToggleBlockUserAPIView,
+    UserListAPIView,
+    UserDetailAPIView
 )
 
 # Create router for ViewSets
@@ -76,8 +79,11 @@ urlpatterns = [
     
     # Application URLs removed - announcements handle their own status workflow
     # Users view approved announcements and apply through external URLs
-    
+    path('api/users/', UserListAPIView.as_view(), name='user-list'),
+    path('api/users/<int:id>/', UserDetailAPIView.as_view(), name='user-detail'),
     path('api/organization/<int:pk>/block/', OrganizationToggleActiveView.as_view(), name='toggle-organization-active'),
+    path('api/users/<int:user_id>/block-unblock/', ToggleBlockUserAPIView.as_view(), name='block-unblock-user'),
+
 
     # Support request endpoints
     path('api/support/create/', create_support_request, name='create_support_request'),
