@@ -28,6 +28,8 @@ from .views import (
     get_user_support_requests,  
     get_support_request_detail,
     send_request_to_organization,
+    organization_reply_request,
+    admin_reply_request,
     organization_admin_requests,
     OrganizationDocumentCreateView,
     OrganizationDocumentApproveRejectView,
@@ -90,7 +92,9 @@ urlpatterns = [
     path('api/support/create/', create_support_request, name='create_support_request'),
     path('api/support/my-requests/', get_user_support_requests, name='user_support_requests'),
     path('api/support/my-request/<int:pk>/', get_support_request_detail, name='support_request_detail'),
-    path('api/admin/send-to-org/<int:pk>/', send_request_to_organization, name='admin-send-to-org'),
+    path('api/admin-send-to-org/report/<int:pk>/', send_request_to_organization, name='admin-send-to-org'),
+    path('api/support/organization/reply/<int:pk>/', organization_reply_request, name='organization-reply-support'),
+    path('api/support/admin/reply/<int:pk>/', admin_reply_request, name='admin-reply-support'),
     path("api/received_admin_requests/", organization_admin_requests, name="received_admin_requests"),
 
     # Organization Document Management

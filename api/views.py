@@ -1297,10 +1297,118 @@ def send_request_to_organization(request, pk):
         "message": f"The complaint has been sent to the organization: {org_name}."
     }, status=status.HTTP_200_OK)
 
-@api_view(['GET'])
+@api_view(['POST'])
 @permission_classes([IsOrganizationRole])  # صلاحية المؤسسة فقط
+def organization_reply_request(request, pk):
+    """
+    Allows the organization to respond to a support request.
+    Sends the reply to the user who created the request.
+    """
+    # جلب المؤسسة الحالية
+    try:
+        organization = Organization.objects.get(user=request.user)
+    except Organization.DoesNotExist:
+        return Response({
+            "success": False,
+            "message": "This user is not linked to any organization."
+        }, status=403)
+
+    # جلب الطلب الذي يكون target_org هو المؤسسة الحالية وحالته SENT
+    support_request = get_object_or_404(
+        HelpSupport,
+        pk=pk,
+        target_org=organization,
+        status=HelpSupport.Status.SENT
+    )
+
+    # البيانات المرسلة
+    reply_text = request.data.get('reply')
+    if not reply_text:
+        return Response({
+            "success": False,
+            "message": "Reply text is required."
+        }, status=400)
+
+    # حفظ الرد
+    support_request.reply = reply_text
+    support_request.save()
+
+    # إرسال إيميل للمستخدم الذي قدم الطلب
+    subject = f"Response to your support request: {support_request.title}"
+    message = f"Hello {support_request.user.name},\n\n" \
+              f"The organization {organization.user.name} has responded to your support request:\n\n" \
+              f"{reply_text}\n\nThank you."
+    recipient_list = [support_request.user.email]
+
+    try:
+        send_mail(subject, message, 'no-reply@yourplatform.com', recipient_list)
+    except Exception as e:
+        return Response({
+            "success": False,
+            "message": f"Failed to send email: {str(e)}"
+        }, status=500)
+
+    return Response({
+        "success": True,
+        "message": "Your reply has been sent to the user successfully."
+    }, status=200)
+
+@api_view(['POST'])
+@permission_classes([IsAdminRole])  # صلاحية الادمن فقط
+def admin_reply_request(request, pk):
+    """
+    Allows the admin to reply to a support request that is NOT of type 'organization'.
+    Sends the reply to the user who created the request.
+    """
+    # جلب الطلب
+    support_request = get_object_or_404(
+        HelpSupport,
+        pk=pk
+    )
+
+    # التحقق من نوع الطلب
+    if support_request.type == HelpSupport.SupportType.ORGANIZATION:
+        return Response({
+            "success": False,
+            "message": "Admins cannot reply to organization complaints. Use the organization endpoint."
+        }, status=400)
+
+    # التحقق من وجود نص الرد
+    reply_text = request.data.get('reply')
+    if not reply_text:
+        return Response({
+            "success": False,
+            "message": "Reply text is required."
+        }, status=400)
+
+    # حفظ الرد
+    support_request.reply = reply_text
+    support_request.save()
+
+    # إرسال إيميل للمستخدم الذي قدم الطلب
+    subject = f"Response to your support request: {support_request.title}"
+    message = f"Hello {support_request.user.name},\n\n" \
+              f"The admin has responded to your support request:\n\n" \
+              f"{reply_text}\n\nThank you."
+    recipient_list = [support_request.user.email]
+
+    try:
+        send_mail(subject, message, 'no-reply@yourplatform.com', recipient_list)
+    except Exception as e:
+        return Response({
+            "success": False,
+            "message": f"Failed to send email: {str(e)}"
+        }, status=500)
+
+    return Response({
+        "success": True,
+        "message": "Your reply has been sent to the user successfully."
+    }, status=200)
+
+
+@api_view(['GET'])
+@permission_classes([IsOrganizationRole]) 
 def organization_admin_requests(request):
-    # جلب المؤسسة المرتبطة بالمستخدم الحالي
     try:
         organization = Organization.objects.get(user=request.user)
     except Organization.DoesNotExist:
@@ -1311,7 +1419,7 @@ def organization_admin_requests(request):
 
     requests_qs = HelpSupport.objects.filter(
         target_org=organization,
-        status=HelpSupport.Status.WAITING_RESPONSE
+        status=HelpSupport.Status.SENT
     ).order_by('-created_at')  
 
     serializer = HelpSupportAdminSerializer(requests_qs, many=True)
@@ -1321,6 +1429,7 @@ def organization_admin_requests(request):
         "message": "All requests sent by admin to your organization.",
         "data": serializer.data
     }, status=200)
+
 
 class OrganizationDocumentCreateView(generics.CreateAPIView):
 

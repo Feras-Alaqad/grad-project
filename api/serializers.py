@@ -248,7 +248,7 @@ class OrganizationProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = Organization
         fields = [
-            'name', 'email', 'phone', 'profile_image',
+            'id','name', 'email', 'phone', 'profile_image',
             'description', 'website', 'location', 'rate', 'verified', 'is_active',
             'created_at', 'updated_at'
         ]
@@ -847,7 +847,7 @@ class HelpSupportAdminSerializer(serializers.ModelSerializer):
             'id', 'user', 'user_name', 'user_email',
             'title', 'description', 'type_display',
             'target_org', 'target_org_name',
-            'status', 'status_display', 'reply',
+            'status', 'status_display',
             'created_at'
         ]
         read_only_fields = ['id', 'user', 'created_at', 'status', 'type']
