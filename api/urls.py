@@ -28,17 +28,20 @@ from .views import (
     get_user_support_requests,  
     get_support_request_detail,
     send_request_to_organization,
-    organization_admin_requests,
+    organization_reply_request,
     admin_reply_request,
-    org_reply_request,
+    organization_admin_requests,
     OrganizationDocumentCreateView,
     OrganizationDocumentApproveRejectView,
+    list_all_documents,
+    OrganizationDocumentDetailAPIView,
     OrganizationListAPIView,
     ToggleBlockUserAPIView,
     UserListAPIView,
     UserDetailAPIView,
     UserSearchAPIView,
-    OrganizationDetailAPIView
+    OrganizationDetailAPIView,
+    VerifiedOrganizationListAPIView
 )
 
 # Create router for ViewSets
@@ -92,18 +95,22 @@ urlpatterns = [
     path('api/support/create/', create_support_request, name='create_support_request'),
     path('api/support/my-requests/', get_user_support_requests, name='user_support_requests'),
     path('api/support/my-request/<int:pk>/', get_support_request_detail, name='support_request_detail'),
-    path('api/admin/send-to-org/<int:pk>/', send_request_to_organization, name='admin-send-to-org'),
+    path('api/admin-send-to-org/report/<int:pk>/', send_request_to_organization, name='admin-send-to-org'),
+    path('api/support/organization/reply/<int:pk>/', organization_reply_request, name='organization-reply-support'),
+    path('api/support/admin/reply/<int:pk>/', admin_reply_request, name='admin-reply-support'),
     path("api/received_admin_requests/", organization_admin_requests, name="received_admin_requests"),
-    path('api/admin/reply/<int:pk>/', admin_reply_request, name='admin-reply-request'),
-    path('api/org/reply/<int:pk>/', org_reply_request, name='org-reply-request'),
-    
+
     # Organization Document Management
     path("api/organization/documents/create/", OrganizationDocumentCreateView.as_view(), name="organization-documents-create"),
     path('api/admin/organization-documents/<int:id>/verify/', OrganizationDocumentApproveRejectView.as_view(), name='organization-documents-review'),
+    path('api/admin/organizationdocuments/', list_all_documents, name='organization-documents-list'),
+    path('api/admin/organizationdocument/<int:pk>/', OrganizationDocumentDetailAPIView.as_view(), name='organization-document-detail'),
 
     # organization endpoints
     path('api/organizations/', OrganizationListAPIView.as_view(), name='organization-list'),
     path('api/organizations/<int:id>/', OrganizationDetailAPIView.as_view(), name='organization-detail'),
+    path('api/organizations/verified/', VerifiedOrganizationListAPIView.as_view(), name='verified-organizations'),
+
     # API endpoints (ViewSets)
     path('api/', include(router.urls)),
 ]

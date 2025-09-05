@@ -1219,11 +1219,24 @@ class IsOrganizationRole(permissions.BasePermission):
 def create_support_request(request):
     serializer = HelpSupportCreateSerializer(data=request.data)
     if serializer.is_valid():
-        support_request = serializer.save(
-            user=request.user,
-            status=HelpSupport.Status.PENDING
-        )
+        support_request = serializer.save(user=request.user)
         response_serializer = HelpSupportSerializer(support_request)
+
+        # Check if the request is of type Organization Complaint and has a target organization
+        if support_request.type == HelpSupport.SupportType.ORGANIZATION and support_request.target_org:
+            subject = "Your support request has been received"
+            message = f"Hello {support_request.user.name},\n\n" \
+                      f"Your support request titled '{support_request.title}' has been successfully received " \
+                      f"and will be forwarded to the relevant authorities. Please wait for their response.\n\n" \
+                      f"Thank you."
+            recipient_list = [support_request.user.email]
+            
+            try:
+                send_mail(subject, message, 'no-reply@yourplatform.com', recipient_list)
+            except Exception as e:
+                # يمكنك فقط تسجيل الخطأ دون منع الاستجابة الناجحة
+                print(f"Failed to send email: {str(e)}")
+
         return Response({
             'success': True,
             'message': 'Support request sent successfully',
@@ -1257,39 +1270,41 @@ def get_support_request_detail(request, pk):
 @api_view(['POST'])
 @permission_classes([IsAdminRole])
 def send_request_to_organization(request, pk):
-    # Get the support request
+    """
+    Mark the support request as sent to the target organization.
+    """
     support_request = get_object_or_404(HelpSupport, pk=pk)
 
-    # Check type
     if support_request.type != HelpSupport.SupportType.ORGANIZATION:
         return Response({
             "success": False,
             "message": "This request is not of type 'Organization Complaint'."
         }, status=status.HTTP_400_BAD_REQUEST)
 
-    # Check target organization
     if not support_request.target_org:
         return Response({
             "success": False,
             "message": "An organization request must have a target organization (target_org)."
         }, status=status.HTTP_400_BAD_REQUEST)
 
-    # Update status
-    support_request.status = HelpSupport.Status.WAITING_RESPONSE
+    # تغيير حالة الطلب
+    support_request.status = HelpSupport.Status.SENT
     support_request.save()
 
-    # Serialize response
-    serializer = HelpSupportAdminSerializer(support_request)
+    org_name = support_request.target_org.user.name  # اسم المؤسسة من جدول User المرتبط
     return Response({
         "success": True,
-        "message": "Request sent to the organization and is now waiting for a response.",
-        "data": serializer.data
+        "message": f"The complaint has been sent to the organization: {org_name}."
     }, status=status.HTTP_200_OK)
 
-@api_view(['GET'])
+@api_view(['POST'])
 @permission_classes([IsOrganizationRole])  # صلاحية المؤسسة فقط
-def organization_admin_requests(request):
-    # جلب المؤسسة المرتبطة بالمستخدم الحالي
+def organization_reply_request(request, pk):
+    """
+    Allows the organization to respond to a support request.
+    Sends the reply to the user who created the request.
+    """
+    # جلب المؤسسة الحالية
     try:
         organization = Organization.objects.get(user=request.user)
     except Organization.DoesNotExist:
@@ -1298,11 +1313,114 @@ def organization_admin_requests(request):
             "message": "This user is not linked to any organization."
         }, status=403)
 
-    # جلب الطلبات المرسلة من الأدمن للمؤسسة الحالية
+    # جلب الطلب الذي يكون target_org هو المؤسسة الحالية وحالته SENT
+    support_request = get_object_or_404(
+        HelpSupport,
+        pk=pk,
+        target_org=organization,
+        status=HelpSupport.Status.SENT
+    )
+
+    # البيانات المرسلة
+    reply_text = request.data.get('reply')
+    if not reply_text:
+        return Response({
+            "success": False,
+            "message": "Reply text is required."
+        }, status=400)
+
+    # حفظ الرد
+    support_request.reply = reply_text
+    support_request.save()
+
+    # إرسال إيميل للمستخدم الذي قدم الطلب
+    subject = f"Response to your support request: {support_request.title}"
+    message = f"Hello {support_request.user.name},\n\n" \
+              f"The organization {organization.user.name} has responded to your support request:\n\n" \
+              f"{reply_text}\n\nThank you."
+    recipient_list = [support_request.user.email]
+
+    try:
+        send_mail(subject, message, 'no-reply@yourplatform.com', recipient_list)
+    except Exception as e:
+        return Response({
+            "success": False,
+            "message": f"Failed to send email: {str(e)}"
+        }, status=500)
+
+    return Response({
+        "success": True,
+        "message": "Your reply has been sent to the user successfully."
+    }, status=200)
+
+@api_view(['POST'])
+@permission_classes([IsAdminRole])  # صلاحية الادمن فقط
+def admin_reply_request(request, pk):
+    """
+    Allows the admin to reply to a support request that is NOT of type 'organization'.
+    Sends the reply to the user who created the request.
+    """
+    # جلب الطلب
+    support_request = get_object_or_404(
+        HelpSupport,
+        pk=pk
+    )
+
+    # التحقق من نوع الطلب
+    if support_request.type == HelpSupport.SupportType.ORGANIZATION:
+        return Response({
+            "success": False,
+            "message": "Admins cannot reply to organization complaints. Use the organization endpoint."
+        }, status=400)
+
+    # التحقق من وجود نص الرد
+    reply_text = request.data.get('reply')
+    if not reply_text:
+        return Response({
+            "success": False,
+            "message": "Reply text is required."
+        }, status=400)
+
+    # حفظ الرد
+    support_request.reply = reply_text
+    support_request.save()
+
+    # إرسال إيميل للمستخدم الذي قدم الطلب
+    subject = f"Response to your support request: {support_request.title}"
+    message = f"Hello {support_request.user.name},\n\n" \
+              f"The admin has responded to your support request:\n\n" \
+              f"{reply_text}\n\nThank you."
+    recipient_list = [support_request.user.email]
+
+    try:
+        send_mail(subject, message, 'no-reply@yourplatform.com', recipient_list)
+    except Exception as e:
+        return Response({
+            "success": False,
+            "message": f"Failed to send email: {str(e)}"
+        }, status=500)
+
+    return Response({
+        "success": True,
+        "message": "Your reply has been sent to the user successfully."
+    }, status=200)
+
+
+@api_view(['GET'])
+@permission_classes([IsOrganizationRole]) 
+def organization_admin_requests(request):
+    try:
+        organization = Organization.objects.get(user=request.user)
+    except Organization.DoesNotExist:
+        return Response({
+            "success": False,
+            "message": "This user is not linked to any organization."
+        }, status=403)
+
     requests_qs = HelpSupport.objects.filter(
         target_org=organization,
-        status=HelpSupport.Status.WAITING_RESPONSE
-    ).order_by('-created_at')  # الأحدث أولاً
+        status=HelpSupport.Status.SENT
+    ).order_by('-created_at')  
 
     serializer = HelpSupportAdminSerializer(requests_qs, many=True)
     return Response({
@@ -1312,91 +1430,9 @@ def organization_admin_requests(request):
         "data": serializer.data
     }, status=200)
 
-@api_view(['POST'])
-@permission_classes([IsAdminRole])
-def admin_reply_request(request, pk):
-    support_request = get_object_or_404(
-        HelpSupport,
-        pk=pk,
-        type__in=[HelpSupport.SupportType.OTHER, HelpSupport.SupportType.SYSTEM]
-    )
-
-    reply = request.data.get('reply')
-    if not reply:
-        return Response({'success': False, 'message': 'Reply is required'}, status=400)
-
-    # حفظ الرد وتحويل الحالة إلى CLOSED بعد الرد
-    support_request.reply = reply
-    support_request.status = HelpSupport.Status.CLOSED
-    support_request.save()
-
-    serializer = HelpSupportAdminSerializer(support_request)
-    return Response({
-        'success': True,
-        'message': 'Request closed after admin reply',
-        'data': serializer.data
-    })
-
-@api_view(['POST'])
-@permission_classes([IsAuthenticated, IsOrganizationRole])
-def org_reply_request(request, pk):
-    support_request = get_object_or_404(
-        HelpSupport, 
-        pk=pk, 
-        target_org__user=request.user,
-        type=HelpSupport.SupportType.ORGANIZATION
-    )
-
-    reply = request.data.get('reply')
-    if not reply:
-        return Response({'success': False, 'message': 'Reply is required'}, status=400)
-
-    # حفظ الرد وتحويل الحالة إلى CLOSED بعد الرد من المؤسسة
-    support_request.reply = reply
-    support_request.status = HelpSupport.Status.CLOSED
-    support_request.save()
-
-    serializer = HelpSupportAdminSerializer(support_request)
-    return Response({
-        'success': True,
-        'message': 'Request closed after organization response',
-        'data': serializer.data
-    })
-
-@api_view(['POST'])
-@permission_classes([IsAdminUser])
-def approve_support_request(request, pk):
-    """
-    Admin approves a support request.
-    - Only admin can perform this action
-    - Changes the status to WAITING_RESPONSE
-    """
-    support_request = get_object_or_404(HelpSupport, pk=pk)
-
-    # تحقق من أن الطلب لم يتم الرد عليه مسبقاً
-    if support_request.status != HelpSupport.Status.PENDING:
-        return Response({
-            'success': False,
-            'message': f"Cannot approve request with status '{support_request.status}'"
-        }, status=status.HTTP_400_BAD_REQUEST)
-
-    # تغيير الحالة إلى WAITING_RESPONSE
-    support_request.status = HelpSupport.Status.WAITING_RESPONSE
-    support_request.save()
-
-    # إعادة البيانات بعد التحديث
-    serializer = HelpSupportAdminSerializer(support_request)
-    return Response({
-        'success': True,
-        'message': 'Support request approved and waiting for response',
-        'data': serializer.data
-    }, status=status.HTTP_200_OK)
 
 class OrganizationDocumentCreateView(generics.CreateAPIView):
-    """
-    API لرفع وثائق المؤسسة
-    المؤسسة تؤخذ تلقائياً من المستخدم المسجل دخول
-    """
+
     serializer_class = OrganizationDocumentSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -1428,6 +1464,36 @@ class OrganizationDocumentApproveRejectView(generics.UpdateAPIView):
         doc.save()
         return Response({"status": doc.status})
 
+@api_view(['GET'])
+@permission_classes([IsAdminUser])  
+def list_all_documents(request):
+    status_filter = request.GET.get('status') 
+
+    documents = OrganizationDocument.objects.all().order_by('-created_at')
+
+    if status_filter in ['pending', 'approved', 'rejected']:
+        documents = documents.filter(status=status_filter)
+
+    serializer = OrganizationDocumentSerializer(documents, many=True)
+    return Response({
+        'success': True,
+        'count': documents.count(),
+        'data': serializer.data
+    })
+
+class OrganizationDocumentDetailAPIView(generics.RetrieveAPIView):
+    """
+    Retrieve the details of a specific organization document.
+    Only admin can access this endpoint.
+    """
+    queryset = OrganizationDocument.objects.all()
+    serializer_class = OrganizationDocumentSerializer
+    permission_classes = [permissions.IsAdminUser]  
+
+    def get_object(self):
+        obj = super().get_object()
+        return obj
+
 class OrganizationListAPIView(generics.ListAPIView):
     serializer_class = OrganizationSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -1448,6 +1514,24 @@ class OrganizationListAPIView(generics.ListAPIView):
     
 class OrganizationDetailAPIView(generics.RetrieveAPIView):
     serializer_class = OrganizationSerializer
-    permission_classes = [permissions.IsAuthenticated]  # يمكن تخصيصها لاحقاً
+    permission_classes = [permissions.IsAuthenticated]  
     queryset = Organization.objects.all()
     lookup_field = 'id'
+
+class VerifiedOrganizationListAPIView(generics.ListAPIView):
+    serializer_class = OrganizationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        if self.request.user.role == User.Role.ORGANIZATION:
+            return Organization.objects.none()  
+        
+        return Organization.objects.filter(verified=True, is_active=True)
+
+    def list(self, request, *args, **kwargs):
+        if request.user.role == User.Role.ORGANIZATION:
+            return Response(
+                {"success": False, "message": "Organizations cannot access this endpoint."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return super().list(request, *args, **kwargs)
