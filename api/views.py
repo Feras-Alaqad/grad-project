@@ -1481,6 +1481,18 @@ def list_all_documents(request):
         'data': serializer.data
     })
 
+class OrganizationDocumentDetailAPIView(generics.RetrieveAPIView):
+    """
+    Retrieve the details of a specific organization document.
+    Only admin can access this endpoint.
+    """
+    queryset = OrganizationDocument.objects.all()
+    serializer_class = OrganizationDocumentSerializer
+    permission_classes = [permissions.IsAdminUser]  
+
+    def get_object(self):
+        obj = super().get_object()
+        return obj
 
 class OrganizationListAPIView(generics.ListAPIView):
     serializer_class = OrganizationSerializer

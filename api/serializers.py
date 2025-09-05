@@ -853,6 +853,8 @@ class HelpSupportAdminSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'user', 'created_at', 'status', 'type']
 
 class OrganizationDocumentSerializer(serializers.ModelSerializer):
+    status = serializers.CharField(read_only=True) 
+
     class Meta:
         model = OrganizationDocument
         fields = [
@@ -861,9 +863,10 @@ class OrganizationDocumentSerializer(serializers.ModelSerializer):
             "financial_report",
             "activity_proof",
             "address_proof",
+            "status",         
             "created_at"
         ]
-        read_only_fields = ["id", "created_at"]
+        read_only_fields = ["id", "status", "created_at"]
 
     def create(self, validated_data):
         request = self.context.get("request")
@@ -872,6 +875,7 @@ class OrganizationDocumentSerializer(serializers.ModelSerializer):
         # تأكد أن المستخدم هو مؤسسة
         if user.role != user.Role.ORGANIZATION:
             raise serializers.ValidationError("Only organizations can upload documents.")
+        
         # الحصول على المؤسسة الخاصة بالمستخدم
         try:
             organization = Organization.objects.get(user=user)
@@ -880,6 +884,7 @@ class OrganizationDocumentSerializer(serializers.ModelSerializer):
 
         validated_data["organization"] = organization
         return super().create(validated_data)
+
     
 class OrganizationSerializer(serializers.ModelSerializer):
     organization_name = serializers.CharField(source="user.name", read_only=True)

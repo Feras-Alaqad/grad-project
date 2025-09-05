@@ -34,6 +34,7 @@ from .views import (
     OrganizationDocumentCreateView,
     OrganizationDocumentApproveRejectView,
     list_all_documents,
+    OrganizationDocumentDetailAPIView,
     OrganizationListAPIView,
     ToggleBlockUserAPIView,
     UserListAPIView,
@@ -103,6 +104,7 @@ urlpatterns = [
     path("api/organization/documents/create/", OrganizationDocumentCreateView.as_view(), name="organization-documents-create"),
     path('api/admin/organization-documents/<int:id>/verify/', OrganizationDocumentApproveRejectView.as_view(), name='organization-documents-review'),
     path('api/admin/organizationdocuments/', list_all_documents, name='organization-documents-list'),
+    path('api/admin/organizationdocument/<int:pk>/', OrganizationDocumentDetailAPIView.as_view(), name='organization-document-detail'),
 
     # organization endpoints
     path('api/organizations/', OrganizationListAPIView.as_view(), name='organization-list'),
