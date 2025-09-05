@@ -446,7 +446,6 @@ class UserFavorite(models.Model):
 
         ordering = ['-created_at']
 
-
 class Organization(models.Model):
     """
     Organizations/Institutions model
@@ -521,7 +520,6 @@ class Organization(models.Model):
             models.Index(fields=['verified', 'is_active']),
             models.Index(fields=['-rate']),
         ]
-
 
 class OrganizationDocument(models.Model):
     """

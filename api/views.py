@@ -52,7 +52,8 @@ from .serializers import (
     HelpSupportAdminSerializer,
     HelpSupportSerializer,
     HelpSupportCreateSerializer,
-    OrganizationDocumentSerializer
+    OrganizationDocumentSerializer,
+    OrganizationSerializer,
 )
 
 
@@ -1365,3 +1366,21 @@ class OrganizationDocumentApproveRejectView(generics.UpdateAPIView):
         doc.rejection_reason = reason
         doc.save()
         return Response({"status": doc.status})
+
+class OrganizationListAPIView(generics.ListAPIView):
+    serializer_class = OrganizationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        # منع المستخدمين من نوع "organization"
+        if self.request.user.role == "organization":
+            return Organization.objects.none()  # ترجع قائمة فارغة
+        return Organization.objects.filter(is_active=True)
+
+    def list(self, request, *args, **kwargs):
+        if request.user.role == "organization":
+            return Response(
+                {"success": False, "message": "Organization users cannot access this endpoint."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return super().list(request, *args, **kwargs)

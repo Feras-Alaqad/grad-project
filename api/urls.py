@@ -33,6 +33,7 @@ from .views import (
     org_reply_request,
     OrganizationDocumentCreateView,
     OrganizationDocumentApproveRejectView,
+    OrganizationListAPIView,
 )
 
 # Create router for ViewSets
@@ -78,8 +79,7 @@ urlpatterns = [
     
     path('api/organization/<int:pk>/block/', OrganizationToggleActiveView.as_view(), name='toggle-organization-active'),
 
-
-    # Support request endpoints 
+    # Support request endpoints
     path('api/support/create/', create_support_request, name='create_support_request'),
     path('api/support/my-requests/', get_user_support_requests, name='user_support_requests'),
     path('api/support/my-request/<int:pk>/', get_support_request_detail, name='support_request_detail'),
@@ -87,13 +87,13 @@ urlpatterns = [
     path("api/received_admin_requests/", organization_admin_requests, name="received_admin_requests"),
     path('api/admin/reply/<int:pk>/', admin_reply_request, name='admin-reply-request'),
     path('api/org/reply/<int:pk>/', org_reply_request, name='org-reply-request'),
-
     
     # Organization Document Management
     path("api/organization/documents/create/", OrganizationDocumentCreateView.as_view(), name="organization-documents-create"),
     path('api/admin/organization-documents/<int:id>/verify/', OrganizationDocumentApproveRejectView.as_view(), name='organization-documents-review'),
 
-
+    # organization endpoints
+    path('api/organizations/', OrganizationListAPIView.as_view(), name='organization-list'),
     # API endpoints (ViewSets)
     path('api/', include(router.urls)),
 ]

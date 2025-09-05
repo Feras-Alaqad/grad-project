@@ -877,3 +877,24 @@ class OrganizationDocumentSerializer(serializers.ModelSerializer):
 
         validated_data["organization"] = organization
         return super().create(validated_data)
+    
+class OrganizationSerializer(serializers.ModelSerializer):
+    organization_name = serializers.CharField(source="user.name", read_only=True)
+    profile_image = serializers.ImageField(source="user.profile_image", read_only=True) 
+
+    class Meta:
+        model = Organization
+        fields = [
+            "id",
+            "organization_name",
+            "profile_image",
+            "description",
+            "website",
+            "location",
+            "rate",
+            "verified",
+            "is_active",
+            "created_at",
+            "updated_at"
+        ]
+
