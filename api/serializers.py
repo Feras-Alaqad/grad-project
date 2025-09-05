@@ -880,7 +880,9 @@ class OrganizationDocumentSerializer(serializers.ModelSerializer):
     
 class OrganizationSerializer(serializers.ModelSerializer):
     organization_name = serializers.CharField(source="user.name", read_only=True)
-    profile_image = serializers.ImageField(source="user.profile_image", read_only=True) 
+    profile_image = serializers.ImageField(source="user.profile_image", read_only=True)
+    email = serializers.EmailField(source="user.email", read_only=True)
+    phone = serializers.CharField(source="user.phone", read_only=True)
 
     class Meta:
         model = Organization
@@ -888,6 +890,8 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "id",
             "organization_name",
             "profile_image",
+            "email",           
+            "phone",           
             "description",
             "website",
             "location",

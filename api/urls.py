@@ -36,7 +36,9 @@ from .views import (
     OrganizationListAPIView,
     ToggleBlockUserAPIView,
     UserListAPIView,
-    UserDetailAPIView
+    UserDetailAPIView,
+    UserSearchAPIView,
+    OrganizationDetailAPIView
 )
 
 # Create router for ViewSets
@@ -81,6 +83,7 @@ urlpatterns = [
     # Users view approved announcements and apply through external URLs
     path('api/users/', UserListAPIView.as_view(), name='user-list'),
     path('api/users/<int:id>/', UserDetailAPIView.as_view(), name='user-detail'),
+    path('api/users/search/', UserSearchAPIView.as_view(), name='user-search'),
     path('api/organization/<int:pk>/block/', OrganizationToggleActiveView.as_view(), name='toggle-organization-active'),
     path('api/users/<int:user_id>/block-unblock/', ToggleBlockUserAPIView.as_view(), name='block-unblock-user'),
 
@@ -100,6 +103,7 @@ urlpatterns = [
 
     # organization endpoints
     path('api/organizations/', OrganizationListAPIView.as_view(), name='organization-list'),
+    path('api/organizations/<int:id>/', OrganizationDetailAPIView.as_view(), name='organization-detail'),
     # API endpoints (ViewSets)
     path('api/', include(router.urls)),
 ]

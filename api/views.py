@@ -1130,10 +1130,7 @@ class ToggleBlockUserAPIView(APIView):
     permission_classes = [permissions.IsAdminUser]  # فقط admins
 
     def patch(self, request, user_id):
-        """
-        Toggle block/unblock user using PATCH.
-        إذا المستخدم مفعل سيتم حظره، وإذا محظور سيتم إلغاء الحظر.
-        """
+
         user = get_object_or_404(User, id=user_id)
 
         if user.role == "admin":
@@ -1164,6 +1161,26 @@ class UserDetailAPIView(generics.RetrieveAPIView):
     permission_classes = [permissions.IsAdminUser]  
     queryset = User.objects.all()
     lookup_field = 'id'
+
+class UserSearchAPIView(generics.ListAPIView):
+    serializer_class = UserSerializer
+    permission_classes = [permissions.IsAdminUser]  # Admin فقط
+
+    def get_queryset(self):
+        query = self.request.query_params.get('q', '').strip()
+        if not query:
+            return User.objects.none()  # لو لم يتم تمرير q
+        return User.objects.filter(
+            Q(name__icontains=query) | Q(email__icontains=query)
+        ).order_by('-created_at')
+
+    def list(self, request, *args, **kwargs):
+        if "q" not in request.query_params or not request.query_params.get("q").strip():
+            return Response(
+                {"success": False, "message": 'Search query parameter "q" is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        return super().list(request, *args, **kwargs)
 
 class IsUserRole(permissions.BasePermission):
     """Permission to ensure user has 'user' role"""
@@ -1428,3 +1445,9 @@ class OrganizationListAPIView(generics.ListAPIView):
                 status=status.HTTP_403_FORBIDDEN
             )
         return super().list(request, *args, **kwargs)
+    
+class OrganizationDetailAPIView(generics.RetrieveAPIView):
+    serializer_class = OrganizationSerializer
+    permission_classes = [permissions.IsAuthenticated]  # يمكن تخصيصها لاحقاً
+    queryset = Organization.objects.all()
+    lookup_field = 'id'
