@@ -1490,6 +1490,22 @@ class HelpSupportListView(generics.ListAPIView):
 
         return queryset.order_by("-created_at")
 
+@api_view(['GET'])
+@permission_classes([IsAdminRole])
+def admin_support_request_detail(request, pk):
+    """
+    Admin-only endpoint to view details of any support request.
+    """
+    # جلب الطلب
+    support_request = get_object_or_404(HelpSupport, pk=pk)
+
+    # Serialize and return
+    serializer = HelpSupportAdminSerializer(support_request)
+    return Response({
+        "success": True,
+        "message": "Support request details retrieved successfully.",
+        "data": serializer.data
+    }, status=200)
 
 class OrganizationDocumentCreateView(generics.CreateAPIView):
 
