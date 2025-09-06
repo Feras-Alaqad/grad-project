@@ -279,46 +279,33 @@ class OrganizationProfileSerializer(serializers.ModelSerializer):
 
 class AnnouncementDetailSerializer(serializers.ModelSerializer):
     """Serializer for announcement details in favorites"""
-    image = serializers.SerializerMethodField()
-    category = serializers.CharField(source="category.name", read_only=True)
-    organization = serializers.SerializerMethodField()
+    category_name = serializers.CharField(source='category.name', read_only=True)
+    organization_name = serializers.SerializerMethodField()
+    creator_name = serializers.SerializerMethodField()
+    image = serializers.ImageField(read_only=True)
     
-    def get_image(self, obj):
-        """Return announcement image URL with default fallback"""
-        request = self.context.get('request')
-        if obj.image:
-            if request:
-                return request.build_absolute_uri(obj.image.url)
-            else:
-                from django.conf import settings
-                return f"{getattr(settings, 'BASE_URL', '')}{obj.image.url}"
-        else:
-            # Return default image URL
-            if request:
-                return request.build_absolute_uri('/media/defaults/announcement_default.png')
-            else:
-                from django.conf import settings
-                return f"{getattr(settings, 'MEDIA_URL', '/media/')}defaults/announcement_default.png"
+    def get_creator_name(self, obj):
+        """Return creator name or 'Admin' if created by admin"""
+        if obj.created_by and obj.created_by.role == User.Role.ADMIN:
+            return "Admin"
+        elif obj.created_by:
+            return obj.created_by.name
+        return "Unknown"
     
-    def get_organization(self, obj):
-        """Return organization details"""
-        if obj.organization and obj.organization.user:
-            return {
-                'name': obj.organization.user.name,
-                'email': obj.organization.user.email,
-                'phone': obj.organization.user.phone
-            }
-        return {
-            'name': obj.organization_name or 'Unknown Organization',
-            'email': None,
-            'phone': None
-        }
+    def get_organization_name(self, obj):
+        """Return organization name or None if no organization"""
+        if obj.organization_name:
+            return obj.organization_name
+        elif obj.organization:
+            return obj.organization.user.name
+        return None
     
     class Meta:
         model = Announcement
         fields = [
-            'id', 'title', 'description', 'image', 'start_date', 'end_date',
-            'url', 'status', 'category', 'organization', 'created_at', 'updated_at'
+            'id', 'title', 'description', 'start_date', 'end_date',
+            'url', 'category_name', 'organization_name', 'creator_name',
+            'status', 'created_at', 'updated_at', 'image'
         ]
 
 class UserFavoriteSerializer(serializers.ModelSerializer):

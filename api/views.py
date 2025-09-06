@@ -1059,7 +1059,7 @@ class AddFavoriteView(APIView):
             user=user
         )
 
-        serializer = UserFavoriteSerializer(favorite)
+        serializer = UserFavoriteSerializer(favorite, context={'request': request})
         return Response({
             "success": True,
             "message": "Added to favorites successfully" if created else "Already in favorites",
@@ -1108,7 +1108,7 @@ class ListFavoritesView(APIView):
             }, status=status.HTTP_403_FORBIDDEN)
 
         favorites = UserFavorite.objects.filter(user=user).order_by('-created_at')
-        serializer = UserFavoriteSerializer(favorites, many=True)
+        serializer = UserFavoriteSerializer(favorites, many=True, context={'request': request})
         
         return Response({
             "success": True,
