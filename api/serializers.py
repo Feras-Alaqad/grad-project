@@ -172,26 +172,6 @@ class UserSerializer(serializers.ModelSerializer):
             'name': {'required': True, 'allow_blank': False},
             'phone': {'required': False, 'allow_blank': True},
         }
-    
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        
-        # Handle profile image - return default if no image is set
-        if not instance.profile_image:
-            request = self.context.get('request', None)
-            if request:
-                data['profile_image'] = request.build_absolute_uri('/media/defaults/user_default.png')
-            else:
-                from django.conf import settings
-                data['profile_image'] = f"{settings.MEDIA_URL}defaults/user_default.png"
-        else:
-            request = self.context.get('request', None)
-            if request:
-                data['profile_image'] = request.build_absolute_uri(instance.profile_image.url)
-            else:
-                data['profile_image'] = instance.profile_image.url
-                
-        return data
 
 
 class ForgotPasswordSerializer(serializers.Serializer):
@@ -263,7 +243,7 @@ class OrganizationProfileSerializer(serializers.ModelSerializer):
     name = serializers.CharField(source='user.name', required=False)
     email = serializers.EmailField(source='user.email', required=False)
     phone = serializers.CharField(source='user.phone', required=False)
-    profile_image = serializers.SerializerMethodField()
+    profile_image = serializers.ImageField(source='user.profile_image', required=False)
 
     class Meta:
         model = Organization
@@ -282,14 +262,7 @@ class OrganizationProfileSerializer(serializers.ModelSerializer):
             else:
                 from django.conf import settings
                 return f"{settings.BASE_URL}{obj.user.profile_image.url}"
-        else:
-            # Return default image when no profile image is set
-            request = self.context.get('request', None)
-            if request:
-                return request.build_absolute_uri('/media/defaults/user_default.png')
-            else:
-                from django.conf import settings
-                return f"{settings.MEDIA_URL}defaults/user_default.png"
+        return None
 
     def update(self, instance, validated_data):
         # تحديث بيانات اليوزر المرتبطة
@@ -304,15 +277,57 @@ class OrganizationProfileSerializer(serializers.ModelSerializer):
 
 
 
-class UserFavoriteSerializer(serializers.ModelSerializer):
-    announcement_id = serializers.IntegerField(source="announcement.id", read_only=True)
-    announcement_title = serializers.CharField(source="announcement.title", read_only=True)
-    organization_name = serializers.CharField(source="announcement.organization.user.name", read_only=True)
+class AnnouncementDetailSerializer(serializers.ModelSerializer):
+    """Serializer for announcement details in favorites"""
+    image = serializers.SerializerMethodField()
+    category = serializers.CharField(source="category.name", read_only=True)
+    organization = serializers.SerializerMethodField()
+    
+    def get_image(self, obj):
+        """Return announcement image URL with default fallback"""
+        request = self.context.get('request')
+        if obj.image:
+            if request:
+                return request.build_absolute_uri(obj.image.url)
+            else:
+                from django.conf import settings
+                return f"{getattr(settings, 'BASE_URL', '')}{obj.image.url}"
+        else:
+            # Return default image URL
+            if request:
+                return request.build_absolute_uri('/media/defaults/announcement_default.png')
+            else:
+                from django.conf import settings
+                return f"{getattr(settings, 'MEDIA_URL', '/media/')}defaults/announcement_default.png"
+    
+    def get_organization(self, obj):
+        """Return organization details"""
+        if obj.organization and obj.organization.user:
+            return {
+                'name': obj.organization.user.name,
+                'email': obj.organization.user.email,
+                'phone': obj.organization.user.phone
+            }
+        return {
+            'name': obj.organization_name or 'Unknown Organization',
+            'email': None,
+            'phone': None
+        }
+    
+    class Meta:
+        model = Announcement
+        fields = [
+            'id', 'title', 'description', 'image', 'start_date', 'end_date',
+            'url', 'status', 'category', 'organization', 'created_at', 'updated_at'
+        ]
 
+class UserFavoriteSerializer(serializers.ModelSerializer):
+    announcement = AnnouncementDetailSerializer(read_only=True)
+    
     class Meta:
         model = UserFavorite
-        fields = ['id', 'announcement_id', 'announcement_title', 'organization_name', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'announcement_id', 'announcement_title', 'organization_name', 'created_at', 'updated_at']
+        fields = ['id', 'announcement', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'announcement', 'created_at', 'updated_at']
 
 class OrganizationToggleActiveSerializer(serializers.ModelSerializer):
     class Meta:
