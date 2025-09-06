@@ -15,6 +15,7 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAdminUser
 from django.shortcuts import get_object_or_404
 from django.http import Http404
+from rest_framework.exceptions import PermissionDenied
 
 from .models import (
     User, Organization,
@@ -690,35 +691,42 @@ class DeleteAnnouncementView(APIView):
 
 class OrganizationSearchView(APIView):
     """
-    API endpoint for searching organizations by name.
-    Only accessible by admin users. 
+    API endpoint for searching organizations by name or email.
+    Accessible by users with role 'user' or 'admin'.
     """
     permission_classes = [IsAuthenticated]
-    
-    def get_permissions(self):
-        if self.request.method == 'GET':
-            return [IsAdminOnly()]
-        return super().get_permissions()
-    
+
     def get(self, request):
-        """Search organizations by name"""
+        """Search organizations by name or email"""
+        user = request.user
+
+        # ✅ allow only user or admin roles
+        if user.role not in [user.Role.USER, user.Role.ADMIN]:
+            return Response({
+                'success': False,
+                'message': 'You are not allowed to search organizations'
+            }, status=status.HTTP_403_FORBIDDEN)
+
         search_query = request.query_params.get('q', '').strip()
-        
         if not search_query:
             return Response({
                 'success': False,
                 'message': 'Search query parameter "q" is required'
             }, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Search organizations with case-insensitive name matching
+
         organizations = Organization.objects.filter(
-            name__icontains=search_query
-        ).values('id', 'name', 'email')[:10]  # Limit to 10 results
-        
+            Q(user__name__icontains=search_query) |
+            Q(user__email__icontains=search_query)
+        ).select_related("user")[:10]
+
+        serializer = OrganizationSerializer(
+            organizations, many=True, context={"request": request}
+        )
+
         return Response({
             'success': True,
             'message': 'Organizations found',
-            'data': list(organizations)
+            'data': serializer.data
         }, status=status.HTTP_200_OK)
 
 
