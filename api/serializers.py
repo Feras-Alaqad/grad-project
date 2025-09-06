@@ -277,15 +277,57 @@ class OrganizationProfileSerializer(serializers.ModelSerializer):
 
 
 
-class UserFavoriteSerializer(serializers.ModelSerializer):
-    announcement_id = serializers.IntegerField(source="announcement.id", read_only=True)
-    announcement_title = serializers.CharField(source="announcement.title", read_only=True)
-    organization_name = serializers.CharField(source="announcement.organization.user.name", read_only=True)
+class AnnouncementDetailSerializer(serializers.ModelSerializer):
+    """Serializer for announcement details in favorites"""
+    image = serializers.SerializerMethodField()
+    category = serializers.CharField(source="category.name", read_only=True)
+    organization = serializers.SerializerMethodField()
+    
+    def get_image(self, obj):
+        """Return announcement image URL with default fallback"""
+        request = self.context.get('request')
+        if obj.image:
+            if request:
+                return request.build_absolute_uri(obj.image.url)
+            else:
+                from django.conf import settings
+                return f"{getattr(settings, 'BASE_URL', '')}{obj.image.url}"
+        else:
+            # Return default image URL
+            if request:
+                return request.build_absolute_uri('/media/defaults/announcement_default.png')
+            else:
+                from django.conf import settings
+                return f"{getattr(settings, 'MEDIA_URL', '/media/')}defaults/announcement_default.png"
+    
+    def get_organization(self, obj):
+        """Return organization details"""
+        if obj.organization and obj.organization.user:
+            return {
+                'name': obj.organization.user.name,
+                'email': obj.organization.user.email,
+                'phone': obj.organization.user.phone
+            }
+        return {
+            'name': obj.organization_name or 'Unknown Organization',
+            'email': None,
+            'phone': None
+        }
+    
+    class Meta:
+        model = Announcement
+        fields = [
+            'id', 'title', 'description', 'image', 'start_date', 'end_date',
+            'url', 'status', 'category', 'organization', 'created_at', 'updated_at'
+        ]
 
+class UserFavoriteSerializer(serializers.ModelSerializer):
+    announcement = AnnouncementDetailSerializer(read_only=True)
+    
     class Meta:
         model = UserFavorite
-        fields = ['id', 'announcement_id', 'announcement_title', 'organization_name', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'announcement_id', 'announcement_title', 'organization_name', 'created_at', 'updated_at']
+        fields = ['id', 'announcement', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'announcement', 'created_at', 'updated_at']
 
 class OrganizationToggleActiveSerializer(serializers.ModelSerializer):
     class Meta:
@@ -909,4 +951,3 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at"
         ]
-

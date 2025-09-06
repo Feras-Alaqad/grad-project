@@ -327,7 +327,7 @@ class ProfileView(APIView):
                 return Response({"email": ["This email is already used by another account."]}, status=400)
 
             # تحديث بيانات User العادية
-            for field in ['name', 'email', 'phone']:
+            for field in ['name', 'email', 'phone', 'profile_image']:
                 if field in request.data:
                     setattr(user, field, request.data[field])
             user.save()
@@ -359,7 +359,7 @@ class ProfileView(APIView):
                 return Response({"email": ["This email is already used by another account."]}, status=400)
 
             # تحديث بيانات User الشخصية
-            for field in ['name', 'email', 'phone']:
+            for field in ['name', 'email', 'phone', 'profile_image']:
                 if field in request.data:
                     setattr(user, field, request.data[field])
             user.save()
