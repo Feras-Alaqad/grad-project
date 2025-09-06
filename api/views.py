@@ -1337,8 +1337,9 @@ def organization_reply_request(request, pk):
             "message": "Reply text is required."
         }, status=400)
 
-    # حفظ الرد
+    # حفظ الرد وتغيير الحالة إلى closed
     support_request.reply = reply_text
+    support_request.status = HelpSupport.Status.CLOSED  # ← تحديث الحالة
     support_request.save()
 
     # إرسال إيميل للمستخدم الذي قدم الطلب
@@ -1358,11 +1359,11 @@ def organization_reply_request(request, pk):
 
     return Response({
         "success": True,
-        "message": "Your reply has been sent to the user successfully."
+        "message": "Your reply has been sent to the user successfully and the request is now closed."
     }, status=200)
 
 @api_view(['POST'])
-@permission_classes([IsAdminRole])  # صلاحية الادمن فقط
+@permission_classes([IsAdminRole])  
 def admin_reply_request(request, pk):
     """
     Allows the admin to reply to a support request that is NOT of type 'organization'.
@@ -1389,8 +1390,8 @@ def admin_reply_request(request, pk):
             "message": "Reply text is required."
         }, status=400)
 
-    # حفظ الرد
     support_request.reply = reply_text
+    support_request.status = HelpSupport.Status.CLOSED  # ← تغيير الحالة
     support_request.save()
 
     # إرسال إيميل للمستخدم الذي قدم الطلب
@@ -1410,12 +1411,12 @@ def admin_reply_request(request, pk):
 
     return Response({
         "success": True,
-        "message": "Your reply has been sent to the user successfully."
+        "message": "Your reply has been sent to the user successfully and the request is now closed."
     }, status=200)
 
 
 @api_view(['GET'])
-@permission_classes([IsOrganizationRole]) 
+@permission_classes([IsOrganizationRole])
 def organization_admin_requests(request):
     try:
         organization = Organization.objects.get(user=request.user)
@@ -1425,18 +1426,69 @@ def organization_admin_requests(request):
             "message": "This user is not linked to any organization."
         }, status=403)
 
-    requests_qs = HelpSupport.objects.filter(
-        target_org=organization,
-        status=HelpSupport.Status.SENT
-    ).order_by('-created_at')  
+    # بداية queryset: كل الطلبات المرتبطة بالمؤسسة
+    requests_qs = HelpSupport.objects.filter(target_org=organization)
+
+    # ✅ فلترة حسب الحالة
+    status_param = request.query_params.get('status')  # مثال: ?status=SENT,CLOSED
+    valid_statuses = [s.value for s in HelpSupport.Status]  # قائمة الحالات الصحيحة
+
+    if status_param:
+        status_list = [s.strip().lower() for s in status_param.split(',')]
+        # التحقق من صحة القيم
+        invalid_status = [s for s in status_list if s not in valid_statuses]
+        if invalid_status:
+            return Response({
+                "success": False,
+                "detail": f"Invalid status value(s): {', '.join(invalid_status)}"
+            }, status=status.HTTP_400_BAD_REQUEST)
+        requests_qs = requests_qs.filter(status__in=status_list)
+    else:
+        requests_qs = requests_qs.filter(status__in=[HelpSupport.Status.SENT, HelpSupport.Status.CLOSED])
+
+    # ✅ فلترة حسب النوع
+    type_param = request.query_params.get('type')  # مثال: ?type=system,organization
+    valid_types = [t.value for t in HelpSupport.SupportType]
+    if type_param:
+        type_list = [t.strip().lower() for t in type_param.split(',')]
+        invalid_type = [t for t in type_list if t not in valid_types]
+        if invalid_type:
+            return Response({
+                "success": False,
+                "detail": f"Invalid type value(s): {', '.join(invalid_type)}"
+            }, status=status.HTTP_400_BAD_REQUEST)
+        requests_qs = requests_qs.filter(type__in=type_list)
+
+    requests_qs = requests_qs.order_by('-created_at')
 
     serializer = HelpSupportAdminSerializer(requests_qs, many=True)
     return Response({
         "success": True,
         "count": requests_qs.count(),
-        "message": "All requests sent by admin to your organization.",
+        "message": "Filtered requests sent by admin to your organization.",
         "data": serializer.data
     }, status=200)
+
+class HelpSupportListView(generics.ListAPIView):
+    """
+    Admin-only view to list and filter help/support requests.
+    """
+    serializer_class = HelpSupportSerializer
+    permission_classes = [IsAdminOnly]
+
+    def get_queryset(self):
+        queryset = HelpSupport.objects.all().select_related("user", "target_org__user")
+
+        status_param = self.request.query_params.get("status")
+        type_param = self.request.query_params.get("type")
+
+        if status_param:
+            queryset = queryset.filter(status=status_param)
+
+        if type_param:
+            queryset = queryset.filter(type=type_param)
+
+        return queryset.order_by("-created_at")
 
 
 class OrganizationDocumentCreateView(generics.CreateAPIView):

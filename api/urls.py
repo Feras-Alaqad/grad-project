@@ -41,7 +41,8 @@ from .views import (
     UserDetailAPIView,
     UserSearchAPIView,
     OrganizationDetailAPIView,
-    VerifiedOrganizationListAPIView
+    VerifiedOrganizationListAPIView,
+    HelpSupportListView,
 )
 
 # Create router for ViewSets
@@ -99,6 +100,7 @@ urlpatterns = [
     path('api/support/organization/reply/<int:pk>/', organization_reply_request, name='organization-reply-support'),
     path('api/support/admin/reply/<int:pk>/', admin_reply_request, name='admin-reply-support'),
     path("api/received_admin_requests/", organization_admin_requests, name="received_admin_requests"),
+    path("api/help-support-list/", HelpSupportListView.as_view(), name="help-support-list"),
 
     # Organization Document Management
     path("api/organization/documents/create/", OrganizationDocumentCreateView.as_view(), name="organization-documents-create"),
