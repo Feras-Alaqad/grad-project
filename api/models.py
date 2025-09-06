@@ -641,8 +641,9 @@ class Notification(models.Model):
 class HelpSupport(models.Model):
 
     class Status(models.TextChoices):
-        PENDING = "pending", "Pending" 
+        PENDING = "pending", "Pending"
         SENT = "sent", "Sent to Organization"
+        CLOSED = "closed", "Closed"
 
     class SupportType(models.TextChoices):
         SYSTEM = "system", "System Issue"
