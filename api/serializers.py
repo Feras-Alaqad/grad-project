@@ -800,6 +800,7 @@ class HelpSupportSerializer(serializers.ModelSerializer):
     user_email = serializers.CharField(source='user.email', read_only=True)
     target_org_name = serializers.CharField(source='target_org.user.name', read_only=True)
     type_display = serializers.CharField(source='get_type_display', read_only=True)
+    type = serializers.CharField(read_only=True)
     status = serializers.CharField(read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
 
@@ -807,7 +808,7 @@ class HelpSupportSerializer(serializers.ModelSerializer):
         model = HelpSupport
         fields = [
             'id', 'user', 'user_name', 'user_email', 'title', 'description',
-            'target_org', 'target_org_name', 'type_display',
+            'target_org', 'target_org_name', 'type', 'type_display',
             'status', 'status_display', 'created_at'
         ]
         read_only_fields = ['id', 'user', 'created_at', 'status', 'status_display']
