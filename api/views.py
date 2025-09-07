@@ -17,6 +17,8 @@ from django.shortcuts import get_object_or_404
 from django.http import Http404
 from rest_framework.exceptions import PermissionDenied
 import os
+from django.utils.dateparse import parse_date
+
 
 from .models import (
     User, Organization,
@@ -1527,6 +1529,59 @@ def admin_support_request_detail(request, pk):
     return Response({
         "success": True,
         "message": "Support request details retrieved successfully.",
+        "data": serializer.data
+    }, status=200)
+
+@api_view(['GET'])
+@permission_classes([IsAdminRole])
+def help_support_range_search(request):
+    """
+    Admin-only endpoint to search support requests by date range.
+    Example:
+    /api/admin/help-support/search/?start_date=2025-09-01&end_date=2025-09-06
+    """
+    start_date = request.query_params.get("start_date")
+    end_date = request.query_params.get("end_date")
+
+    if not start_date or not end_date:
+        return Response({
+            "success": False,
+            "message": "Both 'start_date' and 'end_date' parameters are required (YYYY-MM-DD)."
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    start_date = parse_date(start_date)
+    end_date = parse_date(end_date)
+
+    if not start_date or not end_date:
+        return Response({
+            "success": False,
+            "message": "Invalid date format. Use YYYY-MM-DD."
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    if start_date > end_date:
+        return Response({
+            "success": False,
+            "message": "'start_date' cannot be greater than 'end_date'."
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    requests_qs = HelpSupport.objects.filter(
+        created_at__date__gte=start_date,
+        created_at__date__lte=end_date
+    ).order_by("-created_at")
+
+    if not requests_qs.exists():
+        return Response({
+            "success": True,
+            "count": 0,
+            "message": f"No support requests found between {start_date} and {end_date}.",
+            "data": []
+        }, status=status.HTTP_200_OK)
+
+    serializer = HelpSupportAdminSerializer(requests_qs, many=True)
+    return Response({
+        "success": True,
+        "count": requests_qs.count(),
+        "message": f"Support requests between {start_date} and {end_date}.",
         "data": serializer.data
     }, status=200)
 

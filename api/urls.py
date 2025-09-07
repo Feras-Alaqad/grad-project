@@ -43,7 +43,8 @@ from .views import (
     OrganizationDetailAPIView,
     VerifiedOrganizationListAPIView,
     HelpSupportListView,
-    admin_support_request_detail
+    admin_support_request_detail,
+    help_support_range_search
 )
 
 # router for ViewSets
@@ -102,6 +103,8 @@ urlpatterns = [
     path("api/received_admin_requests/", organization_admin_requests, name="received_admin_requests"),
     path("api/help-support-list/", HelpSupportListView.as_view(), name="help-support-list"),
     path("api/help-support/<int:pk>/", admin_support_request_detail, name="admin-support-request-detail"),
+    path("api/help-support/range/search/", help_support_range_search, name="help_support_range_search"),
+
 
     # Organization Document Management
     path("api/organization/documents/create/", OrganizationDocumentCreateView.as_view(), name="organization-documents-create"),
