@@ -6,6 +6,8 @@ from django.utils import timezone
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
 from rest_framework_simplejwt.tokens import RefreshToken
+from django.conf import settings
+import os
 
 
 
@@ -14,6 +16,37 @@ from .models import (
     AnnouncementEditRequest, UserFavorite, Organization, OrganizationDocument,
     Notification, HelpSupport
 )
+
+# =========================
+# 🔹 Utility Functions
+# =========================
+
+def get_safe_profile_image_url_serializer(request, user):
+    """
+    Safely get profile image URL for serializers, fallback to default if file doesn't exist
+    """
+    if user.profile_image:
+        # Check if the file actually exists
+        file_path = os.path.join(settings.MEDIA_ROOT, str(user.profile_image))
+        if os.path.exists(file_path):
+            if request:
+                return request.build_absolute_uri(user.profile_image.url)
+            else:
+                return f"{settings.BASE_URL}{user.profile_image.url}"
+        else:
+            # File doesn't exist, use default
+            default_image_path = 'defaults/user_default.png'
+            if request:
+                return request.build_absolute_uri(settings.MEDIA_URL + default_image_path)
+            else:
+                return f"{settings.BASE_URL}{settings.MEDIA_URL}{default_image_path}"
+    else:
+        # No profile image set, use default
+        default_image_path = 'defaults/user_default.png'
+        if request:
+            return request.build_absolute_uri(settings.MEDIA_URL + default_image_path)
+        else:
+            return f"{settings.BASE_URL}{settings.MEDIA_URL}{default_image_path}"
 
 # =========================
 # 🔹 User Serializers
@@ -255,14 +288,8 @@ class OrganizationProfileSerializer(serializers.ModelSerializer):
         read_only_fields = ['rate', 'verified', 'is_active', 'created_at', 'updated_at']
 
     def get_profile_image(self, obj):
-        if obj.user.profile_image:
-            request = self.context.get('request', None)
-            if request:
-                return request.build_absolute_uri(obj.user.profile_image.url)
-            else:
-                from django.conf import settings
-                return f"{settings.BASE_URL}{obj.user.profile_image.url}"
-        return None
+        request = self.context.get('request', None)
+        return get_safe_profile_image_url_serializer(request, obj.user)
 
     def update(self, instance, validated_data):
         # تحديث بيانات اليوزر المرتبطة

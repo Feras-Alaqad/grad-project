@@ -46,7 +46,7 @@ from .views import (
     admin_support_request_detail
 )
 
-# Create router for ViewSets
+# router for ViewSets
 router = DefaultRouter()
 router.register(r'announcements', AnnouncementViewSet, basename='announcement')
 router.register(r'announcement-categories', AnnouncementCategoryViewSet, basename='announcement-category')
@@ -84,8 +84,7 @@ urlpatterns = [
     path('api/edit-requests/pending/', AnnouncementEditRequestViewSet.as_view({'get': 'pending_edit_requests'}), name='pending-edit-requests'),
     path('api/edit-requests/<int:pk>/approve-reject/', AnnouncementEditRequestViewSet.as_view({'patch': 'approve_reject'}), name='approve-reject-edit-request'),
     
-    # Application URLs removed - announcements handle their own status workflow
-    # Users view approved announcements and apply through external URLs
+
     path('api/users/', UserListAPIView.as_view(), name='user-list'),
     path('api/users/<int:id>/', UserDetailAPIView.as_view(), name='user-detail'),
     path('api/users/search/', UserSearchAPIView.as_view(), name='user-search'),
@@ -115,6 +114,6 @@ urlpatterns = [
     path('api/organizations/<int:id>/', OrganizationDetailAPIView.as_view(), name='organization-detail'),
     path('api/organizations/verified/', VerifiedOrganizationListAPIView.as_view(), name='verified-organizations'),
 
-    # API endpoints (ViewSets)
+    # api app endpoints (ViewSets)
     path('api/', include(router.urls)),
 ]
