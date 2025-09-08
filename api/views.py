@@ -1116,23 +1116,10 @@ class ListFavoritesView(APIView):
         }, status=status.HTTP_200_OK)
 
 
-# Application views removed - announcements handle their own status workflow
-# Users view approved announcements and apply through external URLs
-
-'''------------------------------------------------------------------------------------------------------------------------'''
-
-
-
 class OrganizationToggleActiveView(generics.RetrieveUpdateAPIView):
     queryset = Organization.objects.all()
     serializer_class = OrganizationToggleActiveSerializer
     permission_classes = [IsAdminUser]
-
-from rest_framework import status, permissions
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from django.shortcuts import get_object_or_404
-from .models import User
 
 class ToggleBlockUserAPIView(APIView):
     permission_classes = [permissions.IsAdminUser]  # فقط admins

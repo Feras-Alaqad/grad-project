@@ -240,15 +240,16 @@ class ChangePasswordSerializer(serializers.Serializer):
         return attrs
     
 class OrganizationProfileSerializer(serializers.ModelSerializer):
-    name = serializers.CharField(source='user.name', required=False)
-    email = serializers.EmailField(source='user.email', required=False)
-    phone = serializers.CharField(source='user.phone', required=False)
+    name = serializers.CharField(source='user.name', required=True)
+    email = serializers.EmailField(source='user.email', required=True)
+    phone = serializers.CharField(source='user.phone', required=True)
+    role = serializers.CharField(source='user.role', required=False)
     profile_image = serializers.ImageField(source='user.profile_image', required=False)
 
     class Meta:
         model = Organization
         fields = [
-            'id','name', 'email', 'phone', 'profile_image',
+            'id','name', 'email', 'phone', 'profile_image', 'role',
             'description', 'website', 'location', 'rate', 'verified', 'is_active',
             'created_at', 'updated_at'
         ]
@@ -326,6 +327,7 @@ class OrganizationToggleActiveSerializer(serializers.ModelSerializer):
 
         if not is_active:  # Blocking the organization
             instance.is_active = False
+            # block_reason اختياري، إذا ما انبعت يخزن فاضي
             instance.block_reason = validated_data.get('block_reason', '')
 
             # إبطال كل التوكنات الصالحة للمؤسسة
@@ -335,6 +337,8 @@ class OrganizationToggleActiveSerializer(serializers.ModelSerializer):
 
         else:  # Reactivating
             instance.is_active = True
+            # لما نرجع نفعّل المؤسسة ممكن نمسح سبب الحظر
+            instance.block_reason = ""
 
         instance.save()
         return instance
@@ -342,9 +346,8 @@ class OrganizationToggleActiveSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
         if instance.is_active:
-            data.pop('block_reason', None)
+            data.pop('block_reason', None)  # ما نعرض السبب لو المؤسسة مفعلة
         return data
-
 
 # =========================
 # 🔹 Models Serializers
@@ -897,6 +900,23 @@ class OrganizationDocumentSerializer(serializers.ModelSerializer):
             "created_at"
         ]
         read_only_fields = ["id", "status", "created_at"]
+
+        extra_kwargs = {
+            "registration_docs": {"required": True, "allow_null": False},
+            "financial_report": {"required": True, "allow_null": False},
+            "activity_proof": {"required": True, "allow_null": False},
+            "address_proof": {"required": True, "allow_null": False},
+        }
+
+    def validate(self, attrs):
+        """تأكد أن كل ملف تم رفعه بشكل صحيح"""
+        for field in ["registration_docs", "financial_report", "activity_proof", "address_proof"]:
+            file = attrs.get(field)
+            if not file:
+                raise serializers.ValidationError({field: f"{field.replace('_', ' ').title()} is required."})
+            if hasattr(file, "size") and file.size == 0:
+                raise serializers.ValidationError({field: f"{field.replace('_', ' ').title()} file is empty."})
+        return attrs
 
     def create(self, validated_data):
         request = self.context.get("request")
