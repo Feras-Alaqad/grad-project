@@ -1,6 +1,8 @@
 from django.contrib import admin
 from django.utils import timezone
 from django.utils.html import format_html
+from django.conf import settings
+import os
 
 from .models import (
     User, Announcement, AnnouncementCategory,
@@ -17,7 +19,7 @@ class UserAdmin(admin.ModelAdmin):
     readonly_fields = ("created_at", "updated_at", "last_login")
 
     def profile_image_tag(self, obj):
-        if obj.profile_image:
+        if obj.profile_image and os.path.exists(obj.profile_image.path):
             return format_html('<img src="{}" width="50" height="50" style="border-radius:50%;" />', obj.profile_image.url)
         return format_html('<img src="/media/defaults/user_default.png" width="50" height="50" style="border-radius:50%;" />')
     profile_image_tag.short_description = 'Profile Image'
@@ -100,7 +102,7 @@ class AnnouncementEditRequestAdmin(admin.ModelAdmin):
         return qs.order_by('status', '-created_at')
     
     def image_tag(self, obj):
-        if obj.image:
+        if obj.image and os.path.exists(obj.image.path):
             return format_html('<img src="{}" width="50" height="50" />', obj.image.url)
         return format_html('<img src="/media/defaults/announcement_default.png" width="50" height="50" />')
     image_tag.short_description = 'Image'

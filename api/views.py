@@ -15,7 +15,10 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAdminUser
 from django.shortcuts import get_object_or_404
 from django.http import Http404
+from rest_framework.exceptions import PermissionDenied
+import os
 from django.utils.dateparse import parse_date
+
 
 from .models import (
     User, Organization,
@@ -57,6 +60,28 @@ from .serializers import (
 )
 
 
+
+# =========================
+# 🔹 Utility Functions
+# =========================
+
+def get_safe_profile_image_url(request, user):
+    """
+    Safely get profile image URL, fallback to default if file doesn't exist
+    """
+    if user.profile_image:
+        # Check if the file actually exists
+        file_path = os.path.join(settings.MEDIA_ROOT, str(user.profile_image))
+        if os.path.exists(file_path):
+            return request.build_absolute_uri(user.profile_image.url)
+        else:
+            # File doesn't exist, use default
+            default_image_path = 'defaults/user_default.png'
+            return request.build_absolute_uri(settings.MEDIA_URL + default_image_path)
+    else:
+        # No profile image set, use default
+        default_image_path = 'defaults/user_default.png'
+        return request.build_absolute_uri(settings.MEDIA_URL + default_image_path)
 
 # =========================
 # 🔹 Custom Permissions
@@ -108,7 +133,7 @@ class UserSignupView(APIView):
                             "email": user.email,
                             "name": user.name,
                             "phone": user.phone,
-                            "profile_image": request.build_absolute_uri(user.profile_image.url) if user.profile_image else None
+                            "profile_image": get_safe_profile_image_url(request, user)
                         }
                     },
                     "refresh": str(refresh),
