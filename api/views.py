@@ -646,6 +646,37 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
             'data': serializer.data
         }, status=status.HTTP_200_OK)
     
+    @action(detail=True, methods=['delete'], url_path='track-application', permission_classes=[IsAuthenticated])
+    def remove_application_tracking(self, request, pk=None):
+        """
+        Remove user application tracking
+        DELETE /api/announcements/{id}/track-application/
+        """
+        # Check if user has 'user' role
+        if request.user.role != User.Role.USER:
+            return Response({
+                'success': False,
+                'message': 'Only users with user role can remove application tracking'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        announcement = self.get_object()
+        
+        try:
+            tracking = UserApplicationTracking.objects.get(
+                user=request.user,
+                announcement=announcement
+            )
+            tracking.delete()
+            return Response({
+                'success': True,
+                'message': 'Application tracking removed successfully'
+            }, status=status.HTTP_200_OK)
+        except UserApplicationTracking.DoesNotExist:
+            return Response({
+                'success': False,
+                'message': 'No tracking record found for this announcement'
+            }, status=status.HTTP_404_NOT_FOUND)
+    
     @action(detail=False, methods=['get'], url_path='my-applications', permission_classes=[IsAuthenticated])
     def my_applications(self, request):
         """
