@@ -986,3 +986,27 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at"
         ]
+
+class NotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Notification
+        fields = ['title', 'message']
+
+class NotificationDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Notification
+        fields = ['id', 'title', 'message', 'created_at', 'updated_at']
+
+class NotificationToUserSerializer(serializers.ModelSerializer):
+    user_id = serializers.IntegerField(write_only=True, help_text="ID of the user to send notification to")
+
+    class Meta:
+        model = Notification
+        fields = ['title', 'message', 'user_id']
+
+class NotificationListSerializer(serializers.ModelSerializer):
+    recipient = serializers.CharField(source='user.name', read_only=True)
+
+    class Meta:
+        model = Notification
+        fields = ['id', 'recipient', 'title', 'message', 'created_at']

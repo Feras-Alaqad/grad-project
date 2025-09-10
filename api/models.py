@@ -584,7 +584,6 @@ class Notification(models.Model):
     """
     Notifications model
     - Sends notifications to users about various events
-    - Supports shown/hidden notification states
     """
     user = models.ForeignKey(
         User,
@@ -603,11 +602,6 @@ class Notification(models.Model):
         verbose_name="Notification Message",
         help_text="Notification text sent to user"
     )
-    shown = models.BooleanField(
-        default=False,
-        verbose_name="Shown Status",
-        help_text="Has the notification been shown to user?"
-    )
     created_at = models.DateTimeField(
         auto_now_add=True,
         verbose_name="Creation Date"
@@ -618,20 +612,15 @@ class Notification(models.Model):
     )
 
     def __str__(self):
-        status = "Shown" if self.shown else "Not Shown"
-        return f"Notification to {self.user.name or self.user.email} - {status}"
+        return f"Notification to {self.user.name or self.user.email}"
 
-    def mark_as_shown(self):
-        """Mark notification as shown"""
-        self.shown = True
-        self.save()
 
     class Meta:
         verbose_name = "Notification"
         verbose_name_plural = "Notifications"
         ordering = ['-created_at']
         indexes = [
-            models.Index(fields=['user', 'shown']),
+            models.Index(fields=['user']),
             models.Index(fields=['-created_at']),
         ]
 

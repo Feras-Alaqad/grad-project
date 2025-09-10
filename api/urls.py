@@ -27,10 +27,7 @@ from .views import (
     create_support_request,
     get_user_support_requests,  
     get_support_request_detail,
-    send_request_to_organization,
-    organization_reply_request,
     admin_reply_request,
-    organization_admin_requests,
     OrganizationDocumentCreateView,
     OrganizationDocumentApproveRejectView,
     list_all_documents,
@@ -44,7 +41,16 @@ from .views import (
     VerifiedOrganizationListAPIView,
     HelpSupportListView,
     admin_support_request_detail,
-    help_support_range_search
+    help_support_range_search,
+    SendNotificationAllUsersView,
+    UserNotificationsView,
+    SendNotificationToUserView,
+    NotificationListView,
+    SendNotificationToOrganizationsView,
+    NotificationDeleteView,
+    NotificationDeleteAllView,
+    AdminNotificationDeleteView
+
 )
 
 # router for ViewSets
@@ -97,10 +103,7 @@ urlpatterns = [
     path('api/support/create/', create_support_request, name='create_support_request'),
     path('api/support/my-requests/', get_user_support_requests, name='user_support_requests'),
     path('api/support/my-request/<int:pk>/', get_support_request_detail, name='support_request_detail'),
-    path('api/admin-send-to-org/report/<int:pk>/', send_request_to_organization, name='admin-send-to-org'),
-    path('api/support/organization/reply/<int:pk>/', organization_reply_request, name='organization-reply-support'),
     path('api/support/admin/reply/<int:pk>/', admin_reply_request, name='admin-reply-support'),
-    path("api/received_admin_requests/", organization_admin_requests, name="received_admin_requests"),
     path("api/help-support-list/", HelpSupportListView.as_view(), name="help-support-list"),
     path("api/help-support/<int:pk>/", admin_support_request_detail, name="admin-support-request-detail"),
     path("api/help-support/range/search/", help_support_range_search, name="help_support_range_search"),
@@ -117,6 +120,15 @@ urlpatterns = [
     path('api/organizations/<int:id>/', OrganizationDetailAPIView.as_view(), name='organization-detail'),
     path('api/organizations/verified/', VerifiedOrganizationListAPIView.as_view(), name='verified-organizations'),
 
+    # notification endpoints can be added here
+    path('api/notifications/send-to-users/', SendNotificationAllUsersView.as_view(), name='send-notifications-users'),
+    path('api/notifications/send-to-organizations/', SendNotificationToOrganizationsView.as_view(), name='send-notification-organizations'),
+    path('api/my/notifications/', UserNotificationsView.as_view(), name='my-notifications'),
+    path('api/notifications/send-to-user/', SendNotificationToUserView.as_view(), name='send-notification-to-user'),
+    path('api/notifications/', NotificationListView.as_view(), name='notification-list'),
+    path('api/notification/<int:pk>/delete/', NotificationDeleteView.as_view(), name='notification-delete'),
+    path('api/notifications/delete-all/', NotificationDeleteAllView.as_view(), name='notification-delete-all'),
+    path('api/admin/notification/<int:pk>/delete/', AdminNotificationDeleteView.as_view(), name='admin-notification-delete'),
     # api app endpoints (ViewSets)
     path('api/', include(router.urls)),
 ]

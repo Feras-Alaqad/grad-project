@@ -27,6 +27,7 @@ from .models import (
     HelpSupport,
     OrganizationDocument,
     AnnouncementEditRequest,
+    Notification
 )
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q
@@ -57,6 +58,10 @@ from .serializers import (
     HelpSupportCreateSerializer,
     OrganizationDocumentSerializer,
     OrganizationSerializer,
+    NotificationSerializer,
+    NotificationDetailSerializer,
+    NotificationToUserSerializer,
+    NotificationListSerializer
 )
 
 
@@ -1287,92 +1292,6 @@ def get_support_request_detail(request, pk):
     serializer = HelpSupportSerializer(support_request)  
     return Response({'success': True, 'data': serializer.data}, status=status.HTTP_200_OK)
 
-@api_view(['POST'])
-@permission_classes([IsAdminRole])
-def send_request_to_organization(request, pk):
-    """
-    Mark the support request as sent to the target organization.
-    """
-    support_request = get_object_or_404(HelpSupport, pk=pk)
-
-    if support_request.type != HelpSupport.SupportType.ORGANIZATION:
-        return Response({
-            "success": False,
-            "message": "This request is not of type 'Organization Complaint'."
-        }, status=status.HTTP_400_BAD_REQUEST)
-
-    if not support_request.target_org:
-        return Response({
-            "success": False,
-            "message": "An organization request must have a target organization (target_org)."
-        }, status=status.HTTP_400_BAD_REQUEST)
-
-    # تغيير حالة الطلب
-    support_request.status = HelpSupport.Status.SENT
-    support_request.save()
-
-    org_name = support_request.target_org.user.name  # اسم المؤسسة من جدول User المرتبط
-    return Response({
-        "success": True,
-        "message": f"The complaint has been sent to the organization: {org_name}."
-    }, status=status.HTTP_200_OK)
-
-@api_view(['POST'])
-@permission_classes([IsOrganizationRole])  # صلاحية المؤسسة فقط
-def organization_reply_request(request, pk):
-    """
-    Allows the organization to respond to a support request.
-    Sends the reply to the user who created the request.
-    """
-    # جلب المؤسسة الحالية
-    try:
-        organization = Organization.objects.get(user=request.user)
-    except Organization.DoesNotExist:
-        return Response({
-            "success": False,
-            "message": "This user is not linked to any organization."
-        }, status=403)
-
-    # جلب الطلب الذي يكون target_org هو المؤسسة الحالية وحالته SENT
-    support_request = get_object_or_404(
-        HelpSupport,
-        pk=pk,
-        target_org=organization,
-        status=HelpSupport.Status.SENT
-    )
-
-    # البيانات المرسلة
-    reply_text = request.data.get('reply')
-    if not reply_text:
-        return Response({
-            "success": False,
-            "message": "Reply text is required."
-        }, status=400)
-
-    # حفظ الرد وتغيير الحالة إلى closed
-    support_request.reply = reply_text
-    support_request.status = HelpSupport.Status.CLOSED  # ← تحديث الحالة
-    support_request.save()
-
-    # إرسال إيميل للمستخدم الذي قدم الطلب
-    subject = f"Response to your support request: {support_request.title}"
-    message = f"Hello {support_request.user.name},\n\n" \
-              f"The organization {organization.user.name} has responded to your support request:\n\n" \
-              f"{reply_text}\n\nThank you."
-    recipient_list = [support_request.user.email]
-
-    try:
-        send_mail(subject, message, 'no-reply@yourplatform.com', recipient_list)
-    except Exception as e:
-        return Response({
-            "success": False,
-            "message": f"Failed to send email: {str(e)}"
-        }, status=500)
-
-    return Response({
-        "success": True,
-        "message": "Your reply has been sent to the user successfully and the request is now closed."
-    }, status=200)
 
 @api_view(['POST'])
 @permission_classes([IsAdminRole])  
@@ -1424,61 +1343,6 @@ def admin_reply_request(request, pk):
     return Response({
         "success": True,
         "message": "Your reply has been sent to the user successfully and the request is now closed."
-    }, status=200)
-
-
-@api_view(['GET'])
-@permission_classes([IsOrganizationRole])
-def organization_admin_requests(request):
-    try:
-        organization = Organization.objects.get(user=request.user)
-    except Organization.DoesNotExist:
-        return Response({
-            "success": False,
-            "message": "This user is not linked to any organization."
-        }, status=403)
-
-    # بداية queryset: كل الطلبات المرتبطة بالمؤسسة
-    requests_qs = HelpSupport.objects.filter(target_org=organization)
-
-    # ✅ فلترة حسب الحالة
-    status_param = request.query_params.get('status')  # مثال: ?status=SENT,CLOSED
-    valid_statuses = [s.value for s in HelpSupport.Status]  # قائمة الحالات الصحيحة
-
-    if status_param:
-        status_list = [s.strip().lower() for s in status_param.split(',')]
-        # التحقق من صحة القيم
-        invalid_status = [s for s in status_list if s not in valid_statuses]
-        if invalid_status:
-            return Response({
-                "success": False,
-                "detail": f"Invalid status value(s): {', '.join(invalid_status)}"
-            }, status=status.HTTP_400_BAD_REQUEST)
-        requests_qs = requests_qs.filter(status__in=status_list)
-    else:
-        requests_qs = requests_qs.filter(status__in=[HelpSupport.Status.SENT, HelpSupport.Status.CLOSED])
-
-    # ✅ فلترة حسب النوع
-    type_param = request.query_params.get('type')  # مثال: ?type=system,organization
-    valid_types = [t.value for t in HelpSupport.SupportType]
-    if type_param:
-        type_list = [t.strip().lower() for t in type_param.split(',')]
-        invalid_type = [t for t in type_list if t not in valid_types]
-        if invalid_type:
-            return Response({
-                "success": False,
-                "detail": f"Invalid type value(s): {', '.join(invalid_type)}"
-            }, status=status.HTTP_400_BAD_REQUEST)
-        requests_qs = requests_qs.filter(type__in=type_list)
-
-    requests_qs = requests_qs.order_by('-created_at')
-
-    serializer = HelpSupportAdminSerializer(requests_qs, many=True)
-    return Response({
-        "success": True,
-        "count": requests_qs.count(),
-        "message": "Filtered requests sent by admin to your organization.",
-        "data": serializer.data
     }, status=200)
 
 class HelpSupportListView(generics.ListAPIView):
@@ -1676,3 +1540,145 @@ class VerifiedOrganizationListAPIView(generics.ListAPIView):
                 status=status.HTTP_403_FORBIDDEN
             )
         return super().list(request, *args, **kwargs)
+
+class SendNotificationAllUsersView(APIView):
+    permission_classes = [permissions.IsAdminUser]  # فقط الأدمن
+
+    def post(self, request):
+        serializer = NotificationSerializer(data=request.data)
+        if serializer.is_valid():
+            title = serializer.validated_data['title']
+            message = serializer.validated_data['message']
+
+            users = User.objects.filter(role=User.Role.USER)
+            notifications = [
+                Notification(user=user, title=title, message=message)
+                for user in users
+            ]
+            Notification.objects.bulk_create(notifications)
+
+            return Response({"detail": f"Notification sent to {users.count()} users."}, status=status.HTTP_201_CREATED)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+class SendNotificationToOrganizationsView(APIView):
+    permission_classes = [permissions.IsAdminUser]  # فقط الأدمن
+
+    def post(self, request):
+        serializer = NotificationSerializer(data=request.data)
+        if serializer.is_valid():
+            title = serializer.validated_data['title']
+            message = serializer.validated_data['message']
+
+            organizations = User.objects.filter(role=User.Role.ORGANIZATION)
+            notifications = [
+                Notification(user=org, title=title, message=message)
+                for org in organizations
+            ]
+            Notification.objects.bulk_create(notifications)
+
+            return Response({"detail": f"Notification sent to {organizations.count()} organizations."}, status=status.HTTP_201_CREATED)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+class UserNotificationsView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        notifications = Notification.objects.filter(user=user).order_by('-created_at')
+
+        if not notifications.exists():
+            return Response(
+                {"detail": "Your notifications list is empty."},
+                status=200
+            )
+
+        serializer = NotificationDetailSerializer(notifications, many=True)
+        return Response(serializer.data)
+    
+class SendNotificationToUserView(APIView):
+    permission_classes = [permissions.IsAdminUser]  
+
+    def post(self, request):
+        serializer = NotificationToUserSerializer(data=request.data)
+        if serializer.is_valid():
+            user_id = serializer.validated_data['user_id']
+            title = serializer.validated_data['title']
+            message = serializer.validated_data['message']
+
+            try:
+                user = User.objects.get(id=user_id)
+            except User.DoesNotExist:
+                return Response({"detail": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+
+            Notification.objects.create(user=user, title=title, message=message)
+
+            return Response({"detail": f"Notification sent to {user.name or user.email}"}, status=status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+class NotificationListView(generics.ListAPIView):
+    serializer_class = NotificationListSerializer
+    permission_classes = [permissions.IsAdminUser]
+
+    def get_queryset(self):
+        queryset = Notification.objects.all().order_by('-created_at')
+        user_name = self.request.query_params.get('user_name', None)
+        title = self.request.query_params.get('title', None)
+        user_role = self.request.query_params.get('user_role', None)
+
+        if user_name:
+            queryset = queryset.filter(user__name__icontains=user_name)
+        if title:
+            queryset = queryset.filter(title__icontains=title)
+        if user_role:
+            queryset = queryset.filter(user__role=user_role)
+
+        return queryset
+
+class NotificationDeleteAllView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def delete(self, request):
+        notifications = Notification.objects.filter(user=request.user)
+        if not notifications.exists():
+            return Response(
+                {"detail": "You have no notifications to delete."},
+                status=status.HTTP_200_OK
+            )
+
+        notifications.delete()
+        return Response(
+            {"detail": "All your notifications have been deleted."},
+            status=status.HTTP_200_OK
+        )
+
+class NotificationDeleteView(generics.DestroyAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Notification.objects.filter(user=self.request.user)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        title = instance.title  
+        self.perform_destroy(instance)
+        return Response(
+            {"detail": f"Notification '{title}' has been deleted."},
+            status=status.HTTP_200_OK
+        )
+    
+class AdminNotificationDeleteView(generics.DestroyAPIView):
+    permission_classes = [permissions.IsAdminUser]  # فقط الأدمن
+    queryset = Notification.objects.all()  # الأدمن يمكنه الوصول لكل الإشعارات
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        title = instance.title  # عنوان الإشعار
+        username = instance.user.name or instance.user.email  # اسم المستلم أو الايميل
+        self.perform_destroy(instance)
+        return Response(
+            {"detail": f"Notification '{title}' sent to '{username}' has been deleted by admin."},
+            status=status.HTTP_200_OK
+        )
