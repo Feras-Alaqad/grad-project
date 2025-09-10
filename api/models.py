@@ -460,6 +460,13 @@ class Organization(models.Model):
         verbose_name="Responsible User",
         help_text="User responsible for the organization"
     )
+    profile_image = models.ImageField(
+        upload_to='profile/organizations/',
+        blank=True,
+        null=True,
+        default='defaults/organization_default.png',
+        verbose_name="Organization Profile Image"
+    )
     description = models.TextField(
         blank=True,
         verbose_name="Organization Description",

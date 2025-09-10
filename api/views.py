@@ -387,13 +387,13 @@ class ProfileView(APIView):
             if email and User.objects.exclude(pk=user.pk).filter(email=email).exists():
                 return Response({"email": ["This email is already used by another account."]}, status=400)
 
-            # تحديث بيانات User الشخصية
-            for field in ['name', 'email', 'phone', 'profile_image']:
+            # تحديث بيانات User الشخصية (بدون profile_image)
+            for field in ['name', 'email', 'phone']:
                 if field in request.data:
                     setattr(user, field, request.data[field])
             user.save()
 
-            # تحديث بيانات المؤسسة (description, website, location)
+            # تحديث بيانات المؤسسة (description, website, location, profile_image)
             serializer = OrganizationProfileSerializer(
                 organization, data=request.data, partial=True, context={'request': request}
             )

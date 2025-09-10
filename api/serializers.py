@@ -149,6 +149,7 @@ class OrganizationSignupSerializer(serializers.ModelSerializer):
             'website': validated_data.pop('website', ''),
             'location': validated_data.pop('location', ''),
             'rate': validated_data.pop('rate', 1),
+            'profile_image': validated_data.pop('profile_image', None),
             'verified': False,       
             'is_active': True,       
         }
@@ -158,7 +159,6 @@ class OrganizationSignupSerializer(serializers.ModelSerializer):
             password=password,
             name=validated_data.get('name', ''),
             phone=validated_data.get('phone', ''),
-            profile_image=validated_data.get('profile_image', None),
             role=User.Role.ORGANIZATION
         )
 
@@ -284,7 +284,7 @@ class OrganizationProfileSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(source='user.email', required=True)
     phone = serializers.CharField(source='user.phone', required=True)
     role = serializers.CharField(source='user.role', required=False)
-    profile_image = serializers.ImageField(source='user.profile_image', required=False)
+    profile_image = serializers.ImageField(required=False)
 
     class Meta:
         model = Organization
@@ -297,7 +297,11 @@ class OrganizationProfileSerializer(serializers.ModelSerializer):
 
     def get_profile_image(self, obj):
         request = self.context.get('request', None)
-        return get_safe_profile_image_url_serializer(request, obj.user)
+        if obj.profile_image:
+            if request:
+                return request.build_absolute_uri(obj.profile_image.url)
+            return f"{settings.BASE_URL}{obj.profile_image.url}"
+        return None
 
     def update(self, instance, validated_data):
         # تحديث بيانات اليوزر المرتبطة
@@ -972,7 +976,7 @@ class OrganizationDocumentSerializer(serializers.ModelSerializer):
     
 class OrganizationSerializer(serializers.ModelSerializer):
     organization_name = serializers.CharField(source="user.name", read_only=True)
-    profile_image = serializers.ImageField(source="user.profile_image", read_only=True)
+    profile_image = serializers.ImageField(read_only=True)
     email = serializers.EmailField(source="user.email", read_only=True)
     phone = serializers.CharField(source="user.phone", read_only=True)
 
