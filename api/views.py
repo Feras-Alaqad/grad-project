@@ -27,6 +27,8 @@ from .models import (
     HelpSupport,
     OrganizationDocument,
     AnnouncementEditRequest,
+    UserApplicationTracking,
+    Notification,
 )
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q
@@ -47,11 +49,13 @@ from .serializers import (
     AnnouncementApprovalSerializer,
     AnnouncementCategorySerializer,
     AnnouncementEditRequestCreateSerializer,
+    NotificationSerializer,
     AnnouncementEditRequestListSerializer,
     AnnouncementEditRequestDetailSerializer,
     AnnouncementEditRequestApprovalSerializer,
     OrganizationToggleActiveSerializer,
     LogoutSerializer,
+    UserApplicationTrackingSerializer,
     HelpSupportAdminSerializer,
     HelpSupportSerializer,
     HelpSupportCreateSerializer,
@@ -591,6 +595,80 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         """Override to set created_by field"""
         serializer.save(created_by=self.request.user)
+    
+    @action(detail=True, methods=['post'], url_path='track-application', permission_classes=[IsAuthenticated])
+    def track_application(self, request, pk=None):
+        """
+        Track user application status and set reminders
+        POST /api/announcements/{id}/track-application/
+        
+        Expected payload:
+        {
+            "status": "applied",  // optional, defaults to 'not applied'
+            "notes": "Application submitted successfully",
+            "reminder_date": "2024-02-15T10:00:00Z"  // optional
+        }
+        """
+        # Check if user has 'user' role
+        if request.user.role != User.Role.USER:
+            return Response({
+                'success': False,
+                'message': 'Only users with user role can track applications'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        announcement = self.get_object()
+        
+        # Check if tracking already exists for this user and announcement
+        tracking, created = UserApplicationTracking.objects.get_or_create(
+            user=request.user,
+            announcement=announcement,
+            defaults={
+                'status': request.data.get('status', 'not applied'),
+                'notes': request.data.get('notes', ''),
+                'reminder_date': request.data.get('reminder_date')
+            }
+        )
+        
+        if not created:
+            # Update existing tracking
+            if 'status' in request.data:
+                tracking.status = request.data.get('status')
+            if 'notes' in request.data:
+                tracking.notes = request.data.get('notes')
+            if 'reminder_date' in request.data:
+                tracking.reminder_date = request.data.get('reminder_date')
+            tracking.save()
+        
+        serializer = UserApplicationTrackingSerializer(tracking)
+        return Response({
+            'success': True,
+            'message': 'Application tracking updated successfully',
+            'data': serializer.data
+        }, status=status.HTTP_200_OK)
+    
+    @action(detail=False, methods=['get'], url_path='my-applications', permission_classes=[IsAuthenticated])
+    def my_applications(self, request):
+        """
+        Get user's tracked applications from database
+        GET /api/announcements/my-applications/
+        """
+        # Check if user has 'user' role
+        if request.user.role != User.Role.USER:
+            return Response({
+                'success': False,
+                'message': 'Only users with user role can view their applications'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        applications = UserApplicationTracking.objects.filter(user=request.user)
+        serializer = UserApplicationTrackingSerializer(applications, many=True)
+        
+        return Response({
+            'success': True,
+            'data': serializer.data,
+            'count': applications.count()
+        }, status=status.HTTP_200_OK)
+    
+
 
 
 # =========================

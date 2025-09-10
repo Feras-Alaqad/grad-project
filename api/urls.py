@@ -53,6 +53,7 @@ router.register(r'announcements', AnnouncementViewSet, basename='announcement')
 router.register(r'announcement-categories', AnnouncementCategoryViewSet, basename='announcement-category')
 router.register(r'announcement-edit-requests', AnnouncementEditRequestViewSet, basename='announcement-edit-request')
 
+
 urlpatterns = [
     # Authentication endpoints
     path('api/auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),

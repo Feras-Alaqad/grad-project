@@ -14,7 +14,7 @@ import os
 from .models import (
     User, Announcement, AnnouncementCategory,
     AnnouncementEditRequest, UserFavorite, Organization, OrganizationDocument,
-    Notification, HelpSupport
+    Notification, HelpSupport, UserApplicationTracking
 )
 
 # =========================
@@ -205,6 +205,13 @@ class UserSerializer(serializers.ModelSerializer):
             'name': {'required': True, 'allow_blank': False},
             'phone': {'required': False, 'allow_blank': True},
         }
+    
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get('request', None)
+        # Use safe profile image URL to handle missing files
+        data['profile_image'] = get_safe_profile_image_url_serializer(request, instance)
+        return data
 
 
 class ForgotPasswordSerializer(serializers.Serializer):
@@ -986,3 +993,49 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at"
         ]
+
+
+class UserApplicationTrackingSerializer(serializers.ModelSerializer):
+    """Serializer for user application tracking"""
+    announcement = AnnouncementDetailSerializer(read_only=True)
+    
+    class Meta:
+        model = UserApplicationTracking
+        fields = [
+            'id',
+            'announcement',
+            'status',
+            'notes',
+            'reminder_date',
+            'created_at',
+            'updated_at'
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+
+
+class UserApplicationTrackingCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating application tracking entries"""
+    
+    class Meta:
+        model = UserApplicationTracking
+        fields = ['notes', 'status', 'reminder_date']
+        
+    def create(self, validated_data):
+        # Get user and announcement from context
+        user = self.context['request'].user
+        announcement = self.context['announcement']
+        
+        # Create or update the tracking entry
+        tracking, created = UserApplicationTracking.objects.get_or_create(
+            user=user,
+            announcement=announcement,
+            defaults=validated_data
+        )
+        
+        if not created:
+            # Update existing entry
+            for attr, value in validated_data.items():
+                setattr(tracking, attr, value)
+            tracking.save()
+            
+        return tracking
