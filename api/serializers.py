@@ -298,10 +298,24 @@ class OrganizationProfileSerializer(serializers.ModelSerializer):
     def get_profile_image(self, obj):
         request = self.context.get('request', None)
         if obj.profile_image:
+            # Check if the file actually exists
+            file_path = os.path.join(settings.MEDIA_ROOT, str(obj.profile_image))
+            if os.path.exists(file_path):
+                if request:
+                    return request.build_absolute_uri(obj.profile_image.url)
+                return f"{settings.BASE_URL}{obj.profile_image.url}"
+            else:
+                # File doesn't exist, use default organization image
+                default_image_path = 'defaults/organization_default.png'
+                if request:
+                    return request.build_absolute_uri(settings.MEDIA_URL + default_image_path)
+                return f"{settings.BASE_URL}{settings.MEDIA_URL}{default_image_path}"
+        else:
+            # No profile image set, use default
+            default_image_path = 'defaults/organization_default.png'
             if request:
-                return request.build_absolute_uri(obj.profile_image.url)
-            return f"{settings.BASE_URL}{obj.profile_image.url}"
-        return None
+                return request.build_absolute_uri(settings.MEDIA_URL + default_image_path)
+            return f"{settings.BASE_URL}{settings.MEDIA_URL}{default_image_path}"
 
     def update(self, instance, validated_data):
         # تحديث بيانات اليوزر المرتبطة
