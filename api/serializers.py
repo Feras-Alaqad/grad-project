@@ -14,7 +14,7 @@ import os
 from .models import (
     User, Announcement, AnnouncementCategory,
     AnnouncementEditRequest, UserFavorite, Organization, OrganizationDocument,
-    Notification, HelpSupport
+    Notification, HelpSupport, UserApplicationTracking
 )
 
 # =========================
@@ -149,6 +149,7 @@ class OrganizationSignupSerializer(serializers.ModelSerializer):
             'website': validated_data.pop('website', ''),
             'location': validated_data.pop('location', ''),
             'rate': validated_data.pop('rate', 1),
+            'profile_image': validated_data.pop('profile_image', None),
             'verified': False,       
             'is_active': True,       
         }
@@ -158,7 +159,6 @@ class OrganizationSignupSerializer(serializers.ModelSerializer):
             password=password,
             name=validated_data.get('name', ''),
             phone=validated_data.get('phone', ''),
-            profile_image=validated_data.get('profile_image', None),
             role=User.Role.ORGANIZATION
         )
 
@@ -205,6 +205,13 @@ class UserSerializer(serializers.ModelSerializer):
             'name': {'required': True, 'allow_blank': False},
             'phone': {'required': False, 'allow_blank': True},
         }
+    
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get('request', None)
+        # Use safe profile image URL to handle missing files
+        data['profile_image'] = get_safe_profile_image_url_serializer(request, instance)
+        return data
 
 
 class ForgotPasswordSerializer(serializers.Serializer):
@@ -277,7 +284,7 @@ class OrganizationProfileSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(source='user.email', required=True)
     phone = serializers.CharField(source='user.phone', required=True)
     role = serializers.CharField(source='user.role', required=False)
-    profile_image = serializers.ImageField(source='user.profile_image', required=False)
+    profile_image = serializers.ImageField(required=False)
 
     class Meta:
         model = Organization
@@ -290,7 +297,25 @@ class OrganizationProfileSerializer(serializers.ModelSerializer):
 
     def get_profile_image(self, obj):
         request = self.context.get('request', None)
-        return get_safe_profile_image_url_serializer(request, obj.user)
+        if obj.profile_image:
+            # Check if the file actually exists
+            file_path = os.path.join(settings.MEDIA_ROOT, str(obj.profile_image))
+            if os.path.exists(file_path):
+                if request:
+                    return request.build_absolute_uri(obj.profile_image.url)
+                return f"{settings.BASE_URL}{obj.profile_image.url}"
+            else:
+                # File doesn't exist, use default organization image
+                default_image_path = 'defaults/organization_default.png'
+                if request:
+                    return request.build_absolute_uri(settings.MEDIA_URL + default_image_path)
+                return f"{settings.BASE_URL}{settings.MEDIA_URL}{default_image_path}"
+        else:
+            # No profile image set, use default
+            default_image_path = 'defaults/organization_default.png'
+            if request:
+                return request.build_absolute_uri(settings.MEDIA_URL + default_image_path)
+            return f"{settings.BASE_URL}{settings.MEDIA_URL}{default_image_path}"
 
     def update(self, instance, validated_data):
         # تحديث بيانات اليوزر المرتبطة
@@ -965,7 +990,7 @@ class OrganizationDocumentSerializer(serializers.ModelSerializer):
     
 class OrganizationSerializer(serializers.ModelSerializer):
     organization_name = serializers.CharField(source="user.name", read_only=True)
-    profile_image = serializers.ImageField(source="user.profile_image", read_only=True)
+    profile_image = serializers.ImageField(read_only=True)
     email = serializers.EmailField(source="user.email", read_only=True)
     phone = serializers.CharField(source="user.phone", read_only=True)
 
@@ -1010,3 +1035,48 @@ class NotificationListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Notification
         fields = ['id', 'recipient', 'title', 'message', 'created_at']
+
+class UserApplicationTrackingSerializer(serializers.ModelSerializer):
+    """Serializer for user application tracking"""
+    announcement = AnnouncementDetailSerializer(read_only=True)
+    
+    class Meta:
+        model = UserApplicationTracking
+        fields = [
+            'id',
+            'announcement',
+            'status',
+            'notes',
+            'reminder_date',
+            'created_at',
+            'updated_at'
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+
+
+class UserApplicationTrackingCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating application tracking entries"""
+    
+    class Meta:
+        model = UserApplicationTracking
+        fields = ['notes', 'status', 'reminder_date']
+        
+    def create(self, validated_data):
+        # Get user and announcement from context
+        user = self.context['request'].user
+        announcement = self.context['announcement']
+        
+        # Create or update the tracking entry
+        tracking, created = UserApplicationTracking.objects.get_or_create(
+            user=user,
+            announcement=announcement,
+            defaults=validated_data
+        )
+        
+        if not created:
+            # Update existing entry
+            for attr, value in validated_data.items():
+                setattr(tracking, attr, value)
+            tracking.save()
+            
+        return tracking

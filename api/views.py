@@ -27,7 +27,8 @@ from .models import (
     HelpSupport,
     OrganizationDocument,
     AnnouncementEditRequest,
-    Notification
+    Notification,
+    UserApplicationTracking,
 )
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q
@@ -48,11 +49,13 @@ from .serializers import (
     AnnouncementApprovalSerializer,
     AnnouncementCategorySerializer,
     AnnouncementEditRequestCreateSerializer,
+    NotificationSerializer,
     AnnouncementEditRequestListSerializer,
     AnnouncementEditRequestDetailSerializer,
     AnnouncementEditRequestApprovalSerializer,
     OrganizationToggleActiveSerializer,
     LogoutSerializer,
+    UserApplicationTrackingSerializer,
     HelpSupportAdminSerializer,
     HelpSupportSerializer,
     HelpSupportCreateSerializer,
@@ -388,13 +391,13 @@ class ProfileView(APIView):
             if email and User.objects.exclude(pk=user.pk).filter(email=email).exists():
                 return Response({"email": ["This email is already used by another account."]}, status=400)
 
-            # تحديث بيانات User الشخصية
-            for field in ['name', 'email', 'phone', 'profile_image']:
+            # تحديث بيانات User الشخصية (بدون profile_image)
+            for field in ['name', 'email', 'phone']:
                 if field in request.data:
                     setattr(user, field, request.data[field])
             user.save()
 
-            # تحديث بيانات المؤسسة (description, website, location)
+            # تحديث بيانات المؤسسة (description, website, location, profile_image)
             serializer = OrganizationProfileSerializer(
                 organization, data=request.data, partial=True, context={'request': request}
             )
@@ -596,6 +599,111 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         """Override to set created_by field"""
         serializer.save(created_by=self.request.user)
+    
+    @action(detail=True, methods=['post'], url_path='track-application', permission_classes=[IsAuthenticated])
+    def track_application(self, request, pk=None):
+        """
+        Track user application status and set reminders
+        POST /api/announcements/{id}/track-application/
+        
+        Expected payload:
+        {
+            "status": "applied",  // optional, defaults to 'not applied'
+            "notes": "Application submitted successfully",
+            "reminder_date": "2024-02-15T10:00:00Z"  // optional
+        }
+        """
+        # Check if user has 'user' role
+        if request.user.role != User.Role.USER:
+            return Response({
+                'success': False,
+                'message': 'Only users with user role can track applications'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        announcement = self.get_object()
+        
+        # Check if tracking already exists for this user and announcement
+        tracking, created = UserApplicationTracking.objects.get_or_create(
+            user=request.user,
+            announcement=announcement,
+            defaults={
+                'status': request.data.get('status', 'not applied'),
+                'notes': request.data.get('notes', ''),
+                'reminder_date': request.data.get('reminder_date')
+            }
+        )
+        
+        if not created:
+            # Update existing tracking
+            if 'status' in request.data:
+                tracking.status = request.data.get('status')
+            if 'notes' in request.data:
+                tracking.notes = request.data.get('notes')
+            if 'reminder_date' in request.data:
+                tracking.reminder_date = request.data.get('reminder_date')
+            tracking.save()
+        
+        serializer = UserApplicationTrackingSerializer(tracking)
+        return Response({
+            'success': True,
+            'message': 'Application tracking updated successfully',
+            'data': serializer.data
+        }, status=status.HTTP_200_OK)
+    
+    @action(detail=True, methods=['delete'], url_path='track-application', permission_classes=[IsAuthenticated])
+    def remove_application_tracking(self, request, pk=None):
+        """
+        Remove user application tracking
+        DELETE /api/announcements/{id}/track-application/
+        """
+        # Check if user has 'user' role
+        if request.user.role != User.Role.USER:
+            return Response({
+                'success': False,
+                'message': 'Only users with user role can remove application tracking'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        announcement = self.get_object()
+        
+        try:
+            tracking = UserApplicationTracking.objects.get(
+                user=request.user,
+                announcement=announcement
+            )
+            tracking.delete()
+            return Response({
+                'success': True,
+                'message': 'Application tracking removed successfully'
+            }, status=status.HTTP_200_OK)
+        except UserApplicationTracking.DoesNotExist:
+            return Response({
+                'success': False,
+                'message': 'No tracking record found for this announcement'
+            }, status=status.HTTP_404_NOT_FOUND)
+    
+    @action(detail=False, methods=['get'], url_path='my-applications', permission_classes=[IsAuthenticated])
+    def my_applications(self, request):
+        """
+        Get user's tracked applications from database
+        GET /api/announcements/my-applications/
+        """
+        # Check if user has 'user' role
+        if request.user.role != User.Role.USER:
+            return Response({
+                'success': False,
+                'message': 'Only users with user role can view their applications'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        applications = UserApplicationTracking.objects.filter(user=request.user)
+        serializer = UserApplicationTrackingSerializer(applications, many=True)
+        
+        return Response({
+            'success': True,
+            'data': serializer.data,
+            'count': applications.count()
+        }, status=status.HTTP_200_OK)
+    
+
 
 
 # =========================

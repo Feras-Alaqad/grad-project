@@ -460,6 +460,13 @@ class Organization(models.Model):
         verbose_name="Responsible User",
         help_text="User responsible for the organization"
     )
+    profile_image = models.ImageField(
+        upload_to='profile/organizations/',
+        blank=True,
+        null=True,
+        default='defaults/organization_default.png',
+        verbose_name="Organization Profile Image"
+    )
     description = models.TextField(
         blank=True,
         verbose_name="Organization Description",
@@ -665,3 +672,36 @@ class HelpSupport(models.Model):
             models.Index(fields=['type', '-created_at']),
             models.Index(fields=['user', '-created_at']),
         ]
+
+
+class UserApplicationTracking(models.Model):
+    """
+    Model to track user applications to announcements with persistent storage.
+    Stores user-provided application status and reminder dates.
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='application_tracking')
+    announcement = models.ForeignKey(Announcement, on_delete=models.CASCADE, related_name='user_applications')
+    status = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="User-provided application status (e.g., 'Applied', 'Interview scheduled', etc.)"
+    )
+    notes = models.TextField(blank=True, help_text="Personal notes about this application")
+    reminder_date = models.DateTimeField(null=True, blank=True, help_text="Date to remind user about follow-up")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "User Application Tracking"
+        verbose_name_plural = "User Application Tracking"
+        unique_together = ['user', 'announcement']  # Prevent duplicate applications
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', '-created_at']),
+            models.Index(fields=['announcement', '-created_at']),
+            models.Index(fields=['status', '-created_at']),
+            models.Index(fields=['reminder_date']),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} - {self.announcement.title} ({self.get_status_display()})"
