@@ -214,9 +214,26 @@ CORS_ALLOWED_ORIGINS = [
 
 CORS_ALLOW_CREDENTIALS = True
 
+# Allow these origins to make state-changing requests (Django CSRF checks)
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:3000",
+    "https://localhost:3000",
+    "http://localhost:3001",
+    "https://localhost:3001",
+    "http://localhost:3002",
+    "https://localhost:3002",
+    "https://awn-three.vercel.app",
+    "https://awn-aao5ksjjj-ahmedalabadlas-projects.vercel.app",
+    "http://mrs.infnet.tech",
+    "https://mrs.infnet.tech",
+    "https://mrs.infnet.tech:8001",
+    "http://infnet.tech",
+    "https://infnet.tech",
+]
+
 CORS_ALLOW_ALL_ORIGINS = False  # Set to True only for development
 
-CORS_ALLOWED_HEADERS = [
+CORS_ALLOW_HEADERS = [
     'accept',
     'accept-encoding',
     'authorization',
