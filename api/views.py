@@ -600,13 +600,14 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
         """Override to set created_by field"""
         serializer.save(created_by=self.request.user)
     
-    @action(detail=True, methods=['post'], url_path='track-application', permission_classes=[IsAuthenticated])
+    @action(detail=True, methods=['post', 'delete'], url_path='track-application', permission_classes=[IsAuthenticated])
     def track_application(self, request, pk=None):
         """
-        Track user application status and set reminders
-        POST /api/announcements/{id}/track-application/
+        Track or remove user application status and set reminders
+        POST /api/announcements/{id}/track-application/ - Create or update tracking
+        DELETE /api/announcements/{id}/track-application/ - Remove tracking
         
-        Expected payload:
+        Expected payload for POST:
         {
             "status": "applied",  // optional, defaults to 'not applied'
             "notes": "Application submitted successfully",
@@ -622,6 +623,25 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
         
         announcement = self.get_object()
         
+        # Handle DELETE request
+        if request.method == 'DELETE':
+            try:
+                tracking = UserApplicationTracking.objects.get(
+                    user=request.user,
+                    announcement=announcement
+                )
+                tracking.delete()
+                return Response({
+                    'success': True,
+                    'message': 'Application tracking removed successfully'
+                }, status=status.HTTP_200_OK)
+            except UserApplicationTracking.DoesNotExist:
+                return Response({
+                    'success': False,
+                    'message': 'No tracking record found for this announcement'
+                }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Handle POST request
         # Check if tracking already exists for this user and announcement
         tracking, created = UserApplicationTracking.objects.get_or_create(
             user=request.user,
@@ -650,36 +670,7 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
             'data': serializer.data
         }, status=status.HTTP_200_OK)
     
-    @action(detail=True, methods=['delete'], url_path='track-application', permission_classes=[IsAuthenticated])
-    def remove_application_tracking(self, request, pk=None):
-        """
-        Remove user application tracking
-        DELETE /api/announcements/{id}/track-application/
-        """
-        # Check if user has 'user' role
-        if request.user.role != User.Role.USER:
-            return Response({
-                'success': False,
-                'message': 'Only users with user role can remove application tracking'
-            }, status=status.HTTP_403_FORBIDDEN)
-        
-        announcement = self.get_object()
-        
-        try:
-            tracking = UserApplicationTracking.objects.get(
-                user=request.user,
-                announcement=announcement
-            )
-            tracking.delete()
-            return Response({
-                'success': True,
-                'message': 'Application tracking removed successfully'
-            }, status=status.HTTP_200_OK)
-        except UserApplicationTracking.DoesNotExist:
-            return Response({
-                'success': False,
-                'message': 'No tracking record found for this announcement'
-            }, status=status.HTTP_404_NOT_FOUND)
+
     
     @action(detail=False, methods=['get'], url_path='my-applications', permission_classes=[IsAuthenticated])
     def my_applications(self, request):
