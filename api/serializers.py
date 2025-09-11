@@ -48,6 +48,31 @@ def get_safe_profile_image_url_serializer(request, user):
         else:
             return f"{settings.BASE_URL}{settings.MEDIA_URL}{default_image_path}"
 
+def get_safe_announcement_image_url_serializer(request, announcement):
+
+    if announcement.image:
+        # Check if the file actually exists
+        file_path = os.path.join(settings.MEDIA_ROOT, str(announcement.image))
+        if os.path.exists(file_path):
+            if request:
+                return request.build_absolute_uri(announcement.image.url)
+            else:
+                return f"{settings.BASE_URL}{announcement.image.url}"
+        else:
+            # File doesn't exist, use default
+            default_image_path = 'defaults/announcement_default.png'
+            if request:
+                return request.build_absolute_uri(settings.MEDIA_URL + default_image_path)
+            else:
+                return f"{settings.BASE_URL}{settings.MEDIA_URL}{default_image_path}"
+    else:
+        # No image set, use default
+        default_image_path = 'defaults/announcement_default.png'
+        if request:
+            return request.build_absolute_uri(settings.MEDIA_URL + default_image_path)
+        else:
+            return f"{settings.BASE_URL}{settings.MEDIA_URL}{default_image_path}"
+
 # =========================
 # 🔹 User Serializers
 # =========================
@@ -426,7 +451,7 @@ class AnnouncementListSerializer(serializers.ModelSerializer):
     organization_name = serializers.SerializerMethodField()
     creator_name = serializers.SerializerMethodField()
     admin_notes = serializers.SerializerMethodField()
-    image = serializers.ImageField(read_only=True)
+    image = serializers.SerializerMethodField()
     
     class Meta:
         model = Announcement
@@ -457,6 +482,11 @@ class AnnouncementListSerializer(serializers.ModelSerializer):
         if request and request.user.is_authenticated and request.user.role == User.Role.ADMIN:
             return obj.admin_notes or ""
         return ""
+    
+    def get_image(self, obj):
+        """Return full URL for announcement image"""
+        request = self.context.get('request')
+        return get_safe_announcement_image_url_serializer(request, obj)
 
 
 class AnnouncementDetailSerializer(serializers.ModelSerializer):
@@ -464,7 +494,7 @@ class AnnouncementDetailSerializer(serializers.ModelSerializer):
     category = AnnouncementCategorySerializer(read_only=True)
     organization_name = serializers.SerializerMethodField()
     creator_name = serializers.SerializerMethodField()
-    image = serializers.ImageField(read_only=True)
+    image = serializers.SerializerMethodField()
     
     class Meta:
         model = Announcement
@@ -488,6 +518,11 @@ class AnnouncementDetailSerializer(serializers.ModelSerializer):
         elif obj.organization:
             return obj.organization.user.name
         return None
+    
+    def get_image(self, obj):
+        """Return full URL for announcement image"""
+        request = self.context.get('request')
+        return get_safe_announcement_image_url_serializer(request, obj)
 
     # Applications count removed - no longer applicable
 

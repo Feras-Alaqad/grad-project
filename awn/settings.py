@@ -21,6 +21,10 @@ STATIC_ROOT = BASE_DIR / 'static'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# Base URL for building absolute URLs
+# This will be used when request context is not available
+BASE_URL = os.environ.get('BASE_URL', 'http://localhost:8000')
+
 
 
 # Quick-start development settings - unsuitable for production
@@ -190,6 +194,10 @@ DEFAULT_FROM_EMAIL = 'EMAIL_HOST_USER'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# Base URL for building absolute URLs
+BASE_URL = 'http://localhost:8001'
+
 # CORS settings
 CORS_ALLOWED_ORIGINS = [
     "https://preview--chime-comms.lovable.app",
