@@ -21,9 +21,10 @@ STATIC_ROOT = BASE_DIR / 'static'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# Base URL for building absolute URLs
-# This will be used when request context is not available
+# Base URL for constructing absolute URLs (configurable via environment variable)
 BASE_URL = os.environ.get('BASE_URL', 'http://localhost:8000')
+
+
 
 
 
@@ -195,8 +196,7 @@ DEFAULT_FROM_EMAIL = 'EMAIL_HOST_USER'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# Base URL for building absolute URLs
-BASE_URL = 'http://localhost:8001'
+# Base URL for building absolute URLs - configured at top of file with environment variable
 
 # CORS settings
 CORS_ALLOWED_ORIGINS = [
