@@ -17,7 +17,9 @@ from django.shortcuts import get_object_or_404
 from django.http import Http404
 from rest_framework.exceptions import PermissionDenied
 import os
-from django.utils.dateparse import parse_date
+from datetime import datetime, time
+from django.utils.dateparse import parse_date, parse_datetime
+from django.utils import timezone
 
 
 from .models import (
@@ -600,12 +602,13 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
         """Override to set created_by field"""
         serializer.save(created_by=self.request.user)
     
-    @action(detail=True, methods=['post', 'delete'], url_path='track-application', permission_classes=[IsAuthenticated])
+    @action(detail=True, methods=['post', 'delete', 'get'], url_path='track-application', permission_classes=[IsAuthenticated])
     def track_application(self, request, pk=None):
         """
         Track or remove user application status and set reminders
         POST /api/announcements/{id}/track-application/ - Create or update tracking
         DELETE /api/announcements/{id}/track-application/ - Remove tracking
+        GET /api/announcements/{id}/track-application/ - Retrieve current user's tracking for this announcement
         
         Expected payload for POST:
         {
@@ -622,6 +625,24 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
             }, status=status.HTTP_403_FORBIDDEN)
         
         announcement = self.get_object()
+        
+        # Handle GET request
+        if request.method == 'GET':
+            try:
+                tracking = UserApplicationTracking.objects.get(
+                    user=request.user,
+                    announcement=announcement
+                )
+                serializer = UserApplicationTrackingSerializer(tracking)
+                return Response({
+                    'success': True,
+                    'data': serializer.data
+                }, status=status.HTTP_200_OK)
+            except UserApplicationTracking.DoesNotExist:
+                return Response({
+                    'success': False,
+                    'message': 'No tracking record found for this announcement'
+                }, status=status.HTTP_404_NOT_FOUND)
         
         # Handle DELETE request
         if request.method == 'DELETE':
@@ -642,6 +663,27 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
                 }, status=status.HTTP_404_NOT_FOUND)
         
         # Handle POST request
+        # Normalize reminder_date to a timezone-aware datetime if provided
+        raw_reminder = request.data.get('reminder_date')
+        reminder_dt = None
+        if raw_reminder:
+            if isinstance(raw_reminder, str):
+                dt = parse_datetime(raw_reminder)
+                if dt is None:
+                    d = parse_date(raw_reminder)
+                    if d is not None:
+                        dt = datetime.combine(d, time.min)
+                if dt is not None:
+                    if timezone.is_naive(dt):
+                        dt = timezone.make_aware(dt, timezone.get_current_timezone())
+                    reminder_dt = dt
+            else:
+                # Try interpreting as epoch seconds
+                try:
+                    reminder_dt = datetime.fromtimestamp(float(raw_reminder), tz=timezone.get_current_timezone())
+                except Exception:
+                    reminder_dt = None
+
         # Check if tracking already exists for this user and announcement
         tracking, created = UserApplicationTracking.objects.get_or_create(
             user=request.user,
@@ -649,7 +691,7 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
             defaults={
                 'status': request.data.get('status', 'not applied'),
                 'notes': request.data.get('notes', ''),
-                'reminder_date': request.data.get('reminder_date')
+                'reminder_date': reminder_dt
             }
         )
         
@@ -660,7 +702,7 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
             if 'notes' in request.data:
                 tracking.notes = request.data.get('notes')
             if 'reminder_date' in request.data:
-                tracking.reminder_date = request.data.get('reminder_date')
+                tracking.reminder_date = reminder_dt
             tracking.save()
         
         serializer = UserApplicationTrackingSerializer(tracking)
