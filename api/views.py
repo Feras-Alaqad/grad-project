@@ -83,15 +83,15 @@ def get_safe_profile_image_url(request, user):
         # Check if the file actually exists
         file_path = os.path.join(settings.MEDIA_ROOT, str(user.profile_image))
         if os.path.exists(file_path):
-            return request.build_absolute_uri(user.profile_image.url)
+            return settings.BASE_URL + user.profile_image.url
         else:
             # File doesn't exist, use default
             default_image_path = 'defaults/user_default.png'
-            return request.build_absolute_uri(settings.MEDIA_URL + default_image_path)
+            return settings.BASE_URL + settings.MEDIA_URL + default_image_path
     else:
         # No profile image set, use default
         default_image_path = 'defaults/user_default.png'
-        return request.build_absolute_uri(settings.MEDIA_URL + default_image_path)
+        return settings.BASE_URL + settings.MEDIA_URL + default_image_path
 
 # =========================
 # 🔹 Custom Permissions
@@ -728,7 +728,7 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
             }, status=status.HTTP_403_FORBIDDEN)
         
         applications = UserApplicationTracking.objects.filter(user=request.user)
-        serializer = UserApplicationTrackingSerializer(applications, many=True)
+        serializer = UserApplicationTrackingSerializer(applications, many=True, context={'request': request})
         
         return Response({
             'success': True,

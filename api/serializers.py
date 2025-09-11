@@ -32,21 +32,21 @@ def get_safe_profile_image_url_serializer(request, user):
             if request:
                 return request.build_absolute_uri(user.profile_image.url)
             else:
-                return settings.BASE_URL + user.profile_image.url
+                return f"{settings.BASE_URL}{user.profile_image.url}"
         else:
             # File doesn't exist, use default
             default_image_path = 'defaults/user_default.png'
             if request:
                 return request.build_absolute_uri(settings.MEDIA_URL + default_image_path)
             else:
-                return settings.BASE_URL + settings.MEDIA_URL + default_image_path
+                return f"{settings.BASE_URL}{settings.MEDIA_URL}{default_image_path}"
     else:
         # No profile image set, use default
         default_image_path = 'defaults/user_default.png'
         if request:
             return request.build_absolute_uri(settings.MEDIA_URL + default_image_path)
         else:
-            return settings.BASE_URL + settings.MEDIA_URL + default_image_path
+            return f"{settings.BASE_URL}{settings.MEDIA_URL}{default_image_path}"
 
 def get_safe_announcement_image_url_serializer(request, announcement):
     """
@@ -59,21 +59,21 @@ def get_safe_announcement_image_url_serializer(request, announcement):
             if request:
                 return request.build_absolute_uri(announcement.image.url)
             else:
-                return settings.BASE_URL + announcement.image.url
+                return f"{settings.BASE_URL}{announcement.image.url}"
         else:
             # File doesn't exist, use default
             default_image_path = 'defaults/announcement_default.png'
             if request:
                 return request.build_absolute_uri(settings.MEDIA_URL + default_image_path)
             else:
-                return settings.BASE_URL + settings.MEDIA_URL + default_image_path
+                return f"{settings.BASE_URL}{settings.MEDIA_URL}{default_image_path}"
     else:
         # No image set, use default
         default_image_path = 'defaults/announcement_default.png'
         if request:
             return request.build_absolute_uri(settings.MEDIA_URL + default_image_path)
         else:
-            return settings.BASE_URL + settings.MEDIA_URL + default_image_path
+            return f"{settings.BASE_URL}{settings.MEDIA_URL}{default_image_path}"
 
 # =========================
 # 🔹 User Serializers
