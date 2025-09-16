@@ -16,7 +16,9 @@ from django.shortcuts import get_object_or_404
 from django.http import Http404
 from rest_framework.exceptions import PermissionDenied
 import os
-from django.utils.dateparse import parse_date
+from datetime import datetime, time
+from django.utils.dateparse import parse_date, parse_datetime
+from django.utils import timezone
 
 
 from .models import (
@@ -82,15 +84,15 @@ def get_safe_profile_image_url(request, user):
         # Check if the file actually exists
         file_path = os.path.join(settings.MEDIA_ROOT, str(user.profile_image))
         if os.path.exists(file_path):
-            return request.build_absolute_uri(user.profile_image.url)
+            return settings.BASE_URL + user.profile_image.url
         else:
             # File doesn't exist, use default
             default_image_path = 'defaults/user_default.png'
-            return request.build_absolute_uri(settings.MEDIA_URL + default_image_path)
+            return settings.BASE_URL + settings.MEDIA_URL + default_image_path
     else:
         # No profile image set, use default
         default_image_path = 'defaults/user_default.png'
-        return request.build_absolute_uri(settings.MEDIA_URL + default_image_path)
+        return settings.BASE_URL + settings.MEDIA_URL + default_image_path
 
 # =========================
 # 🔹 Custom Permissions
@@ -601,13 +603,15 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
         """Override to set created_by field"""
         serializer.save(created_by=self.request.user)
     
-    @action(detail=True, methods=['post'], url_path='track-application', permission_classes=[IsAuthenticated])
+    @action(detail=True, methods=['post', 'delete', 'get'], url_path='track-application', permission_classes=[IsAuthenticated])
     def track_application(self, request, pk=None):
         """
-        Track user application status and set reminders
-        POST /api/announcements/{id}/track-application/
+        Track or remove user application status and set reminders
+        POST /api/announcements/{id}/track-application/ - Create or update tracking
+        DELETE /api/announcements/{id}/track-application/ - Remove tracking
+        GET /api/announcements/{id}/track-application/ - Retrieve current user's tracking for this announcement
         
-        Expected payload:
+        Expected payload for POST:
         {
             "status": "applied",  // optional, defaults to 'not applied'
             "notes": "Application submitted successfully",
@@ -623,6 +627,64 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
         
         announcement = self.get_object()
         
+        # Handle GET request
+        if request.method == 'GET':
+            try:
+                tracking = UserApplicationTracking.objects.get(
+                    user=request.user,
+                    announcement=announcement
+                )
+                serializer = UserApplicationTrackingSerializer(tracking)
+                return Response({
+                    'success': True,
+                    'data': serializer.data
+                }, status=status.HTTP_200_OK)
+            except UserApplicationTracking.DoesNotExist:
+                return Response({
+                    'success': False,
+                    'message': 'No tracking record found for this announcement'
+                }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Handle DELETE request
+        if request.method == 'DELETE':
+            try:
+                tracking = UserApplicationTracking.objects.get(
+                    user=request.user,
+                    announcement=announcement
+                )
+                tracking.delete()
+                return Response({
+                    'success': True,
+                    'message': 'Application tracking removed successfully'
+                }, status=status.HTTP_200_OK)
+            except UserApplicationTracking.DoesNotExist:
+                return Response({
+                    'success': False,
+                    'message': 'No tracking record found for this announcement'
+                }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Handle POST request
+        # Normalize reminder_date to a timezone-aware datetime if provided
+        raw_reminder = request.data.get('reminder_date')
+        reminder_dt = None
+        if raw_reminder:
+            if isinstance(raw_reminder, str):
+                dt = parse_datetime(raw_reminder)
+                if dt is None:
+                    d = parse_date(raw_reminder)
+                    if d is not None:
+                        dt = datetime.combine(d, time.min)
+                if dt is not None:
+                    if timezone.is_naive(dt):
+                        dt = timezone.make_aware(dt, timezone.get_current_timezone())
+                    reminder_dt = dt
+            else:
+                # Try interpreting as epoch seconds
+                try:
+                    reminder_dt = datetime.fromtimestamp(float(raw_reminder), tz=timezone.get_current_timezone())
+                except Exception:
+                    reminder_dt = None
+
         # Check if tracking already exists for this user and announcement
         tracking, created = UserApplicationTracking.objects.get_or_create(
             user=request.user,
@@ -630,7 +692,7 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
             defaults={
                 'status': request.data.get('status', 'not applied'),
                 'notes': request.data.get('notes', ''),
-                'reminder_date': request.data.get('reminder_date')
+                'reminder_date': reminder_dt
             }
         )
         
@@ -641,7 +703,7 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
             if 'notes' in request.data:
                 tracking.notes = request.data.get('notes')
             if 'reminder_date' in request.data:
-                tracking.reminder_date = request.data.get('reminder_date')
+                tracking.reminder_date = reminder_dt
             tracking.save()
         
         serializer = UserApplicationTrackingSerializer(tracking)
@@ -651,36 +713,7 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
             'data': serializer.data
         }, status=status.HTTP_200_OK)
     
-    @action(detail=True, methods=['delete'], url_path='track-application', permission_classes=[IsAuthenticated])
-    def remove_application_tracking(self, request, pk=None):
-        """
-        Remove user application tracking
-        DELETE /api/announcements/{id}/track-application/
-        """
-        # Check if user has 'user' role
-        if request.user.role != User.Role.USER:
-            return Response({
-                'success': False,
-                'message': 'Only users with user role can remove application tracking'
-            }, status=status.HTTP_403_FORBIDDEN)
-        
-        announcement = self.get_object()
-        
-        try:
-            tracking = UserApplicationTracking.objects.get(
-                user=request.user,
-                announcement=announcement
-            )
-            tracking.delete()
-            return Response({
-                'success': True,
-                'message': 'Application tracking removed successfully'
-            }, status=status.HTTP_200_OK)
-        except UserApplicationTracking.DoesNotExist:
-            return Response({
-                'success': False,
-                'message': 'No tracking record found for this announcement'
-            }, status=status.HTTP_404_NOT_FOUND)
+
     
     @action(detail=False, methods=['get'], url_path='my-applications', permission_classes=[IsAuthenticated])
     def my_applications(self, request):
@@ -696,7 +729,7 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
             }, status=status.HTTP_403_FORBIDDEN)
         
         applications = UserApplicationTracking.objects.filter(user=request.user)
-        serializer = UserApplicationTrackingSerializer(applications, many=True)
+        serializer = UserApplicationTrackingSerializer(applications, many=True, context={'request': request})
         
         return Response({
             'success': True,
