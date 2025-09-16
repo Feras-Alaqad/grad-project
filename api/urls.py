@@ -49,7 +49,11 @@ from .views import (
     SendNotificationToOrganizationsView,
     NotificationDeleteView,
     NotificationDeleteAllView,
-    AdminNotificationDeleteView
+    AdminNotificationDeleteView,
+    OrganizationVerificationAPIView,
+    DeleteUserView,
+    DeleteOrganizationView,
+    OrganizationListView
 
 )
 
@@ -115,12 +119,16 @@ urlpatterns = [
     path('api/admin/organization-documents/<int:id>/verify/', OrganizationDocumentApproveRejectView.as_view(), name='organization-documents-review'),
     path('api/admin/organizationdocuments/', list_all_documents, name='organization-documents-list'),
     path('api/admin/organizationdocument/<int:pk>/', OrganizationDocumentDetailAPIView.as_view(), name='organization-document-detail'),
+    path('api/admin/organizations/<int:pk>/verify/', OrganizationVerificationAPIView.as_view(), name='organization-verify'),
 
     # organization endpoints
     path('api/organizations/', OrganizationListAPIView.as_view(), name='organization-list'),
     path('api/organizations/<int:id>/', OrganizationDetailAPIView.as_view(), name='organization-detail'),
     path('api/organizations/verified/', VerifiedOrganizationListAPIView.as_view(), name='verified-organizations'),
-
+    path('api/users/delete/<int:user_id>/', DeleteUserView.as_view(), name='delete-user'),
+    path('api/organizations/delete/<int:org_id>/', DeleteOrganizationView.as_view(), name='delete-organization'),
+    path('api/admin/organizations/', OrganizationListView.as_view(), name='organization-list'),
+    
     # notification endpoints can be added here
     path('api/notifications/send-to-users/', SendNotificationAllUsersView.as_view(), name='send-notifications-users'),
     path('api/notifications/send-to-organizations/', SendNotificationToOrganizationsView.as_view(), name='send-notification-organizations'),

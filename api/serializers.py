@@ -1012,6 +1012,37 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "updated_at"
         ]
 
+class OrganizationAdminSerializer(serializers.ModelSerializer):
+    organization_name = serializers.CharField(source="user.name", read_only=True)
+    profile_image = serializers.ImageField(read_only=True)
+    email = serializers.EmailField(source="user.email", read_only=True)
+    phone = serializers.CharField(source="user.phone", read_only=True)
+
+    class Meta:
+        model = Organization
+        fields = [
+            "id",
+            "organization_name",
+            "profile_image",
+            "email",           
+            "phone",           
+            "description",
+            "website",
+            "location",
+            "rate",
+            "verified",
+            "is_active",
+            "block_reason",
+            "created_at",
+            "updated_at"
+        ]
+
+class OrganizationVerificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Organization
+        fields = ['id', 'verified']
+        read_only_fields = ['id']
+
 class NotificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Notification

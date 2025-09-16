@@ -12,7 +12,6 @@ from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAdminUser
 from django.shortcuts import get_object_or_404
 from django.http import Http404
 from rest_framework.exceptions import PermissionDenied
@@ -64,7 +63,9 @@ from .serializers import (
     NotificationSerializer,
     NotificationDetailSerializer,
     NotificationToUserSerializer,
-    NotificationListSerializer
+    NotificationListSerializer,
+    OrganizationVerificationSerializer,
+    OrganizationAdminSerializer
 )
 
 
@@ -1257,10 +1258,10 @@ class ListFavoritesView(APIView):
 class OrganizationToggleActiveView(generics.RetrieveUpdateAPIView):
     queryset = Organization.objects.all()
     serializer_class = OrganizationToggleActiveSerializer
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsAdminOnly]
 
 class ToggleBlockUserAPIView(APIView):
-    permission_classes = [permissions.IsAdminUser]  # فقط admins
+    permission_classes = [IsAdminOnly]  # فقط admins
 
     def patch(self, request, user_id):
 
@@ -1284,20 +1285,24 @@ class ToggleBlockUserAPIView(APIView):
 
 class UserListAPIView(generics.ListAPIView):
     serializer_class = UserSerializer
-    permission_classes = [permissions.IsAdminUser] 
+    permission_classes = [IsAdminOnly]
 
     def get_queryset(self):
-        return User.objects.all().order_by('-created_at')
+        queryset = User.objects.all().order_by('-created_at')
+        role = self.request.query_params.get('role', None)
+        if role in ['user', 'organization', 'admin']:
+            queryset = queryset.filter(role=role)
+        return queryset
     
 class UserDetailAPIView(generics.RetrieveAPIView):
     serializer_class = UserSerializer
-    permission_classes = [permissions.IsAdminUser]  
+    permission_classes = [IsAdminOnly]  
     queryset = User.objects.all()
     lookup_field = 'id'
 
 class UserSearchAPIView(generics.ListAPIView):
     serializer_class = UserSerializer
-    permission_classes = [permissions.IsAdminUser]  # Admin فقط
+    permission_classes = [IsAdminOnly] 
 
     def get_queryset(self):
         query = self.request.query_params.get('q', '').strip()
@@ -1544,6 +1549,22 @@ def help_support_range_search(request):
         "data": serializer.data
     }, status=200)
 
+class OrganizationVerificationAPIView(generics.UpdateAPIView):
+    queryset = Organization.objects.all()
+    serializer_class = OrganizationVerificationSerializer
+    permission_classes = [IsAdminOnly]  
+
+    def update(self, request, *args, **kwargs):
+        organization = self.get_object()
+        serializer = self.get_serializer(organization, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response({
+            "message": "Organization verification status updated successfully",
+            "organization": serializer.data
+        }, status=status.HTTP_200_OK)
+    
 class OrganizationDocumentCreateView(generics.CreateAPIView):
 
     serializer_class = OrganizationDocumentSerializer
@@ -1553,7 +1574,7 @@ class OrganizationDocumentCreateView(generics.CreateAPIView):
         serializer.save()
 
 class OrganizationDocumentApproveRejectView(generics.UpdateAPIView):
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsAdminOnly]
     queryset = OrganizationDocument.objects.all()
     lookup_field = 'id'  # أو أي identifier
 
@@ -1578,7 +1599,7 @@ class OrganizationDocumentApproveRejectView(generics.UpdateAPIView):
         return Response({"status": doc.status})
 
 @api_view(['GET'])
-@permission_classes([IsAdminUser])  
+@permission_classes([IsAdminOnly])  
 def list_all_documents(request):
     status_filter = request.GET.get('status') 
 
@@ -1601,7 +1622,7 @@ class OrganizationDocumentDetailAPIView(generics.RetrieveAPIView):
     """
     queryset = OrganizationDocument.objects.all()
     serializer_class = OrganizationDocumentSerializer
-    permission_classes = [permissions.IsAdminUser]  
+    permission_classes = [IsAdminOnly]  
 
     def get_object(self):
         obj = super().get_object()
@@ -1650,7 +1671,7 @@ class VerifiedOrganizationListAPIView(generics.ListAPIView):
         return super().list(request, *args, **kwargs)
 
 class SendNotificationAllUsersView(APIView):
-    permission_classes = [permissions.IsAdminUser]  # فقط الأدمن
+    permission_classes = [IsAdminOnly] 
 
     def post(self, request):
         serializer = NotificationSerializer(data=request.data)
@@ -1670,7 +1691,7 @@ class SendNotificationAllUsersView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 class SendNotificationToOrganizationsView(APIView):
-    permission_classes = [permissions.IsAdminUser]  # فقط الأدمن
+    permission_classes = [IsAdminOnly] 
 
     def post(self, request):
         serializer = NotificationSerializer(data=request.data)
@@ -1706,7 +1727,7 @@ class UserNotificationsView(APIView):
         return Response(serializer.data)
     
 class SendNotificationToUserView(APIView):
-    permission_classes = [permissions.IsAdminUser]  
+    permission_classes = [IsAdminOnly]  
 
     def post(self, request):
         serializer = NotificationToUserSerializer(data=request.data)
@@ -1728,7 +1749,7 @@ class SendNotificationToUserView(APIView):
     
 class NotificationListView(generics.ListAPIView):
     serializer_class = NotificationListSerializer
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsAdminOnly]
 
     def get_queryset(self):
         queryset = Notification.objects.all().order_by('-created_at')
@@ -1778,7 +1799,7 @@ class NotificationDeleteView(generics.DestroyAPIView):
         )
     
 class AdminNotificationDeleteView(generics.DestroyAPIView):
-    permission_classes = [permissions.IsAdminUser]  # فقط الأدمن
+    permission_classes = [IsAdminOnly] 
     queryset = Notification.objects.all()  # الأدمن يمكنه الوصول لكل الإشعارات
 
     def destroy(self, request, *args, **kwargs):
@@ -1790,3 +1811,24 @@ class AdminNotificationDeleteView(generics.DestroyAPIView):
             {"detail": f"Notification '{title}' sent to '{username}' has been deleted by admin."},
             status=status.HTTP_200_OK
         )
+    
+class DeleteUserView(generics.DestroyAPIView):
+    permission_classes = [IsAdminOnly]
+
+    def delete(self, request, user_id):
+        user = get_object_or_404(User, id=user_id, role='user')  # فقط اليوزر العادي
+        user.delete()
+        return Response({"detail": "User deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+    
+class DeleteOrganizationView(generics.DestroyAPIView):
+    permission_classes = [IsAdminOnly]
+
+    def delete(self, request, org_id):
+        org = get_object_or_404(Organization, id=org_id)
+        org.delete()
+        return Response({"detail": "Organization deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+    
+class OrganizationListView(generics.ListAPIView):
+    queryset = Organization.objects.all().order_by('-created_at')
+    serializer_class = OrganizationAdminSerializer
+    permission_classes = [IsAdminOnly]

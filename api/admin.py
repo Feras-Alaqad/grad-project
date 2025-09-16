@@ -3,6 +3,8 @@ from django.utils import timezone
 from django.utils.html import format_html
 from django.conf import settings
 import os
+from .forms import UserAdminCreationForm, UserAdminChangeForm
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
 from .models import (
     User, Announcement, AnnouncementCategory,
@@ -11,18 +13,37 @@ from .models import (
 )
 
 # ----- User -----
-@admin.register(User)
-class UserAdmin(admin.ModelAdmin):
+class UserAdmin(BaseUserAdmin):
+    form = UserAdminChangeForm
+    add_form = UserAdminCreationForm
+
     list_display = ("id", "profile_image_tag", "name", "email", "role", "is_active", "created_at", "updated_at")
     list_filter = ("role", "is_active")
     search_fields = ("name", "email")
     readonly_fields = ("created_at", "updated_at", "last_login")
+
+    ordering = ("-created_at",) 
+
+    fieldsets = (
+        (None, {'fields': ('email', 'password')}),
+        ('Personal info', {'fields': ('name', 'phone', 'profile_image')}),
+        ('Permissions', {'fields': ('role', 'is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
+    )
+    add_fieldsets = (
+        (None, {
+            'classes': ('wide',),
+            'fields': ('email', 'name', 'phone', 'role', 'password', 'is_active', 'is_staff', 'is_superuser')}
+        ),
+    )
 
     def profile_image_tag(self, obj):
         if obj.profile_image and os.path.exists(obj.profile_image.path):
             return format_html('<img src="{}" width="50" height="50" style="border-radius:50%;" />', obj.profile_image.url)
         return format_html('<img src="/media/defaults/user_default.png" width="50" height="50" style="border-radius:50%;" />')
     profile_image_tag.short_description = 'Profile Image'
+
+admin.site.register(User, UserAdmin)
+
 
 
 # ----- Announcement -----
