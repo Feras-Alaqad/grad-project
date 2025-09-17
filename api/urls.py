@@ -100,7 +100,7 @@ urlpatterns = [
     path('api/users/', UserListAPIView.as_view(), name='user-list'),
     path('api/users/<int:id>/', UserDetailAPIView.as_view(), name='user-detail'),
     path('api/users/search/', UserSearchAPIView.as_view(), name='user-search'),
-    path('api/organization/<int:pk>/block/', OrganizationToggleActiveView.as_view(), name='toggle-organization-active'),
+    path('api/organization/<int:pk>/block-unblock/', OrganizationToggleActiveView.as_view(), name='toggle-organization-active'),
     path('api/users/<int:user_id>/block-unblock/', ToggleBlockUserAPIView.as_view(), name='block-unblock-user'),
 
 

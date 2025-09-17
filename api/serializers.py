@@ -410,21 +410,21 @@ class OrganizationToggleActiveSerializer(serializers.ModelSerializer):
         fields = ['is_active', 'block_reason']
 
     def update(self, instance, validated_data):
-        is_active = validated_data.get('is_active', instance.is_active)
-
-        if not is_active:  # Blocking the organization
+        # Toggle logic
+        if instance.is_active:  
+            # كان True → يصير False
             instance.is_active = False
-            # block_reason اختياري، إذا ما انبعت يخزن فاضي
             instance.block_reason = validated_data.get('block_reason', '')
 
-            # إبطال كل التوكنات الصالحة للمؤسسة
+            # إبطال التوكنات
             tokens = OutstandingToken.objects.filter(user=instance.user)
             for token in tokens:
                 BlacklistedToken.objects.get_or_create(token=token)
 
-        else:  # Reactivating
+        else:  
+            # كان False → يصير True
             instance.is_active = True
-            # لما نرجع نفعّل المؤسسة ممكن نمسح سبب الحظر
+            # نتجاهل block_reason حتى لو مبعوث
             instance.block_reason = ""
 
         instance.save()
@@ -433,8 +433,10 @@ class OrganizationToggleActiveSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
         if instance.is_active:
-            data.pop('block_reason', None)  # ما نعرض السبب لو المؤسسة مفعلة
+            # ما نعرض السبب لو المؤسسة مفعلة
+            data.pop('block_reason', None)
         return data
+
 
 # =========================
 # 🔹 Models Serializers

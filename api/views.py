@@ -1294,7 +1294,7 @@ class OrganizationToggleActiveView(generics.RetrieveUpdateAPIView):
     permission_classes = [IsAdminOnly]
 
 class ToggleBlockUserAPIView(APIView):
-    permission_classes = [IsAdminOnly]  # فقط admins
+    permission_classes = [IsAdminOnly] 
 
     def patch(self, request, user_id):
 
