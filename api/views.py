@@ -261,7 +261,7 @@ Note: This link is valid for a limited time only.
 
         return Response({
             "success": True,
-            "message": "Password reset link sent successfully",
+            "message": "Password reset link sent successfully. Check your email.",
             "data": {
                 "email": user.email
             }
@@ -1865,3 +1865,22 @@ class OrganizationListView(generics.ListAPIView):
     queryset = Organization.objects.all().order_by('-created_at')
     serializer_class = OrganizationAdminSerializer
     permission_classes = [IsAdminOnly]
+
+class OrganizationActiveFilterAPIView(generics.ListAPIView):
+    """
+    Generic API view to list organizations with optional active/inactive filtering
+    """
+    serializer_class = OrganizationAdminSerializer
+    queryset = Organization.objects.all()
+    permission_classes = [IsAdminOnly]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        # فلترة حسب is_active من query params
+        is_active = self.request.query_params.get('is_active')
+        if is_active is not None:
+            if is_active.lower() == 'true':
+                queryset = queryset.filter(is_active=True)
+            elif is_active.lower() == 'false':
+                queryset = queryset.filter(is_active=False)
+        return queryset

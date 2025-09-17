@@ -53,7 +53,8 @@ from .views import (
     OrganizationVerificationAPIView,
     DeleteUserView,
     DeleteOrganizationView,
-    OrganizationListView
+    OrganizationListView,
+    OrganizationActiveFilterAPIView,
 
 )
 
@@ -128,7 +129,8 @@ urlpatterns = [
     path('api/users/delete/<int:user_id>/', DeleteUserView.as_view(), name='delete-user'),
     path('api/organizations/delete/<int:org_id>/', DeleteOrganizationView.as_view(), name='delete-organization'),
     path('api/admin/organizations/', OrganizationListView.as_view(), name='organization-list'),
-    
+    path('api/organizations/active-filter/', OrganizationActiveFilterAPIView.as_view(), name='organization-list'),
+
     # notification endpoints can be added here
     path('api/notifications/send-to-users/', SendNotificationAllUsersView.as_view(), name='send-notifications-users'),
     path('api/notifications/send-to-organizations/', SendNotificationToOrganizationsView.as_view(), name='send-notification-organizations'),
