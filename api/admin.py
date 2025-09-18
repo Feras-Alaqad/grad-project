@@ -147,8 +147,11 @@ class UserFavoriteAdmin(admin.ModelAdmin):
 
     def get_announcement_user(self, obj):
         # صاحب الإعلان
-        return obj.announcement.organization.user.name or obj.announcement.organization.user.email
+        if obj.announcement and obj.announcement.organization and obj.announcement.organization.user:
+            return obj.announcement.organization.user.name or obj.announcement.organization.user.email
+        return "—"  # fallback if missing
     get_announcement_user.short_description = "Announcement Owner"
+
 
     def get_announcement(self, obj):
         return obj.announcement.title

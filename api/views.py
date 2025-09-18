@@ -1858,7 +1858,14 @@ class DeleteOrganizationView(generics.DestroyAPIView):
 
     def delete(self, request, org_id):
         org = get_object_or_404(Organization, id=org_id)
+
+        user = org.user  
+
         org.delete()
+
+        if user:
+            user.delete()
+
         return Response({"detail": "Organization deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
     
 class OrganizationListView(generics.ListAPIView):
