@@ -1748,7 +1748,12 @@ class UserNotificationsView(APIView):
 
     def get(self, request):
         user = request.user
-        notifications = Notification.objects.filter(user=user).order_by('-created_at')
+        
+        # عرض الإشعارات التي تم إنشاؤها في نفس وقت أو بعد تاريخ تسجيل المستخدم للموقع
+        notifications = Notification.objects.filter(
+            user=user,
+            created_at__gte=user.created_at
+        ).order_by('-created_at')
 
         if not notifications.exists():
             return Response(
