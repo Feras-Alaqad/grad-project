@@ -1748,21 +1748,28 @@ class UserNotificationsView(APIView):
 
     def get(self, request):
         user = request.user
-        
-        # عرض الإشعارات التي تم إنشاؤها في نفس وقت أو بعد تاريخ تسجيل المستخدم للموقع
+
         notifications = Notification.objects.filter(
             user=user,
             created_at__gte=user.created_at
         ).order_by('-created_at')
 
+        serializer = NotificationDetailSerializer(notifications, many=True)
+
         if not notifications.exists():
             return Response(
-                {"detail": "Your notifications list is empty."},
+                {
+                    "detail": "Your notifications list is empty.",
+                    "notifications": []
+                },
                 status=200
             )
 
-        serializer = NotificationDetailSerializer(notifications, many=True)
-        return Response(serializer.data)
+        return Response(
+            {"notifications": serializer.data},
+            status=200
+        )
+
     
 class SendNotificationToUserView(APIView):
     permission_classes = [IsAdminOnly]  
