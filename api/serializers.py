@@ -887,7 +887,6 @@ class HelpSupportSerializer(serializers.ModelSerializer):
     """Serializer for support requests"""
     user_name = serializers.CharField(source='user.name', read_only=True)
     user_email = serializers.CharField(source='user.email', read_only=True)
-    target_org_name = serializers.CharField(source='target_org.user.name', read_only=True)
     type_display = serializers.CharField(source='get_type_display', read_only=True)
     type = serializers.CharField(read_only=True)
     status = serializers.CharField(read_only=True)
@@ -897,7 +896,7 @@ class HelpSupportSerializer(serializers.ModelSerializer):
         model = HelpSupport
         fields = [
             'id', 'user', 'user_name', 'user_email', 'title', 'description',
-            'target_org', 'target_org_name', 'type', 'type_display',
+            'type', 'type_display',
             'status', 'status_display', 'created_at'
         ]
         read_only_fields = ['id', 'user', 'created_at', 'status', 'status_display']
@@ -905,14 +904,6 @@ class HelpSupportSerializer(serializers.ModelSerializer):
     def validate_type(self, value):
         if value not in [choice[0] for choice in HelpSupport.SupportType.choices]:
             raise serializers.ValidationError("Invalid request type")
-        return value
-    
-    def validate_target_org(self, value):
-        request_type = self.initial_data.get('type')
-        if request_type == HelpSupport.SupportType.ORGANIZATION and not value:
-            raise serializers.ValidationError("Organization must be specified for organization requests")
-        if request_type == HelpSupport.SupportType.SYSTEM and value is not None:
-            raise serializers.ValidationError("Organization must not be specified for system issues")
         return value
     
     def validate_description(self, value):
@@ -925,11 +916,6 @@ class HelpSupportCreateSerializer(serializers.ModelSerializer):
 
     title = serializers.CharField(required=True)
     description = serializers.CharField(required=True)
-    target_org = serializers.PrimaryKeyRelatedField(
-        queryset=Organization.objects.all(),
-        required=False,
-        allow_null=True
-    )
     type = serializers.ChoiceField(
         choices=HelpSupport.SupportType.choices,
         required=True
@@ -938,24 +924,10 @@ class HelpSupportCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = HelpSupport
-        fields = ['title', 'description', 'target_org', 'type', 'status']
+        fields = ['title', 'description', 'type', 'status']
 
     def validate(self, attrs):
         request_type = attrs.get('type')
-
-        # إذا كان من نوع "organization" يجب تحديد المؤسسة
-        if request_type == HelpSupport.SupportType.ORGANIZATION:
-            if not attrs.get('target_org'):
-                raise serializers.ValidationError({
-                    'target_org': "Organization must be specified for organization complaints."
-                })
-
-        # إذا كان من نوع "system" يجب عدم إدخال المؤسسة
-        elif request_type == HelpSupport.SupportType.SYSTEM:
-            if attrs.get('target_org') is not None:
-                raise serializers.ValidationError({
-                    'target_org': "Organization must not be specified for system issues."
-                })
 
         # description و title مطلوبان دائمًا
         if not attrs.get('description'):
@@ -968,7 +940,6 @@ class HelpSupportCreateSerializer(serializers.ModelSerializer):
 class HelpSupportAdminSerializer(serializers.ModelSerializer):
     user_name = serializers.CharField(source='user.name', read_only=True)
     user_email = serializers.CharField(source='user.email', read_only=True)
-    target_org_name = serializers.CharField(source='target_org.user.name', read_only=True)
     type_display = serializers.CharField(source='get_type_display', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     status = serializers.CharField(read_only=True)  # إضافة حالة الطلب
@@ -978,7 +949,6 @@ class HelpSupportAdminSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'user', 'user_name', 'user_email',
             'title', 'description', 'type_display',
-            'target_org', 'target_org_name',
             'status', 'status_display',
             'created_at'
         ]

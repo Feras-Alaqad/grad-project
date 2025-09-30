@@ -200,19 +200,16 @@ class NotificationAdmin(admin.ModelAdmin):
 @admin.register(HelpSupport)
 class HelpSupportAdmin(admin.ModelAdmin):
     list_display = (
-        "id", "user", "type", "status", "target_org", 
+        "id", "user", "type", "status", 
         "created_at", "title"
     )
     list_filter = ("type", "status", "created_at")
-    search_fields = ("user__name", "description", "target_org__user__name")
+    search_fields = ("user__name", "description")
     readonly_fields = ("created_at",)
 
     fieldsets = (
         ("User Info", {
             "fields": ("user", "type", "description")
-        }),
-        ("Complaint Details", {
-            "fields": ("target_org",)
         }),
         ("Status & Response", {
             "fields": ("status", "admin_response")

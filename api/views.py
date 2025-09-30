@@ -15,6 +15,7 @@ from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 from django.http import Http404
 from rest_framework.exceptions import PermissionDenied
+from rest_framework import status as drf_status
 import os
 from datetime import datetime, time
 from django.utils.dateparse import parse_date, parse_datetime
@@ -1393,19 +1394,23 @@ def create_support_request(request):
         support_request = serializer.save(user=request.user)
         response_serializer = HelpSupportSerializer(support_request)
 
-        # Check if the request is of type Organization Complaint and has a target organization
-        if support_request.type == HelpSupport.SupportType.ORGANIZATION and support_request.target_org:
-            subject = "Your support request has been received"
-            message = f"Hello {support_request.user.name},\n\n" \
-                      f"Your support request titled '{support_request.title}' has been successfully received " \
-                      f"and will be forwarded to the relevant authorities. Please wait for their response.\n\n" \
-                      f"Thank you."
+        if support_request.type in [HelpSupport.SupportType.SYSTEM, HelpSupport.SupportType.OTHER]:
+            subject = "Support Request Received"
+            message = (
+                f"Hello {support_request.user.name},\n\n"
+                f"We have successfully received your support request titled \"{support_request.title}\".\n\n"
+                f"Your request is currently under review by our administrators. "
+                f"Please allow some time for the admin team to review your case and respond accordingly.\n\n"
+                f"Thank you for your patience and trust in our platform.\n\n"
+                f"Best regards,\n"
+                f"YourPlatform Support Team"
+            )
             recipient_list = [support_request.user.email]
-            
+
             try:
                 send_mail(subject, message, 'no-reply@yourplatform.com', recipient_list)
             except Exception as e:
-                # يمكنك فقط تسجيل الخطأ دون منع الاستجابة الناجحة
+                # تسجيل الخطأ فقط بدون منع الاستجابة الناجحة
                 print(f"Failed to send email: {str(e)}")
 
         return Response({
@@ -1452,13 +1457,6 @@ def admin_reply_request(request, pk):
         pk=pk
     )
 
-    # التحقق من نوع الطلب
-    if support_request.type == HelpSupport.SupportType.ORGANIZATION:
-        return Response({
-            "success": False,
-            "message": "Admins cannot reply to organization complaints. Use the organization endpoint."
-        }, status=400)
-
     # التحقق من وجود نص الرد
     reply_text = request.data.get('reply')
     if not reply_text:
@@ -1499,7 +1497,13 @@ class HelpSupportListView(generics.ListAPIView):
     permission_classes = [IsAdminOnly]
 
     def get_queryset(self):
-        queryset = HelpSupport.objects.all().select_related("user", "target_org__user")
+        allowed_types = [HelpSupport.SupportType.SYSTEM, HelpSupport.SupportType.OTHER]
+        allowed_statuses = [
+            HelpSupport.Status.PENDING,
+            HelpSupport.Status.CLOSED,
+        ]
+
+        queryset = HelpSupport.objects.filter(type__in=allowed_types).select_related("user")
 
         status_param = self.request.query_params.get("status")
         type_param = self.request.query_params.get("type")
@@ -1511,6 +1515,36 @@ class HelpSupportListView(generics.ListAPIView):
             queryset = queryset.filter(type=type_param)
 
         return queryset.order_by("-created_at")
+
+    def list(self, request, *args, **kwargs):
+        allowed_types = [HelpSupport.SupportType.SYSTEM, HelpSupport.SupportType.OTHER]
+        allowed_statuses = [
+            HelpSupport.Status.PENDING,
+            HelpSupport.Status.CLOSED,
+        ]
+
+        type_param = request.query_params.get("type")
+        status_param = request.query_params.get("status")
+
+        if type_param and type_param not in allowed_types:
+            return Response(
+                {
+                    "detail": "Invalid type",
+                    "allowed_types": allowed_types,
+                },
+                status=drf_status.HTTP_400_BAD_REQUEST,
+            )
+
+        if status_param and status_param not in allowed_statuses:
+            return Response(
+                {
+                    "detail": "Invalid status",
+                    "allowed_statuses": allowed_statuses,
+                },
+                status=drf_status.HTTP_400_BAD_REQUEST,
+            )
+
+        return super().list(request, *args, **kwargs)
 
 @api_view(['GET'])
 @permission_classes([IsAdminRole])

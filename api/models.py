@@ -638,21 +638,15 @@ class HelpSupport(models.Model):
 
     class Status(models.TextChoices):
         PENDING = "pending", "Pending"
-        SENT = "sent", "Sent to Organization"
         CLOSED = "closed", "Closed"
 
     class SupportType(models.TextChoices):
         SYSTEM = "system", "System Issue"
-        ORGANIZATION = "organization", "Organization Complaint"
         OTHER = "other", "Other"
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='support_requests')
     title = models.CharField(max_length=100)
     description = models.TextField()
-    target_org = models.ForeignKey(
-        'Organization', null=True, blank=True,
-        on_delete=models.SET_NULL, related_name='complaints'
-    )
     type = models.CharField(
         max_length=20,
         choices=SupportType.choices,

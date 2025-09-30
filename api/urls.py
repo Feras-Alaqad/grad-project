@@ -111,7 +111,7 @@ urlpatterns = [
     path('api/support/my-request/<int:pk>/', get_support_request_detail, name='support_request_detail'),
     path('api/support/admin/reply/<int:pk>/', admin_reply_request, name='admin-reply-support'),
     path("api/help-support-list/", HelpSupportListView.as_view(), name="help-support-list"),
-    path("api/help-support/<int:pk>/", admin_support_request_detail, name="admin-support-request-detail"),
+    path("api/help-support-details/<int:pk>/", admin_support_request_detail, name="admin-support-request-detail"),
     path("api/help-support/range/search/", help_support_range_search, name="help_support_range_search"),
 
 
