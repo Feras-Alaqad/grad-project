@@ -1172,14 +1172,16 @@ class OrganizationCreateAnnouncementView(APIView):
         try:
             organization = request.user.organizations.first()
             if not organization:
+                # Debug information
+                org_count = request.user.organizations.count()
                 return Response({
                     'success': False,
-                    'message': 'No organization found for this user'
+                    'message': f'No organization found for this user. User ID: {request.user.id}, Role: {request.user.role}, Organization count: {org_count}'
                 }, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({
                 'success': False,
-                'message': 'Error retrieving organization information'
+                'message': f'Error retrieving organization information: {str(e)}'
             }, status=status.HTTP_400_BAD_REQUEST)
         
         serializer = AnnouncementCreateSerializer(data=request.data, context={'request': request})
