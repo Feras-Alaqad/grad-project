@@ -89,8 +89,6 @@ TEMPLATES = [
 WSGI_APPLICATION = 'awn.wsgi.application'
 
 
-# Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
     'default': {
@@ -118,8 +116,7 @@ REST_FRAMEWORK = {
     ),
 }
 
-# Password validation
-# https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
+
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -137,8 +134,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
-# Internationalization
-# https://docs.djangoproject.com/en/5.2/topics/i18n/
+
 
 LANGUAGE_CODE = 'en-us'
 
@@ -149,13 +145,11 @@ USE_I18N = True
 USE_TZ = True
 
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.2/howto/static-files/
+
 
 STATIC_URL = 'static/'
 
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
+
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # settings.py
@@ -201,7 +195,7 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # CORS settings
 CORS_ALLOWED_ORIGINS = [
     "https://preview--chime-comms.lovable.app",
-    "https://chime-comms.lovable.app",
+    "https://chime-comms.lovable.app", 
     "https://lovable.app",
     "http://localhost:3000",
     "https://localhost:3000",
@@ -213,7 +207,6 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3001",
     "http://127.0.0.1:3002",
     "https://awn-three.vercel.app",
-    "https://awn-aao5ksjjj-ahmedalabadlas-projects.vercel.app",
     "http://mrs.infnet.tech",
     "https://mrs.infnet.tech",
     "http://infnet.tech",

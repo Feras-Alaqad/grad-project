@@ -1172,7 +1172,7 @@ class OrganizationCreateAnnouncementView(APIView):
         try:
             organization = request.user.organizations.first()
             if not organization:
-                # Debug information
+                
                 org_count = request.user.organizations.count()
                 return Response({
                     'success': False,
