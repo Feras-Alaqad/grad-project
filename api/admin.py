@@ -9,7 +9,7 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .models import (
     User, Announcement, AnnouncementCategory,
     UserFavorite, Organization, OrganizationDocument,
-    Notification, HelpSupport, AnnouncementEditRequest
+    Notification, HelpSupport
 )
 
 # ----- User -----
@@ -79,54 +79,6 @@ class AnnouncementCategoryAdmin(admin.ModelAdmin):
     list_display = ("id", "name")
     search_fields = ("name",)
 
-# ----- AnnouncementEditRequest -----
-@admin.register(AnnouncementEditRequest)
-class AnnouncementEditRequestAdmin(admin.ModelAdmin):
-    list_display = ("id", "image_tag", "original_announcement", "requested_by", "status", "created_at", "reviewed_at")
-    list_filter = ("status", "created_at", "reviewed_at")
-    search_fields = ("original_announcement__title", "requested_by__name", "requested_by__email")
-    readonly_fields = ("created_at", "updated_at", "reviewed_by", "reviewed_at")
-    actions = ['approve_edit_requests', 'reject_edit_requests']
-    
-    def approve_edit_requests(self, request, queryset):
-        """Admin action to approve selected edit requests"""
-        approved_count = 0
-        for edit_request in queryset.filter(status='pending'):
-            edit_request.status = 'approved'
-            edit_request.reviewed_by = request.user
-            edit_request.reviewed_at = timezone.now()
-            edit_request.save()
-            
-            # Apply changes to the original announcement
-            edit_request.apply_changes()
-            approved_count += 1
-        
-        self.message_user(request, f'{approved_count} edit requests were successfully approved and applied.')
-    approve_edit_requests.short_description = "Approve selected edit requests"
-    
-    def reject_edit_requests(self, request, queryset):
-        """Admin action to reject selected edit requests"""
-        rejected_count = 0
-        for edit_request in queryset.filter(status='pending'):
-            edit_request.status = 'rejected'
-            edit_request.reviewed_by = request.user
-            edit_request.reviewed_at = timezone.now()
-            edit_request.save()
-            rejected_count += 1
-        
-        self.message_user(request, f'{rejected_count} edit requests were successfully rejected.')
-    reject_edit_requests.short_description = "Reject selected edit requests"
-    
-    def get_queryset(self, request):
-        """Show pending edit requests first"""
-        qs = super().get_queryset(request)
-        return qs.order_by('status', '-created_at')
-    
-    def image_tag(self, obj):
-        if obj.image and os.path.exists(obj.image.path):
-            return format_html('<img src="{}" width="50" height="50" />', obj.image.url)
-        return format_html('<img src="/media/defaults/announcement_default.png" width="50" height="50" />')
-    image_tag.short_description = 'Image'
 
 # Application admin removed - announcements handle their own status workflow
 # Users view approved announcements and apply through external URLs

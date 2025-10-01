@@ -18,7 +18,6 @@ from .views import (
     OrganizationSearchView,
     OrganizationCreateAnnouncementView,
     DeleteAnnouncementView,
-    AnnouncementEditRequestViewSet,
     OrganizationToggleActiveView,
     AddFavoriteView,
     RemoveFavoriteView,
@@ -62,7 +61,6 @@ from .views import (
 router = DefaultRouter()
 router.register(r'announcements', AnnouncementViewSet, basename='announcement')
 router.register(r'announcement-categories', AnnouncementCategoryViewSet, basename='announcement-category')
-router.register(r'announcement-edit-requests', AnnouncementEditRequestViewSet, basename='announcement-edit-request')
 
 
 urlpatterns = [
@@ -93,9 +91,7 @@ urlpatterns = [
     path('api/announcements/<int:pk>/approve/', AnnouncementViewSet.as_view({'patch': 'approve'}), name='approve-announcement'),
     path('api/announcements/my-announcements/', AnnouncementViewSet.as_view({'get': 'my_announcements'}), name='my-announcements'),
 
-    # Edit request endpoints
-    path('api/edit-requests/pending/', AnnouncementEditRequestViewSet.as_view({'get': 'pending_edit_requests'}), name='pending-edit-requests'),
-    path('api/edit-requests/<int:pk>/approve-reject/', AnnouncementEditRequestViewSet.as_view({'patch': 'approve_reject'}), name='approve-reject-edit-request'),
+
     
 
     path('api/users/', UserListAPIView.as_view(), name='user-list'),

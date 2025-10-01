@@ -28,7 +28,6 @@ from .models import (
     UserFavorite,
     HelpSupport,
     OrganizationDocument,
-    AnnouncementEditRequest,
     Notification,
     UserApplicationTracking,
 )
@@ -50,11 +49,7 @@ from .serializers import (
     AnnouncementAdminSerializer,
     AnnouncementApprovalSerializer,
     AnnouncementCategorySerializer,
-    AnnouncementEditRequestCreateSerializer,
     NotificationSerializer,
-    AnnouncementEditRequestListSerializer,
-    AnnouncementEditRequestDetailSerializer,
-    AnnouncementEditRequestApprovalSerializer,
     OrganizationToggleActiveSerializer,
     LogoutSerializer,
     UserApplicationTrackingSerializer,
@@ -933,37 +928,30 @@ class UpdateAnnouncementView(APIView):
         except Announcement.DoesNotExist:
             return None
     
-    def _handle_approved_announcement_edit(self, announcement, request_data):
-        """Handle edit request for approved announcements"""
-        # Create edit request instead of direct update
-        edit_request_data = {
-            'original_announcement': announcement.id,
-            'proposed_title': request_data.get('title', announcement.title),
-            'proposed_description': request_data.get('description', announcement.description),
-            'proposed_start_date': request_data.get('start_date', announcement.start_date),
-            'proposed_end_date': request_data.get('end_date', announcement.end_date),
-            'proposed_url': request_data.get('url', announcement.url),
-            'proposed_category': request_data.get('category', announcement.category.id if announcement.category else None)
-        }
-        
-        serializer = AnnouncementEditRequestCreateSerializer(
-            data=edit_request_data, 
+    def _handle_approved_announcement_edit(self, announcement, request_data, partial=False):
+        """Handle edit for approved announcements - set status to PENDING"""
+        # Update the announcement directly but set status to PENDING for admin review
+        serializer = AnnouncementUpdateSerializer(
+            announcement, 
+            data=request_data, 
+            partial=partial, 
             context={'request': self.request}
         )
         
         if serializer.is_valid():
-            edit_request = serializer.save(requested_by=self.request.user)
-            response_serializer = AnnouncementEditRequestDetailSerializer(edit_request)
+            # Set status to PENDING when organization edits an approved announcement
+            updated_announcement = serializer.save(status=Announcement.Status.PENDING)
+            response_serializer = AnnouncementDetailSerializer(updated_announcement)
             
             return Response({
                 'success': True,
-                'message': 'Edit request created successfully. Waiting for admin approval.',
+                'message': 'Announcement updated successfully. Status set to pending for admin review.',
                 'data': response_serializer.data
-            }, status=status.HTTP_201_CREATED)
+            }, status=status.HTTP_200_OK)
         
         return Response({
             'success': False,
-            'message': 'Edit request validation failed',
+            'message': 'Validation failed',
             'errors': serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
     
@@ -1005,7 +993,7 @@ class UpdateAnnouncementView(APIView):
         # Check if this is an approved announcement and user is organization
         if (announcement.status == Announcement.Status.APPROVED and 
             request.user.role == User.Role.ORGANIZATION):
-            return self._handle_approved_announcement_edit(announcement, request.data)
+            return self._handle_approved_announcement_edit(announcement, request.data, partial=False)
         else:
             # Direct update for unapproved announcements or admin updates
             return self._handle_direct_update(announcement, request.data, partial=False)
@@ -1023,127 +1011,11 @@ class UpdateAnnouncementView(APIView):
         # Check if this is an approved announcement and user is organization
         if (announcement.status == Announcement.Status.APPROVED and 
             request.user.role == User.Role.ORGANIZATION):
-            return self._handle_approved_announcement_edit(announcement, request.data)
+            return self._handle_approved_announcement_edit(announcement, request.data, partial=True)
         else:
             # Direct update for unapproved announcements or admin updates
             return self._handle_direct_update(announcement, request.data, partial=True)
         
-
-class AnnouncementEditRequestViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet for managing announcement edit requests
-    - Organizations can view their edit requests
-    - Admins can view all edit requests and approve/reject them
-    """
-    permission_classes = [IsAuthenticated]
-    
-    def get_queryset(self):
-        """Filter edit requests based on user role"""
-        user = self.request.user
-        
-        if user.role == User.Role.ADMIN:
-            # Admins can see all edit requests
-            return AnnouncementEditRequest.objects.all()
-        elif user.role == User.Role.ORGANIZATION:
-            # Organizations can only see their own edit requests
-            return AnnouncementEditRequest.objects.filter(requested_by=user)
-        else:
-            # Regular users cannot access edit requests
-            return AnnouncementEditRequest.objects.none()
-    
-    def get_serializer_class(self):
-        """Return appropriate serializer based on action"""
-        if self.action == 'create':
-            return AnnouncementEditRequestCreateSerializer
-        elif self.action in ['list']:
-            return AnnouncementEditRequestListSerializer
-        elif self.action == 'approve_reject':
-            return AnnouncementEditRequestApprovalSerializer
-        else:
-            return AnnouncementEditRequestDetailSerializer
-    
-    def get_permissions(self):
-        """Set permissions based on action"""
-        if self.action in ['create', 'list', 'retrieve']:
-            permission_classes = [IsAuthenticated]
-        elif self.action in ['approve_reject']:
-            permission_classes = [IsAdminOnly]
-        else:
-            permission_classes = [IsAuthenticated]
-        return [permission() for permission in permission_classes]
-    
-    def create(self, request):
-        """Create new edit request (organizations only)"""
-        if request.user.role != User.Role.ORGANIZATION:
-            return Response({
-                'success': False,
-                'message': 'Only organizations can create edit requests'
-            }, status=status.HTTP_403_FORBIDDEN)
-        
-        serializer = self.get_serializer(data=request.data)
-        
-        if serializer.is_valid():
-            edit_request = serializer.save(requested_by=request.user)
-            response_serializer = AnnouncementEditRequestDetailSerializer(edit_request)
-            
-            return Response({
-                'success': True,
-                'message': 'Edit request created successfully',
-                'data': response_serializer.data
-            }, status=status.HTTP_201_CREATED)
-        
-        return Response({
-            'detail': 'Validation failed',
-            'errors': serializer.errors
-        }, status=status.HTTP_400_BAD_REQUEST)
-    
-    @action(detail=True, methods=['patch'], url_path='approve-reject')
-    def approve_reject(self, request, pk=None):
-        """Admin action to approve or reject edit requests"""
-        edit_request = self.get_object()
-        
-        if edit_request.status != AnnouncementEditRequest.Status.PENDING:
-            return Response({
-                'success': False,
-                'message': 'Edit request has already been reviewed'
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
-        serializer = self.get_serializer(edit_request, data=request.data, partial=True)
-        
-        if serializer.is_valid():
-            updated_edit_request = serializer.save()
-            response_serializer = AnnouncementEditRequestDetailSerializer(updated_edit_request)
-            
-            status_text = "approved" if updated_edit_request.status == AnnouncementEditRequest.Status.APPROVED else "rejected"
-            
-            return Response({
-                'success': True,
-                'message': f'Edit request {status_text} successfully',
-                'data': response_serializer.data
-            }, status=status.HTTP_200_OK)
-        
-        return Response({
-            'detail': 'Validation failed',
-            'errors': serializer.errors
-        }, status=status.HTTP_400_BAD_REQUEST)
-    
-    @action(detail=False, methods=['get'], url_path='pending')
-    def pending_edit_requests(self, request):
-        """Admin action to get pending edit requests"""
-        if request.user.role != User.Role.ADMIN:
-            return Response({
-                'success': False,
-                'message': 'Only admins can access pending edit requests'
-            }, status=status.HTTP_403_FORBIDDEN)
-        
-        pending = AnnouncementEditRequest.objects.filter(status=AnnouncementEditRequest.Status.PENDING)
-        serializer = AnnouncementEditRequestListSerializer(pending, many=True, context={'request': request})
-        
-        return Response({
-            'success': True,
-            'message': 'Pending edit requests retrieved successfully',
-            'data': serializer.data
-        }, status=status.HTTP_200_OK)
 
 
 class OrganizationCreateAnnouncementView(APIView):
