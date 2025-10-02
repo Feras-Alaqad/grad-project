@@ -489,10 +489,32 @@ class AnnouncementListSerializer(serializers.ModelSerializer):
         return None
     
     def get_admin_notes(self, obj):
-        """Return admin_notes only for admin users, empty string for others"""
+        """Return admin_notes for admin and owning organization/creator; empty for others"""
         request = self.context.get('request')
-        if request and request.user.is_authenticated and request.user.role == User.Role.ADMIN:
+        if not request or not request.user.is_authenticated:
+            return ""
+
+        user = request.user
+        # Admins can always see admin_notes
+        if user.role == User.Role.ADMIN:
             return obj.admin_notes or ""
+
+        # Organizations can see admin_notes for announcements they own or created
+        if user.role == User.Role.ORGANIZATION:
+            owns_announcement = False
+            try:
+                # If announcement is linked to an Organization, compare its user
+                if getattr(obj, 'organization', None) and getattr(obj.organization, 'user_id', None):
+                    owns_announcement = (obj.organization.user_id == user.id)
+            except Exception:
+                # Be conservative on any attribute errors
+                owns_announcement = False
+
+            # Also allow if the current user is the creator of the announcement
+            if owns_announcement or (getattr(obj, 'created_by_id', None) == user.id):
+                return obj.admin_notes or ""
+
+        # Regular users or other organizations should not see admin notes
         return ""
     
     def get_image(self, obj):
