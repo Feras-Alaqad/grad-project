@@ -554,14 +554,30 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
         if serializer.is_valid():
             serializer.save()
             
-            # Send notification to announcement creator
-            status_text = "approved" if announcement.status == Announcement.Status.APPROVED else "rejected"
-            # Here you can add notification logic
+            # Send notification to organization user (org page) with status as title and admin notes as body
+            status_display = (announcement.status or "").title()
+            target_user = None
+
+            
+            if getattr(announcement, "organization", None) and getattr(announcement.organization, "user", None):
+                target_user = announcement.organization.user
+            
+            elif announcement.created_by and announcement.created_by.role == User.Role.ORGANIZATION:
+                target_user = announcement.created_by
+            #
+            created_notification = None
+            if target_user:
+                created_notification = Notification.objects.create(
+                    user=target_user,
+                    title=(f"{status_display}: {announcement.title}" if status_display else f"Status: {announcement.title}"),
+                    message=(announcement.admin_notes.strip() if announcement.admin_notes else f"Your announcement '{announcement.title}' was {status_display.lower() if status_display else 'updated' } by admin.")
+                )
             
             return Response({
                 'success': True,
-                'message': f'Announcement {status_text} successfully',
-                'data': AnnouncementAdminSerializer(announcement).data
+                'message': f"Announcement {status_display.lower()} successfully",
+                'data': AnnouncementAdminSerializer(announcement).data,
+                'notification': (NotificationDetailSerializer(created_notification).data if created_notification else None)
             }, status=status.HTTP_200_OK)
         return Response({
             'success': False,
@@ -571,7 +587,9 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'], url_path='pending')
     def pending_announcements(self, request):
+
         """Admin action to get pending announcements"""
+
         pending = Announcement.objects.filter(status=Announcement.Status.PENDING)
         serializer = AnnouncementListSerializer(pending, many=True, context={'request': request})
         return Response({
@@ -596,8 +614,29 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
         }, status=status.HTTP_200_OK)
 
     def perform_create(self, serializer):
-        """Override to set created_by field"""
-        serializer.save(created_by=self.request.user)
+        """Override to set created_by field and notify org if pending"""
+        instance = serializer.save(created_by=self.request.user)
+
+        if self.request.user.is_authenticated and self.request.user.role == User.Role.ORGANIZATION:
+            if instance.status == Announcement.Status.PENDING:
+                Notification.objects.create(
+                    user=self.request.user,
+                    title=f"Pending: {instance.title}",
+                    message="Your announcement has been submitted and is pending admin review."
+                )
+
+    def perform_update(self, serializer):
+        """Notify org when their edit moves status to pending"""
+        prev_status = serializer.instance.status
+        instance = serializer.save()
+
+        if self.request.user.is_authenticated and self.request.user.role == User.Role.ORGANIZATION:
+            if instance.status == Announcement.Status.PENDING and prev_status != Announcement.Status.PENDING:
+                Notification.objects.create(
+                    user=self.request.user,
+                    title=f"Pending: {instance.title}",
+                    message="Your announcement update is pending admin review."
+                )
     
     @action(detail=True, methods=['post', 'delete', 'get'], url_path='track-application', permission_classes=[IsAuthenticated])
     def track_application(self, request, pk=None):
@@ -942,11 +981,27 @@ class UpdateAnnouncementView(APIView):
             # Set status to PENDING when organization edits an approved announcement
             updated_announcement = serializer.save(status=Announcement.Status.PENDING)
             response_serializer = AnnouncementDetailSerializer(updated_announcement)
+
+            # Create a notification to inform the organization user that edit is pending
+            target_user = None
+            if getattr(updated_announcement, 'organization', None) and getattr(updated_announcement.organization, 'user', None):
+                target_user = updated_announcement.organization.user
+            elif updated_announcement.created_by and updated_announcement.created_by.role == User.Role.ORGANIZATION:
+                target_user = updated_announcement.created_by
+
+            created_notification = None
+            if target_user:
+                created_notification = Notification.objects.create(
+                    user=target_user,
+                    title=f"Pending Announcement: {updated_announcement.title}",
+                    message="Your announcement update is pending admin review."
+                )
             
             return Response({
                 'success': True,
                 'message': 'Announcement updated successfully. Status set to pending for admin review.',
-                'data': response_serializer.data
+                'data': response_serializer.data,
+                'notification': (NotificationDetailSerializer(created_notification).data if created_notification else None)
             }, status=status.HTTP_200_OK)
         
         return Response({
@@ -965,12 +1020,50 @@ class UpdateAnnouncementView(APIView):
         )
         
         if serializer.is_valid():
+            # For admin updates, allow setting status and admin_notes directly
             updated_announcement = serializer.save()
+
+            # If admin provided status/admin_notes in request, reflect it
+            admin_set_status = request_data.get('status')
+            admin_notes = request_data.get('admin_notes')
+
+            if self.request.user.role == User.Role.ADMIN and (admin_set_status or admin_notes is not None):
+                # Apply status and notes if present
+                if admin_set_status:
+                    updated_announcement.status = admin_set_status
+                if admin_notes is not None:
+                    updated_announcement.admin_notes = admin_notes
+                updated_announcement.save(update_fields=['status', 'admin_notes', 'updated_at'])
+
+                # Determine target organization user
+                target_user = None
+                if getattr(updated_announcement, 'organization', None) and getattr(updated_announcement.organization, 'user', None):
+                    target_user = updated_announcement.organization.user
+                elif updated_announcement.created_by and updated_announcement.created_by.role == User.Role.ORGANIZATION:
+                    target_user = updated_announcement.created_by
+
+                created_notification = None
+                if target_user:
+                    status_display = (updated_announcement.status or '').title()
+                    created_notification = Notification.objects.create(
+                        user=target_user,
+                        title=(f"{status_display}: {updated_announcement.title}" if status_display else f"Status: {updated_announcement.title}"),
+                        message=(updated_announcement.admin_notes.strip() if updated_announcement.admin_notes else f"Your announcement '{updated_announcement.title}' was {status_display.lower() if status_display else 'updated'} by admin.")
+                    )
+
+                response_serializer = AnnouncementDetailSerializer(updated_announcement)
+                return Response({
+                    'success': True,
+                    'message': f"Announcement {updated_announcement.status.lower() if updated_announcement.status else 'updated'} successfully",
+                    'data': response_serializer.data,
+                    'notification': (NotificationDetailSerializer(created_notification).data if created_notification else None)
+                }, status=status.HTTP_200_OK)
+
+            # Default response for non-admin or no status change
             response_serializer = AnnouncementDetailSerializer(updated_announcement)
-            
             return Response({
                 'success': True,
-                'message': 'Announcement approved successfully',
+                'message': 'Announcement updated successfully',
                 'data': response_serializer.data
             }, status=status.HTTP_200_OK)
         
@@ -1064,6 +1157,15 @@ class OrganizationCreateAnnouncementView(APIView):
                 created_by=request.user,
                 organization=organization
             )
+
+            # Create a notification for the organization when status is pending
+            if announcement.status == Announcement.Status.PENDING:
+                target_user = organization.user if getattr(organization, 'user', None) else request.user
+                created_notification = Notification.objects.create(
+                    user=target_user,
+                    title=f"Pending Announcement: {announcement.title}",
+                    message="Your announcement has been submitted and it is pending for admin review."
+                )
             
             # Return detailed response
             response_serializer = AnnouncementDetailSerializer(announcement)
@@ -1071,7 +1173,8 @@ class OrganizationCreateAnnouncementView(APIView):
             return Response({
                 'success': True,
                 'message': 'Announcement created successfully',
-                'data': response_serializer.data
+                'data': response_serializer.data,
+                'notification': (NotificationDetailSerializer(created_notification).data if announcement.status == Announcement.Status.PENDING else None)
             }, status=status.HTTP_201_CREATED)
         
         return Response({
@@ -1657,10 +1760,7 @@ class UserNotificationsView(APIView):
     def get(self, request):
         user = request.user
 
-        notifications = Notification.objects.filter(
-            user=user,
-            created_at__gte=user.created_at
-        ).order_by('-created_at')
+        notifications = Notification.objects.filter(user=user).order_by('-created_at')
 
         serializer = NotificationDetailSerializer(notifications, many=True)
 
@@ -1672,6 +1772,14 @@ class UserNotificationsView(APIView):
                 },
                 status=200
             )
+        
+        return Response(
+            {
+                "detail": "Your notifications list.",
+                "notifications": serializer.data
+            },
+            status=200
+        )
 
         return Response(
             {"notifications": serializer.data},
