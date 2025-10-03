@@ -75,6 +75,23 @@ def get_safe_announcement_image_url_serializer(request, announcement):
         else:
             return f"{settings.BASE_URL}{settings.MEDIA_URL}{default_image_path}"
 
+def get_safe_organization_profile_image_url_serializer(request, organization):
+    """
+    Safely get organization profile image URL for serializers, fallback to default if file doesn't exist
+    """
+    default_image_path = 'defaults/organization_default.png'
+    if getattr(organization, 'profile_image', None):
+        file_path = os.path.join(settings.MEDIA_ROOT, str(organization.profile_image))
+        if os.path.exists(file_path):
+            if request:
+                return request.build_absolute_uri(organization.profile_image.url)
+            else:
+                return f"{settings.BASE_URL}{organization.profile_image.url}"
+        # File missing → use default
+    if request:
+        return request.build_absolute_uri(settings.MEDIA_URL + default_image_path)
+    else:
+        return f"{settings.BASE_URL}{settings.MEDIA_URL}{default_image_path}"
 # =========================
 # 🔹 User Serializers
 # =========================
@@ -171,15 +188,24 @@ class OrganizationSignupSerializer(serializers.ModelSerializer):
         password = validated_data.pop('password')
         validated_data.pop('password_confirm', None)
 
+        # Extract optional org fields
+        description = validated_data.pop('description', '')
+        website = validated_data.pop('website', '')
+        location = validated_data.pop('location', '')
+        rate = validated_data.pop('rate', 1)
+        org_profile_image = validated_data.pop('profile_image', None)
+
+        # Build org data, preserving default image when none provided
         org_data = {
-            'description': validated_data.pop('description', ''),
-            'website': validated_data.pop('website', ''),
-            'location': validated_data.pop('location', ''),
-            'rate': validated_data.pop('rate', 1),
-            'profile_image': validated_data.pop('profile_image', None),
-            'verified': False,       
-            'is_active': True,       
+            'description': description,
+            'website': website,
+            'location': location,
+            'rate': rate,
+            'verified': False,
+            'is_active': True,
         }
+        if org_profile_image is not None:
+            org_data['profile_image'] = org_profile_image
 
         user = User.objects.create_user(
             email=validated_data['email'],
@@ -311,7 +337,7 @@ class OrganizationProfileSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(source='user.email', required=True)
     phone = serializers.CharField(source='user.phone', required=True)
     role = serializers.CharField(source='user.role', required=False)
-    profile_image = serializers.ImageField(required=False)
+    profile_image = serializers.SerializerMethodField()
 
     class Meta:
         model = Organization
@@ -324,28 +350,7 @@ class OrganizationProfileSerializer(serializers.ModelSerializer):
 
     def get_profile_image(self, obj):
         request = self.context.get('request', None)
-        if obj.profile_image:
-            # Check if the file actually exists
-            file_path = os.path.join(settings.MEDIA_ROOT, str(obj.profile_image))
-            if os.path.exists(file_path):
-                if request:
-                    return request.build_absolute_uri(obj.profile_image.url)
-                else:
-                    return settings.BASE_URL + obj.profile_image.url
-            else:
-                # File doesn't exist, use default organization image
-                default_image_path = 'defaults/organization_default.png'
-                if request:
-                    return request.build_absolute_uri(settings.MEDIA_URL + default_image_path)
-                else:
-                    return settings.BASE_URL + settings.MEDIA_URL + default_image_path
-        else:
-            # No profile image set, use default
-            default_image_path = 'defaults/organization_default.png'
-            if request:
-                return request.build_absolute_uri(settings.MEDIA_URL + default_image_path)
-            else:
-                return settings.BASE_URL + settings.MEDIA_URL + default_image_path
+        return get_safe_organization_profile_image_url_serializer(request, obj)
 
     def update(self, instance, validated_data):
         # تحديث بيانات اليوزر المرتبطة
@@ -750,10 +755,16 @@ class AnnouncementApprovalSerializer(serializers.ModelSerializer):
 
 
 class OrganizationSerializer(serializers.ModelSerializer):
+    profile_image = serializers.SerializerMethodField()
+
     class Meta:
         model = Organization
         fields = "__all__"
         read_only_fields = ("created_at", "updated_at")
+
+    def get_profile_image(self, obj):
+        request = self.context.get('request', None)
+        return get_safe_organization_profile_image_url_serializer(request, obj)
 
 
 class OrganizationDocumentSerializer(serializers.ModelSerializer):
@@ -905,7 +916,7 @@ class OrganizationDocumentSerializer(serializers.ModelSerializer):
     
 class OrganizationSerializer(serializers.ModelSerializer):
     organization_name = serializers.CharField(source="user.name", read_only=True)
-    profile_image = serializers.ImageField(read_only=True)
+    profile_image = serializers.SerializerMethodField()
     email = serializers.EmailField(source="user.email", read_only=True)
     phone = serializers.CharField(source="user.phone", read_only=True)
 
@@ -927,9 +938,13 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "updated_at"
         ]
 
+    def get_profile_image(self, obj):
+        request = self.context.get('request', None)
+        return get_safe_organization_profile_image_url_serializer(request, obj)
+
 class OrganizationAdminSerializer(serializers.ModelSerializer):
     organization_name = serializers.CharField(source="user.name", read_only=True)
-    profile_image = serializers.ImageField(read_only=True)
+    profile_image = serializers.SerializerMethodField()
     email = serializers.EmailField(source="user.email", read_only=True)
     phone = serializers.CharField(source="user.phone", read_only=True)
 
@@ -951,6 +966,10 @@ class OrganizationAdminSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at"
         ]
+
+    def get_profile_image(self, obj):
+        request = self.context.get('request', None)
+        return get_safe_organization_profile_image_url_serializer(request, obj)
 
 class OrganizationVerificationSerializer(serializers.ModelSerializer):
     class Meta:

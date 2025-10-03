@@ -54,6 +54,8 @@ from .views import (
     DeleteOrganizationView,
     OrganizationListView,
     OrganizationActiveFilterAPIView,
+    AdminStatisticsAPIView,
+    AdminTimeSeriesStatisticsAPIView,
 
 )
 
@@ -136,6 +138,8 @@ urlpatterns = [
     path('api/notification/<int:pk>/delete/', NotificationDeleteView.as_view(), name='notification-delete'),
     path('api/notifications/delete-all/', NotificationDeleteAllView.as_view(), name='notification-delete-all'),
     path('api/admin/notification/<int:pk>/delete/', AdminNotificationDeleteView.as_view(), name='admin-notification-delete'),
+    path('api/admin/statistics/', AdminStatisticsAPIView.as_view(), name='admin-statistics'),
+    path('api/admin/statistics/timeseries/', AdminTimeSeriesStatisticsAPIView.as_view(), name='admin-statistics-timeseries'),
     # api app endpoints (ViewSets)
     path('api/', include(router.urls)),
 ]

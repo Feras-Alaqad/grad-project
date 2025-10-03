@@ -32,7 +32,8 @@ from .models import (
     UserApplicationTracking,
 )
 from django_filters.rest_framework import DjangoFilterBackend
-from django.db.models import Q
+from django.db.models import Q, Count
+from django.db.models.functions import TruncDay, TruncMonth
 from .models import User, Organization, Announcement, AnnouncementCategory
 from .serializers import (
     UserSignupSerializer,
@@ -1363,6 +1364,255 @@ class IsOrganizationRole(permissions.BasePermission):
             request.user.role == User.Role.ORGANIZATION
         )
     
+class AdminStatisticsAPIView(APIView):
+    """
+    Return aggregate statistics for the application. Accessible to admin users only.
+    Includes totals across core models and key status breakdowns.
+    """
+    permission_classes = [IsAuthenticated, IsAdminRole]
+
+    def get(self, request):
+        # Optional date range filters: start_date, end_date (YYYY-MM-DD)
+        start_date_str = request.query_params.get('start_date')
+        end_date_str = request.query_params.get('end_date')
+        start_dt = None
+        end_dt = None
+        if start_date_str:
+            sd = parse_date(start_date_str)
+            if sd:
+                start_dt = timezone.make_aware(datetime.combine(sd, time.min))
+        if end_date_str:
+            ed = parse_date(end_date_str)
+            if ed:
+                end_dt = timezone.make_aware(datetime.combine(ed, time.max))
+
+        def apply_date_filters(qs):
+            if start_dt and end_dt:
+                return qs.filter(created_at__gte=start_dt, created_at__lte=end_dt)
+            if start_dt:
+                return qs.filter(created_at__gte=start_dt)
+            if end_dt:
+                return qs.filter(created_at__lte=end_dt)
+            return qs
+
+        # Users
+        users_total = apply_date_filters(User.objects.all()).count()
+        users_active = apply_date_filters(User.objects.filter(is_active=True)).count()
+        users_by_role = {
+            'admin': apply_date_filters(User.objects.filter(role=User.Role.ADMIN)).count(),
+            'organization': apply_date_filters(User.objects.filter(role=User.Role.ORGANIZATION)).count(),
+            'user': apply_date_filters(User.objects.filter(role=User.Role.USER)).count(),
+        }
+
+        # Organizations
+        org_total = apply_date_filters(Organization.objects.all()).count()
+        org_verified = apply_date_filters(Organization.objects.filter(verified=True)).count()
+        org_active = apply_date_filters(Organization.objects.filter(is_active=True)).count()
+        org_blocked = apply_date_filters(Organization.objects.filter(is_active=False)).count()
+
+        # Announcements
+        ann_total = apply_date_filters(Announcement.objects.all()).count()
+        ann_by_status = {
+            'approved': apply_date_filters(Announcement.objects.filter(status=Announcement.Status.APPROVED)).count(),
+            'pending': apply_date_filters(Announcement.objects.filter(status=Announcement.Status.PENDING)).count(),
+            'rejected': apply_date_filters(Announcement.objects.filter(status=Announcement.Status.REJECTED)).count(),
+            'draft': apply_date_filters(Announcement.objects.filter(status=Announcement.Status.DRAFT)).count(),
+        }
+
+        # Categories
+        categories_total = AnnouncementCategory.objects.count()
+
+        # Favorites
+        favorites_total = apply_date_filters(UserFavorite.objects.all()).count()
+
+        # Organization Documents
+        docs_total = apply_date_filters(OrganizationDocument.objects.all()).count()
+        docs_by_status = {
+            'approved': apply_date_filters(OrganizationDocument.objects.filter(status='approved')).count(),
+            'pending': apply_date_filters(OrganizationDocument.objects.filter(status='pending')).count(),
+            'rejected': apply_date_filters(OrganizationDocument.objects.filter(status='rejected')).count(),
+        }
+
+        # Notifications
+        notifications_total = apply_date_filters(Notification.objects.all()).count()
+
+        # Support Requests
+        support_total = apply_date_filters(HelpSupport.objects.all()).count()
+        support_by_status = {
+            'pending': apply_date_filters(HelpSupport.objects.filter(status=HelpSupport.Status.PENDING)).count(),
+            'closed': apply_date_filters(HelpSupport.objects.filter(status=HelpSupport.Status.CLOSED)).count(),
+        }
+        support_by_type = {
+            'system': apply_date_filters(HelpSupport.objects.filter(type=HelpSupport.SupportType.SYSTEM)).count(),
+        }
+
+        # User Application Tracking
+        applications_total = apply_date_filters(UserApplicationTracking.objects.all()).count()
+
+
+        stats = {
+            'users': {
+                'total': users_total,
+                'active': users_active,
+                'by_role': users_by_role,
+            },
+            'organizations': {
+                'total': org_total,
+                'verified': org_verified,
+                'active': org_active,
+                'blocked': org_blocked,
+            },
+            'announcements': {
+                'total': ann_total,
+                'by_status': ann_by_status,
+            },
+            'categories': {
+                'total': categories_total,
+            },
+            'favorites': {
+                'total': favorites_total,
+            },
+            'documents': {
+                'total': docs_total,
+                'by_status': docs_by_status,
+            },
+            'notifications': {
+                'total': notifications_total,
+            },
+            'support_requests': {
+                'total': support_total,
+                'by_status': support_by_status,
+                'by_type': support_by_type,
+            },
+            'applications': {
+                'total': applications_total,
+            },
+        }
+
+        applied_filters = {
+            'start_date': start_date_str if start_date_str else None,
+            'end_date': end_date_str if end_date_str else None,
+        }
+        return Response({'success': True, 'filters': applied_filters, 'data': stats}, status=status.HTTP_200_OK)
+
+class AdminTimeSeriesStatisticsAPIView(APIView):
+    """
+    Return time-series counts per day or month for a chosen metric.
+    Supports preset periods: day, 7days, month, 3months, 6months, year.
+    Supported metrics: users, announcements, organizations, support.
+    """
+    permission_classes = [IsAuthenticated, IsAdminRole]
+
+    def get(self, request):
+        metric = request.query_params.get('metric')
+        period = request.query_params.get('period')  # day | 7days | month | 3months | 6months | year
+
+        allowed_metrics = {'users', 'announcements', 'organizations', 'support'}
+        allowed_periods = {'day', '7days', 'month', '3months', '6months', 'year'}
+
+        if metric not in allowed_metrics or period not in allowed_periods:
+            return Response({
+                'success': False,
+                'message': 'Invalid metric or period',
+                'errors': {
+                    'metric': f"must be one of {sorted(list(allowed_metrics))}",
+                    'period': f"must be one of {sorted(list(allowed_periods))}",
+                }
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        now = timezone.now()
+
+        def start_of_day(dt):
+            return dt.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        def end_of_day(dt):
+            return dt.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+        def first_day_of_month(dt):
+            return dt.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+        def add_months(dt, months):
+            # Add (or subtract if negative) months to a datetime, preserving year rollover
+            y = dt.year
+            m = dt.month
+            total = y * 12 + (m - 1) + months
+            new_y = total // 12
+            new_m = total % 12 + 1
+            # Clamp day to 1 for first day-of-month contexts
+            return dt.replace(year=new_y, month=new_m, day=1)
+
+        # Determine interval and range based on preset period
+        if period in {'day', '7days'}:
+            interval = 'day'
+            days_back = 1 if period == 'day' else 7
+            start_dt = start_of_day(now - timezone.timedelta(days=days_back - 1))
+            end_dt = end_of_day(now)
+        else:
+            interval = 'month'
+            months_back_map = {
+                'month': 1,
+                '3months': 3,
+                '6months': 6,
+                'year': 12,
+            }
+            months_back = months_back_map[period]
+            # Range from first day of the month N-1 months ago up to end of current month
+            start_dt = first_day_of_month(add_months(now, -(months_back - 1)))
+            # End at end of current month
+            end_month_start = first_day_of_month(now)
+            end_dt = end_of_day(add_months(end_month_start, 1) - timezone.timedelta(days=1))
+
+        # Select model based on metric
+        if metric == 'users':
+            model = User
+        elif metric == 'announcements':
+            model = Announcement
+        elif metric == 'organizations':
+            model = Organization
+        elif metric == 'support':
+            model = HelpSupport
+
+        qs = model.objects.filter(created_at__gte=start_dt, created_at__lte=end_dt)
+
+        if interval == 'day':
+            aggregated = qs.annotate(bucket=TruncDay('created_at')).values('bucket').annotate(count=Count('id')).order_by('bucket')
+        else:
+            aggregated = qs.annotate(bucket=TruncMonth('created_at')).values('bucket').annotate(count=Count('id')).order_by('bucket')
+
+        # Map existing buckets to counts
+        bucket_counts = {item['bucket']: item['count'] for item in aggregated}
+
+        # Generate complete bucket sequence and fill zeros
+        buckets = []
+        total = 0
+        if interval == 'day':
+            cur = start_of_day(start_dt)
+            while cur <= end_dt:
+                key = start_of_day(cur)
+                count = bucket_counts.get(key, 0)
+                buckets.append({'date': key.date().isoformat(), 'count': count})
+                total += count
+                cur = cur + timezone.timedelta(days=1)
+        else:  # month
+            cur = first_day_of_month(start_dt)
+            end_month = first_day_of_month(end_dt)
+            while cur <= end_month:
+                key = first_day_of_month(cur)
+                count = bucket_counts.get(key, 0)
+                buckets.append({'date': key.strftime('%Y-%m'), 'count': count})
+                total += count
+                cur = add_months(cur, 1)
+
+        applied_filters = {
+            'metric': metric,
+            'period': period,
+            'interval': interval,
+            'start_date': start_dt.date().isoformat(),
+            'end_date': end_dt.date().isoformat(),
+        }
+
+        return Response({'success': True, 'filters': applied_filters, 'data': {'buckets': buckets, 'total': total}}, status=status.HTTP_200_OK)
+    
 @api_view(['POST'])
 @permission_classes([IsAuthenticated, IsUserRole])
 def create_support_request(request):
@@ -1390,10 +1640,18 @@ def create_support_request(request):
                 # تسجيل الخطأ فقط بدون منع الاستجابة الناجحة
                 print(f"Failed to send email: {str(e)}")
 
+            # Send email notification also in the notificatioon tab also that confirming ticket receipt
+            created_notification = Notification.objects.create(
+                user=support_request.user,
+                title=f"Support Ticket Received: {support_request.title}",
+                message="We have received your ticket and will reply soon."
+            )
+
         return Response({
             'success': True,
             'message': 'Support request sent successfully',
-            'data': response_serializer.data
+            'data': response_serializer.data,
+            'notification': NotificationDetailSerializer(created_notification).data if support_request.type in [HelpSupport.SupportType.SYSTEM, HelpSupport.SupportType.OTHER] else None
         }, status=status.HTTP_201_CREATED)
     
     return Response({
@@ -1446,6 +1704,13 @@ def admin_reply_request(request, pk):
     support_request.status = HelpSupport.Status.CLOSED  # ← تغيير الحالة
     support_request.save()
 
+    # Create in-app notification for the user
+    created_notification = Notification.objects.create(
+        user=support_request.user,
+        title=f"Support Reply: {support_request.title}",
+        message=reply_text
+    )
+
     # إرسال إيميل للمستخدم الذي قدم الطلب
     subject = f"Response to your support request: {support_request.title}"
     message = f"Hello {support_request.user.name},\n\n" \
@@ -1463,7 +1728,8 @@ def admin_reply_request(request, pk):
 
     return Response({
         "success": True,
-        "message": "Your reply has been sent to the user successfully and the request is now closed."
+        "message": "Your reply has been sent to the user successfully and the request is now closed.",
+        "notification": NotificationDetailSerializer(created_notification).data
     }, status=200)
 
 class HelpSupportListView(generics.ListAPIView):
