@@ -600,15 +600,51 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'], url_path='my-announcements')
     def my_announcements(self, request):
-        """Get current user's announcements"""
+        """Get current user's announcements
+        - Includes admin-created announcements targeted to the user's existing organization
+        
+        """
         if not request.user.is_authenticated:
             return Response({
                 'success': False,
                 'message': 'Authentication required'
             }, status=status.HTTP_401_UNAUTHORIZED)
-        
-        announcements = Announcement.objects.filter(created_by=request.user)
-        serializer = AnnouncementListSerializer(announcements, many=True, context={'request': request})
+
+        org_id = request.query_params.get('organization_id')
+
+        if org_id:
+            # Fetch announcements for a specific organization with authorization checks
+            try:
+                organization = Organization.objects.get(id=org_id)
+            except Organization.DoesNotExist:
+                return Response({
+                    'success': False,
+                    'message': 'Organization not found'
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            # Only admins or the organization owner can view this organization's announcements
+            if not (request.user.role == User.Role.ADMIN or organization.user_id == request.user.id):
+                return Response({
+                    'success': False,
+                    'message': "Not authorized to view this organization's announcements"
+                }, status=status.HTTP_403_FORBIDDEN)
+
+            announcements = Announcement.objects.filter(
+                Q(organization=organization) &
+                (Q(created_by=request.user) | Q(created_by__role=User.Role.ADMIN))
+            )
+        else:
+            # Default: user's own announcements and admin-created ones for their organization (if org user)
+            base_q = Q(created_by=request.user)
+
+            if request.user.role == User.Role.ORGANIZATION:
+                org = Organization.objects.filter(user=request.user).first()
+                if org:
+                    base_q = base_q | (Q(created_by__role=User.Role.ADMIN) & Q(organization=org))
+
+            announcements = Announcement.objects.filter(base_q)
+
+        serializer = AnnouncementListSerializer(announcements.order_by('-created_at'), many=True, context={'request': request})
         return Response({
             'success': True,
             'data': serializer.data
