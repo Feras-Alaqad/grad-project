@@ -35,7 +35,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q, Count
 from django.db.models.functions import TruncDay, TruncMonth
 from .models import User, Organization, Announcement, AnnouncementCategory
-from .email_utils import logo_header_html
+from .email_utils import logo_header_html, banner_header_html
 from .serializers import (
     UserSignupSerializer,
     UserSerializer,
@@ -256,23 +256,21 @@ Note: This link is valid for a limited time only.
     <meta charset=\"utf-8\">
     <title>Password Reset</title>
   </head>
-  <body style=\"margin:0;padding:0;background-color:#f7f7f9;\">
+  <body style=\"margin:0;padding:0;background-color:#e5e7eb;\">
     <table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" width=\"100%\"> 
       <tr>
         <td align=\"center\" style=\"padding:24px;\">
-          <table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" width=\"600\" style=\"background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;font-family:Arial,Helvetica,sans-serif;font-size:16px;\">
-            {logo_header_html(request)}
+          <table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" width=\"600\" style=\"background:#ffffff;border:1px solid #e5e7eb;border-radius:16px;font-family:Arial,Helvetica,sans-serif;font-size:16px;\">
+            {banner_header_html(request)}
             <tr>
               <td style=\"padding:24px;\">
-                <h2 style=\"margin:0 0 12px;font-size:24px;color:#111827;\">Password Reset</h2>
-                <p style=\"margin:0 0 12px;color:#374151;font-size:16px;line-height:1.6;\">Dear {user.name or user.email},</p>
-                <p style=\"margin:0 0 12px;color:#374151;font-size:16px;line-height:1.6;\">You requested to reset your password. Click the button below to proceed:</p>
-                <p style=\"margin:16px 0;\">
-                  <a href=\"{reset_url}\" style=\"display:inline-block;padding:12px 18px;background:#2563eb;color:white;text-decoration:none;border-radius:6px;font-weight:bold;font-size:16px;\">Reset Password</a>
+                <h2 style=\"margin:0 0 8px;font-size:28px;color:#111827;font-weight:800;\">Forgot your password?</h2>
+                <p style=\"margin:0 0 18px;color:#111827;font-size:22px;font-weight:700;line-height:1.3;\">It happens to the best of us.</p>
+                <p style=\"margin:0 0 12px;color:#4b5563;font-size:16px;line-height:1.6;\">To reset your password, click the button below. The link will self‑destruct after five days.</p>
+                <p style=\"margin:20px 0;\">
+                  <a href=\"{reset_url}\" style=\"display:inline-block;padding:18px 28px;background:#5b6cfb;color:#ffffff;text-decoration:none;border-radius:28px;font-weight:700;font-size:16px;letter-spacing:1px;\">RESET PASSWORD</a>
                 </p>
-                <p style=\"margin:0 0 12px;color:#6b7280;font-size:15px;line-height:1.6;\">If the button doesn't work, copy and paste this link into your browser:</p>
-                <p style=\"margin:0 0 24px;color:#2563eb;font-size:15px;line-height:1.6;\"><a href=\"{reset_url}\" style=\"color:#2563eb;text-decoration:underline;\">{reset_url}</a></p>
-                <p style=\"margin:0;color:#6b7280;font-size:14px;line-height:1.6;\">Note: This link is valid for a limited time only.</p>
+                <p style=\"margin:0 0 12px;color:#6b7280;font-size:15px;line-height:1.6;\">If you have any questions or need further assistance, please do not hesitate to contact our support team by replying to this email or visiting our support page.</p>
               </td>
             </tr>
           </table>
@@ -340,23 +338,21 @@ def password_reset_email_preview(request):
     <meta charset=\"utf-8\">
     <title>Password Reset (Preview)</title>
   </head>
-  <body style=\"margin:0;padding:0;background-color:#f7f7f9;\">
+  <body style=\"margin:0;padding:0;background-color:#e5e7eb;\">
     <table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" width=\"100%\"> 
       <tr>
         <td align=\"center\" style=\"padding:24px;\">
-          <table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" width=\"600\" style=\"background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;font-family:Arial,Helvetica,sans-serif;font-size:16px;\">
-            {logo_header_html(request)}
+          <table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" width=\"600\" style=\"background:#ffffff;border:1px solid #e5e7eb;border-radius:16px;font-family:Arial,Helvetica,sans-serif;font-size:16px;\">
+            {banner_header_html(request)}
             <tr>
               <td style=\"padding:24px;\">
-                <h2 style=\"margin:0 0 12px;font-size:24px;color:#111827;\">Password Reset</h2>
-                <p style=\"margin:0 0 12px;color:#374151;font-size:16px;line-height:1.6;\">Dear {sample_name or sample_email},</p>
-                <p style=\"margin:0 0 12px;color:#374151;font-size:16px;line-height:1.6;\">You requested to reset your password. Click the button below to proceed:</p>
-                <p style=\"margin:16px 0;\">
-                  <a href=\"{reset_url}\" style=\"display:inline-block;padding:12px 18px;background:#2563eb;color:white;text-decoration:none;border-radius:6px;font-weight:bold;font-size:16px;\">Reset Password</a>
+                <h2 style=\"margin:0 0 8px;font-size:28px;color:#111827;font-weight:800;\">Forgot your password?</h2>
+                <p style=\"margin:0 0 18px;color:#111827;font-size:22px;font-weight:700;line-height:1.3;\">It happens to the best of us.</p>
+                <p style=\"margin:0 0 12px;color:#4b5563;font-size:16px;line-height:1.6;\">To reset your password, click the button below. The link will self‑destruct after five days.</p>
+                <p style=\"margin:20px 0;\">
+                  <a href=\"{reset_url}\" style=\"display:inline-block;padding:18px 28px;background:#5b6cfb;color:#ffffff;text-decoration:none;border-radius:28px;font-weight:700;font-size:16px;letter-spacing:1px;\">RESET PASSWORD</a>
                 </p>
-                <p style=\"margin:0 0 12px;color:#6b7280;font-size:15px;line-height:1.6;\">If the button doesn't work, copy and paste this link into your browser:</p>
-                <p style=\"margin:0 0 24px;color:#2563eb;font-size:15px;line-height:1.6;\"><a href=\"{reset_url}\" style=\"color:#2563eb;text-decoration:underline;\">{reset_url}</a></p>
-                <p style=\"margin:0;color:#6b7280;font-size:14px;line-height:1.6;\">Note: This link is valid for a limited time only.</p>
+                <p style=\"margin:0 0 12px;color:#6b7280;font-size:15px;line-height:1.6;\">If you have any questions or need further assistance, please do not hesitate to contact our support team by replying to this email or visiting our support page.</p>
               </td>
             </tr>
           </table>

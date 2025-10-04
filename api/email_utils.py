@@ -34,3 +34,27 @@ def logo_header_html(request=None, image_url: str | None = None) -> str:
         f"  </td>"
         f"</tr>"
     )
+
+
+def banner_header_html(request=None, image_url: str | None = None) -> str:
+    """Return a full-width banner row with purple background and rounded corners.
+
+    - Centers the logo image at the top, matching the provided design.
+    - Uses `request` to build absolute logo URL when available.
+    - Allows overriding the logo with `image_url`.
+    """
+    logo_src = image_url or absolute_media_url('awnlogo.png', request)
+    # Top banner with rounded top corners and purple background
+    return (
+        f"<tr>"
+        f"  <td style=\"background:#5b6cfb;border-top-left-radius:16px;border-top-right-radius:16px;\">"
+        f"    <table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\">"
+        f"      <tr>"
+        f"        <td align=\"left\" style=\"padding:22px 24px;\">"
+        f"          <img src=\"{logo_src}\" alt=\"Logo\" style=\"height:40px;display:block;\"/>"
+        f"        </td>"
+        f"      </tr>"
+        f"    </table>"
+        f"  </td>"
+        f"</tr>"
+    )
