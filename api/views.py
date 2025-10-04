@@ -288,7 +288,7 @@ Note: This link is valid for a limited time only.
             message=message,
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[user.email],
-            fail_silently=True,
+            fail_silently=False,
             html_message=html_message,
         )
 
@@ -1742,7 +1742,7 @@ def create_support_request(request):
                     from_email=settings.DEFAULT_FROM_EMAIL,
                     recipient_list=recipient_list,
                     html_message=html_message,
-                    fail_silently=True,
+                    fail_silently=False,
                 )
             except Exception as e:
                 # Log error without failing the API response
@@ -1870,7 +1870,7 @@ def admin_reply_request(request, pk):
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=recipient_list,
             html_message=html_message,
-            fail_silently=True,
+            fail_silently=False,
         )
     except Exception as e:
         # Do not fail the endpoint; just log the error for admins
