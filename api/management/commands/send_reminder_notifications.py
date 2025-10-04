@@ -144,7 +144,7 @@ AWN Team
             message=message,
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[tracking.user.email],
-            fail_silently=False,
+            fail_silently=True,
             html_message=html_message
         )
     

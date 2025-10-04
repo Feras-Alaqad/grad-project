@@ -288,7 +288,7 @@ Note: This link is valid for a limited time only.
             message=message,
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[user.email],
-            fail_silently=False,
+            fail_silently=True,
             html_message=html_message,
         )
 
@@ -1736,9 +1736,16 @@ def create_support_request(request):
             recipient_list = [support_request.user.email]
 
             try:
-                send_mail(subject, message, 'no-reply@yourplatform.com', recipient_list, html_message=html_message)
+                send_mail(
+                    subject=subject,
+                    message=message,
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=recipient_list,
+                    html_message=html_message,
+                    fail_silently=True,
+                )
             except Exception as e:
-                # تسجيل الخطأ فقط بدون منع الاستجابة الناجحة
+                # Log error without failing the API response
                 print(f"Failed to send email: {str(e)}")
 
             # Send email notification also in the notificatioon tab also that confirming ticket receipt
@@ -1857,12 +1864,17 @@ def admin_reply_request(request, pk):
 """.strip()
 
     try:
-        send_mail(subject, message, 'no-reply@yourplatform.com', recipient_list, html_message=html_message)
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=recipient_list,
+            html_message=html_message,
+            fail_silently=True,
+        )
     except Exception as e:
-        return Response({
-            "success": False,
-            "message": f"Failed to send email: {str(e)}"
-        }, status=500)
+        # Do not fail the endpoint; just log the error for admins
+        print(f"Failed to send email: {str(e)}")
 
     return Response({
         "success": True,
