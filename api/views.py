@@ -35,6 +35,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q, Count
 from django.db.models.functions import TruncDay, TruncMonth
 from .models import User, Organization, Announcement, AnnouncementCategory
+from .email_utils import logo_header_html
 from .serializers import (
     UserSignupSerializer,
     UserSerializer,
@@ -234,9 +235,9 @@ class ForgotPasswordAPIView(generics.GenericAPIView):
 
         reset_url = f"https://awn-three.vercel.app/reset-password/{user.id}/{token}/"
 
-        # Email content
+        # Email content (plain text + HTML)
         message = f"""
-Hello {user.name or user.email},
+Dear {user.name or user.email},
 
 You requested to reset your password.
 
@@ -248,12 +249,47 @@ Or copy this link into your browser.
 Note: This link is valid for a limited time only.
 """
 
+        html_message = f"""
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset=\"utf-8\">
+    <title>Password Reset</title>
+  </head>
+  <body style=\"margin:0;padding:0;background-color:#f7f7f9;\">
+    <table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" width=\"100%\"> 
+      <tr>
+        <td align=\"center\" style=\"padding:24px;\">
+          <table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" width=\"600\" style=\"background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;font-family:Arial,Helvetica,sans-serif;\">
+            {logo_header_html()}
+            <tr>
+              <td style=\"padding:24px;\">
+                <h2 style=\"margin:0 0 12px;font-size:20px;color:#111827;\">Password Reset</h2>
+                <p style=\"margin:0 0 12px;color:#374151;\">Dear {user.name or user.email},</p>
+                <p style=\"margin:0 0 12px;color:#374151;\">You requested to reset your password. Click the button below to proceed:</p>
+                <p style=\"margin:16px 0;\">
+                  <a href=\"{reset_url}\" style=\"display:inline-block;padding:12px 18px;background:#2563eb;color:white;text-decoration:none;border-radius:6px;font-weight:bold;\">Reset Password</a>
+                </p>
+                <p style=\"margin:0 0 12px;color:#6b7280;\">If the button doesn't work, copy and paste this link into your browser:</p>
+                <p style=\"margin:0 0 24px;color:#2563eb;\"><a href=\"{reset_url}\" style=\"color:#2563eb;text-decoration:underline;\">{reset_url}</a></p>
+                <p style=\"margin:0;color:#6b7280;\">Note: This link is valid for a limited time only.</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+""".strip()
+
         send_mail(
             subject="Password Reset",
             message=message,
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[user.email],
             fail_silently=False,
+            html_message=html_message,
         )
 
         return Response({
@@ -1660,18 +1696,47 @@ def create_support_request(request):
         if support_request.type in [HelpSupport.SupportType.SYSTEM, HelpSupport.SupportType.OTHER]:
             subject = "Support Request Received"
             message = (
-                f"Hello {support_request.user.name},\n\n"
-                f"We have successfully received your support request titled \"{support_request.title}\".\n\n"
-                f"Your request is currently under review by our administrators. "
-                f"Please allow some time for the admin team to review your case and respond accordingly.\n\n"
-                f"Thank you for your patience and trust in our platform.\n\n"
-                f"Best regards,\n"
-                f"YourPlatform Support Team"
+                f"Dear {support_request.user.name or support_request.user.email},\n\n"
+                f"Thank you for contacting AWN Support. We acknowledge receipt of your support request titled \"{support_request.title}\" (Reference #{support_request.id}).\n\n"
+                "Our support team is reviewing your request and will follow up as soon as possible. You can track the status and updates in the application under Support > My Requests.\n\n"
+                "If you need to provide additional information, please update your request in the application rather than replying to this email.\n\n"
+                "Best regards,\n"
+                "AWN Platform Support Team"
             )
+            html_message = f"""
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset=\"utf-8\">
+    <title>Support Request Received</title>
+  </head>
+  <body style=\"margin:0;padding:0;background-color:#f7f7f9;\">
+    <table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" width=\"100%\"> 
+      <tr>
+        <td align=\"center\" style=\"padding:24px;\">
+          <table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" width=\"600\" style=\"background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;font-family:Arial,Helvetica,sans-serif;\">
+            {logo_header_html()}
+            <tr>
+              <td style=\"padding:24px;\">
+                <h2 style=\"margin:0 0 12px;font-size:20px;color:#111827;\">Support Request Received</h2>
+                <p style=\"margin:0 0 16px;color:#374151;\">Dear {support_request.user.name or support_request.user.email},</p>
+                <p style=\"margin:0 0 12px;color:#374151;\">Thank you for contacting AWN Support. We acknowledge receipt of your support request titled <strong>{support_request.title}</strong> (Reference #{support_request.id}).</p>
+                <p style=\"margin:0 0 12px;color:#374151;\">Our support team is reviewing your request and will follow up as soon as possible. You can track the status and updates in the application under <strong>Support &gt; My Requests</strong>.</p>
+                <p style=\"margin:0 0 24px;color:#374151;\">If you need to provide additional information, please update your request in the application rather than replying to this email.</p>
+                <p style=\"margin:0;color:#6b7280;\">Best regards,<br/>AWN Platform Support Team</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+""".strip()
             recipient_list = [support_request.user.email]
 
             try:
-                send_mail(subject, message, 'no-reply@yourplatform.com', recipient_list)
+                send_mail(subject, message, 'no-reply@yourplatform.com', recipient_list, html_message=html_message)
             except Exception as e:
                 # تسجيل الخطأ فقط بدون منع الاستجابة الناجحة
                 print(f"Failed to send email: {str(e)}")
@@ -1749,13 +1814,50 @@ def admin_reply_request(request, pk):
 
     # إرسال إيميل للمستخدم الذي قدم الطلب
     subject = f"Response to your support request: {support_request.title}"
-    message = f"Hello {support_request.user.name},\n\n" \
-              f"The admin has responded to your support request:\n\n" \
-              f"{reply_text}\n\nThank you."
+    message = (
+        f"Dear {support_request.user.name or support_request.user.email},\n\n"
+        "We have responded to your support request. Please find the details below:\n\n"
+        f"{reply_text}\n\n"
+        "You can view this request and any follow-up updates in the application under Support > My Requests.\n\n"
+        "Best regards,\n"
+        "AWN Platform Support Team"
+    )
     recipient_list = [support_request.user.email]
+    html_message = f"""
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset=\"utf-8\">
+    <title>Support Reply</title>
+  </head>
+  <body style=\"margin:0;padding:0;background-color:#f7f7f9;\">
+    <table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" width=\"100%\"> 
+      <tr>
+        <td align=\"center\" style=\"padding:24px;\">
+          <table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" width=\"600\" style=\"background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;font-family:Arial,Helvetica,sans-serif;\">
+            {logo_header_html()}
+            <tr>
+              <td style=\"padding:24px;\">
+                <h2 style=\"margin:0 0 12px;font-size:20px;color:#111827;\">Support Reply</h2>
+                <p style=\"margin:0 0 16px;color:#374151;\">Dear {support_request.user.name or support_request.user.email},</p>
+                <p style=\"margin:0 0 12px;color:#374151;\">We have responded to your support request titled <strong>{support_request.title}</strong> (Reference #{support_request.id}).</p>
+                <div style=\"margin:16px 0;padding:12px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:6px;color:#111827;\">
+                  {reply_text}
+                </div>
+                <p style=\"margin:0 0 24px;color:#374151;\">You can view this request and any follow-up updates in the application under <strong>Support &gt; My Requests</strong>.</p>
+                <p style=\"margin:0;color:#6b7280;\">Best regards,<br/>AWN Platform Support Team</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+""".strip()
 
     try:
-        send_mail(subject, message, 'no-reply@yourplatform.com', recipient_list)
+        send_mail(subject, message, 'no-reply@yourplatform.com', recipient_list, html_message=html_message)
     except Exception as e:
         return Response({
             "success": False,

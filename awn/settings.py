@@ -180,11 +180,11 @@ SIMPLE_JWT = {
 
 # إعدادات البريد الإلكتروني
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'  # أو SMTP server آخر
+EMAIL_HOST = 'smtp.gmail.com'  
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'feras.kh.aqad@gmail.com'  # بريدك الإلكتروني
-EMAIL_HOST_PASSWORD = 'olfs nrix nxyl jnif'  # استخدم App Password
+EMAIL_HOST_USER = 'awnplatform@gmail.com'  
+EMAIL_HOST_PASSWORD = 'wawe hqew wpnu azih'  
 DEFAULT_FROM_EMAIL = 'EMAIL_HOST_USER'
 
 MEDIA_URL = '/media/'
