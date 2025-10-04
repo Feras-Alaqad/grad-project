@@ -22,8 +22,7 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 # Base URL for constructing absolute URLs (configurable via environment variable)
-# Use production host if provided; fallback to deployed backend URL when available
-BASE_URL = os.environ.get('BASE_URL', 'https://mrs.infnet.tech:8001')
+BASE_URL = os.environ.get('BASE_URL', 'http://localhost:8000')
 
 
 

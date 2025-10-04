@@ -284,16 +284,30 @@ Note: This link is valid for a limited time only.
 """.strip()
 
         try:
-            send_mail(
+            result = send_mail(
                 subject="Password Reset",
                 message=message,
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 recipient_list=[user.email],
-                fail_silently=True,
+                fail_silently=False,
                 html_message=html_message,
             )
-        except Exception:
-            pass
+            # If no messages were accepted by the backend, treat as failure
+            if result == 0:
+                print("Password reset email send_mail returned 0 (no recipients accepted)")
+                return Response({
+                    "success": False,
+                    "message": "Email provider did not accept the message.",
+                    "error": "send_mail returned 0"
+                }, status=status.HTTP_502_BAD_GATEWAY)
+        except Exception as e:
+            # Log the error and return a proper response to help debugging
+            print(f"Failed to send password reset email: {str(e)}")
+            return Response({
+                "success": False,
+                "message": "Failed to send password reset email.",
+                "error": str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         return Response({
             "success": True,
