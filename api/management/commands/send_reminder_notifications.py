@@ -118,7 +118,7 @@ AWN Team
       <tr>
         <td align=\"center\" style=\"padding:24px;\">
           <table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" width=\"600\" style=\"background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;font-family:Arial,Helvetica,sans-serif;\">
-            {logo_header_html()}
+            {logo_header_html(None)}
             <tr>
               <td style=\"padding:24px;\">
                 <h2 style=\"margin:0 0 12px;font-size:20px;color:#111827;\">Reminder</h2>
@@ -144,7 +144,7 @@ AWN Team
             message=message,
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[tracking.user.email],
-            fail_silently=True,
+            fail_silently=False,
             html_message=html_message
         )
     

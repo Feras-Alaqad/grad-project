@@ -260,19 +260,19 @@ Note: This link is valid for a limited time only.
     <table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" width=\"100%\"> 
       <tr>
         <td align=\"center\" style=\"padding:24px;\">
-          <table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" width=\"600\" style=\"background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;font-family:Arial,Helvetica,sans-serif;\">
-            {logo_header_html()}
+          <table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" width=\"600\" style=\"background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;font-family:Arial,Helvetica,sans-serif;font-size:16px;\">
+            {logo_header_html(request)}
             <tr>
               <td style=\"padding:24px;\">
-                <h2 style=\"margin:0 0 12px;font-size:20px;color:#111827;\">Password Reset</h2>
-                <p style=\"margin:0 0 12px;color:#374151;\">Dear {user.name or user.email},</p>
-                <p style=\"margin:0 0 12px;color:#374151;\">You requested to reset your password. Click the button below to proceed:</p>
+                <h2 style=\"margin:0 0 12px;font-size:24px;color:#111827;\">Password Reset</h2>
+                <p style=\"margin:0 0 12px;color:#374151;font-size:16px;line-height:1.6;\">Dear {user.name or user.email},</p>
+                <p style=\"margin:0 0 12px;color:#374151;font-size:16px;line-height:1.6;\">You requested to reset your password. Click the button below to proceed:</p>
                 <p style=\"margin:16px 0;\">
-                  <a href=\"{reset_url}\" style=\"display:inline-block;padding:12px 18px;background:#2563eb;color:white;text-decoration:none;border-radius:6px;font-weight:bold;\">Reset Password</a>
+                  <a href=\"{reset_url}\" style=\"display:inline-block;padding:12px 18px;background:#2563eb;color:white;text-decoration:none;border-radius:6px;font-weight:bold;font-size:16px;\">Reset Password</a>
                 </p>
-                <p style=\"margin:0 0 12px;color:#6b7280;\">If the button doesn't work, copy and paste this link into your browser:</p>
-                <p style=\"margin:0 0 24px;color:#2563eb;\"><a href=\"{reset_url}\" style=\"color:#2563eb;text-decoration:underline;\">{reset_url}</a></p>
-                <p style=\"margin:0;color:#6b7280;\">Note: This link is valid for a limited time only.</p>
+                <p style=\"margin:0 0 12px;color:#6b7280;font-size:15px;line-height:1.6;\">If the button doesn't work, copy and paste this link into your browser:</p>
+                <p style=\"margin:0 0 24px;color:#2563eb;font-size:15px;line-height:1.6;\"><a href=\"{reset_url}\" style=\"color:#2563eb;text-decoration:underline;\">{reset_url}</a></p>
+                <p style=\"margin:0;color:#6b7280;font-size:14px;line-height:1.6;\">Note: This link is valid for a limited time only.</p>
               </td>
             </tr>
           </table>
@@ -283,14 +283,17 @@ Note: This link is valid for a limited time only.
 </html>
 """.strip()
 
-        send_mail(
-            subject="Password Reset",
-            message=message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[user.email],
-            fail_silently=False,
-            html_message=html_message,
-        )
+        try:
+            send_mail(
+                subject="Password Reset",
+                message=message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[user.email],
+                fail_silently=True,
+                html_message=html_message,
+            )
+        except Exception:
+            pass
 
         return Response({
             "success": True,
@@ -299,6 +302,58 @@ Note: This link is valid for a limited time only.
                 "email": user.email
             }
         }, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def password_reset_email_preview(request):
+    """
+    Render the password reset email HTML for preview in browser.
+    Useful for verifying logo visibility and font sizes.
+    """
+    # Sample data for preview
+    sample_name = request.GET.get('name', 'AWN User')
+    sample_email = request.GET.get('email', 'user@example.com')
+    reset_url = request.GET.get(
+        'reset_url',
+        'https://awn-three.vercel.app/reset-password/12345/sample-token/'
+    )
+
+    html_preview = f"""
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset=\"utf-8\">
+    <title>Password Reset (Preview)</title>
+  </head>
+  <body style=\"margin:0;padding:0;background-color:#f7f7f9;\">
+    <table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" width=\"100%\"> 
+      <tr>
+        <td align=\"center\" style=\"padding:24px;\">
+          <table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" width=\"600\" style=\"background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;font-family:Arial,Helvetica,sans-serif;font-size:16px;\">
+            {logo_header_html(request)}
+            <tr>
+              <td style=\"padding:24px;\">
+                <h2 style=\"margin:0 0 12px;font-size:24px;color:#111827;\">Password Reset</h2>
+                <p style=\"margin:0 0 12px;color:#374151;font-size:16px;line-height:1.6;\">Dear {sample_name or sample_email},</p>
+                <p style=\"margin:0 0 12px;color:#374151;font-size:16px;line-height:1.6;\">You requested to reset your password. Click the button below to proceed:</p>
+                <p style=\"margin:16px 0;\">
+                  <a href=\"{reset_url}\" style=\"display:inline-block;padding:12px 18px;background:#2563eb;color:white;text-decoration:none;border-radius:6px;font-weight:bold;font-size:16px;\">Reset Password</a>
+                </p>
+                <p style=\"margin:0 0 12px;color:#6b7280;font-size:15px;line-height:1.6;\">If the button doesn't work, copy and paste this link into your browser:</p>
+                <p style=\"margin:0 0 24px;color:#2563eb;font-size:15px;line-height:1.6;\"><a href=\"{reset_url}\" style=\"color:#2563eb;text-decoration:underline;\">{reset_url}</a></p>
+                <p style=\"margin:0;color:#6b7280;font-size:14px;line-height:1.6;\">Note: This link is valid for a limited time only.</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+""".strip()
+
+    return HttpResponse(html_preview, content_type='text/html')
 
 
 class ResetPasswordAPIView(generics.GenericAPIView):
@@ -1715,7 +1770,7 @@ def create_support_request(request):
       <tr>
         <td align=\"center\" style=\"padding:24px;\">
           <table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" width=\"600\" style=\"background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;font-family:Arial,Helvetica,sans-serif;\">
-            {logo_header_html()}
+            {logo_header_html(request)}
             <tr>
               <td style=\"padding:24px;\">
                 <h2 style=\"margin:0 0 12px;font-size:20px;color:#111827;\">Support Request Received</h2>
@@ -1842,7 +1897,7 @@ def admin_reply_request(request, pk):
       <tr>
         <td align=\"center\" style=\"padding:24px;\">
           <table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" width=\"600\" style=\"background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;font-family:Arial,Helvetica,sans-serif;\">
-            {logo_header_html()}
+            {logo_header_html(request)}
             <tr>
               <td style=\"padding:24px;\">
                 <h2 style=\"margin:0 0 12px;font-size:20px;color:#111827;\">Support Reply</h2>

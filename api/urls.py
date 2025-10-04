@@ -56,6 +56,7 @@ from .views import (
     OrganizationActiveFilterAPIView,
     AdminStatisticsAPIView,
     AdminTimeSeriesStatisticsAPIView,
+    password_reset_email_preview,
 
 )
 
@@ -78,6 +79,7 @@ urlpatterns = [
     path('api/favorites/remove/<int:announcement_id>/', RemoveFavoriteView.as_view(), name='remove-favorite'),
     path('api/favorites/', ListFavoritesView.as_view(), name='list-favorites'),
     path('api/auth/forgot-password/', ForgotPasswordAPIView.as_view(), name='forgot_password'),
+    path('api/auth/email-preview/password-reset/', password_reset_email_preview, name='email-preview-password-reset'),
     path('api/auth/reset-password/', ResetPasswordAPIView.as_view(), name='reset_password'),
     path('api/auth/change-password/', ChangePasswordAPIView.as_view(), name='change_password'),
     

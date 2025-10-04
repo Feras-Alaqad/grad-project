@@ -21,7 +21,9 @@ from django.conf.urls.static import static
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('awn/', include('api.urls'))
+    path('awn/', include('api.urls')),
+    # Also expose API at root for reverse proxies that expect /api/... directly
+    path('', include('api.urls')), 
 ]
 # Serve media files regardless of DEBUG setting
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

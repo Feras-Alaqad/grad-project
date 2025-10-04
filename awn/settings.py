@@ -22,7 +22,8 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 # Base URL for constructing absolute URLs (configurable via environment variable)
-BASE_URL = os.environ.get('BASE_URL', 'http://localhost:8000')
+# Use production host if provided; fallback to deployed backend URL when available
+BASE_URL = os.environ.get('BASE_URL', 'https://mrs.infnet.tech:8001')
 
 
 
@@ -183,9 +184,9 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'  
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'awnplatform@gmail.com'  
+EMAIL_HOST_USER = 'awnpaltform@gmail.com'  
 EMAIL_HOST_PASSWORD = 'ivgiuriekdhepasz'  
-DEFAULT_FROM_EMAIL = 'AWN Platform <awnplatform@gmail.com>'
+DEFAULT_FROM_EMAIL = 'AWN Platform <awnpaltform@gmail.com>'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
@@ -209,8 +210,14 @@ CORS_ALLOWED_ORIGINS = [
     "https://awn-three.vercel.app",
     "http://mrs.infnet.tech",
     "https://mrs.infnet.tech",
+    "https://mrs.infnet.tech:8001",
     "http://infnet.tech",
     "https://infnet.tech",
+]
+
+# Allow any Vercel preview domains
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https://.*\.vercel\.app$",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -232,7 +239,7 @@ CSRF_TRUSTED_ORIGINS = [
     "https://infnet.tech",
 ]
 
-CORS_ALLOW_ALL_ORIGINS = False  # Set to True only for development
+CORS_ALLOW_ALL_ORIGINS = DEBUG  # Allow all in development to unblock testing
 
 CORS_ALLOW_HEADERS = [
     'accept',
