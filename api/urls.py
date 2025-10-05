@@ -57,6 +57,7 @@ from .views import (
     AdminStatisticsAPIView,
     AdminTimeSeriesStatisticsAPIView,
     password_reset_email_preview,
+    notification_email_preview,
 
 )
 
@@ -80,6 +81,7 @@ urlpatterns = [
     path('api/favorites/', ListFavoritesView.as_view(), name='list-favorites'),
     path('api/auth/forgot-password/', ForgotPasswordAPIView.as_view(), name='forgot_password'),
     path('api/auth/email-preview/password-reset/', password_reset_email_preview, name='email-preview-password-reset'),
+    path('api/email-preview/notification/', notification_email_preview, name='email-preview-notification'),
     path('api/auth/reset-password/', ResetPasswordAPIView.as_view(), name='reset_password'),
     path('api/auth/change-password/', ChangePasswordAPIView.as_view(), name='change_password'),
     

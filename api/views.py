@@ -366,6 +366,30 @@ def password_reset_email_preview(request):
     return HttpResponse(html_preview, content_type='text/html')
 
 
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def notification_email_preview(request):
+    """Preview the brand-styled notification email in the browser.
+
+    Query params:
+    - title: email title
+    - message: email message
+    - cta_url: optional button URL
+    - cta_label: optional button label
+    """
+    title = request.GET.get('title', 'Verify Your Account')
+    message = request.GET.get(
+        'message',
+        'To finalize your setup and unlock all features, please verify your email address. This ensures the highest level of security for your account.'
+    )
+    cta_url = request.GET.get('cta_url')
+    cta_label = request.GET.get('cta_label', 'Verify my email') if cta_url else None
+
+    html = render_notification_email(title=title, message=message, request=request, cta_url=cta_url, cta_label=cta_label)
+    from django.http import HttpResponse
+    return HttpResponse(html, content_type='text/html')
+
+
 class ResetPasswordAPIView(generics.GenericAPIView):
     serializer_class = ResetPasswordSerializer
     permission_classes = [AllowAny]
