@@ -35,7 +35,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q, Count
 from django.db.models.functions import TruncDay, TruncMonth
 from .models import User, Organization, Announcement, AnnouncementCategory
-from .email_utils import logo_header_html, banner_header_html
+from .email_utils import logo_header_html, banner_header_html, render_notification_email
 from .serializers import (
     UserSignupSerializer,
     UserSerializer,
@@ -2318,11 +2318,29 @@ class SendNotificationAllUsersView(APIView):
             message = serializer.validated_data['message']
 
             users = User.objects.filter(role=User.Role.USER)
-            notifications = [
-                Notification(user=user, title=title, message=message)
-                for user in users
-            ]
-            Notification.objects.bulk_create(notifications)
+            # Create notifications safely per-user to ensure timestamps are set
+            for user in users:
+                Notification.objects.create(user=user, title=title, message=message)
+
+            # Send email notifications to all users
+            subject = title
+            plain_message = f"{message}\n\nRegards,\nAWN Platform"
+            for user in users:
+                if not user.email:
+                    continue
+                try:
+                    html_message = render_notification_email(title, message, request)
+                    send_mail(
+                        subject=subject,
+                        message=plain_message,
+                        from_email=settings.DEFAULT_FROM_EMAIL,
+                        recipient_list=[user.email],
+                        html_message=html_message,
+                        fail_silently=False,
+                    )
+                except Exception as e:
+                    # Log, do not fail the request
+                    print(f"Failed to send notification email to {user.email}: {str(e)}")
 
             return Response({"detail": f"Notification sent to {users.count()} users."}, status=status.HTTP_201_CREATED)
         
@@ -2338,11 +2356,29 @@ class SendNotificationToOrganizationsView(APIView):
             message = serializer.validated_data['message']
 
             organizations = User.objects.filter(role=User.Role.ORGANIZATION)
-            notifications = [
-                Notification(user=org, title=title, message=message)
-                for org in organizations
-            ]
-            Notification.objects.bulk_create(notifications)
+            # Create notifications safely per-organization user to ensure timestamps are set
+            for org in organizations:
+                Notification.objects.create(user=org, title=title, message=message)
+
+            # Send email notifications to organizations
+            subject = title
+            plain_message = f"{message}\n\nRegards,\nAWN Platform"
+            for org in organizations:
+                if not org.email:
+                    continue
+                try:
+                    html_message = render_notification_email(title, message, request)
+                    send_mail(
+                        subject=subject,
+                        message=plain_message,
+                        from_email=settings.DEFAULT_FROM_EMAIL,
+                        recipient_list=[org.email],
+                        html_message=html_message,
+                        fail_silently=False,
+                    )
+                except Exception as e:
+                    # Log, do not fail the request
+                    print(f"Failed to send notification email to {org.email}: {str(e)}")
 
             return Response({"detail": f"Notification sent to {organizations.count()} organizations."}, status=status.HTTP_201_CREATED)
         
@@ -2397,6 +2433,24 @@ class SendNotificationToUserView(APIView):
                 return Response({"detail": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
             Notification.objects.create(user=user, title=title, message=message)
+
+            # Send email notification to the specific user
+            if user.email:
+                subject = title
+                plain_message = f"{message}\n\nRegards,\nAWN Platform"
+                try:
+                    html_message = render_notification_email(title, message, request)
+                    send_mail(
+                        subject=subject,
+                        message=plain_message,
+                        from_email=settings.DEFAULT_FROM_EMAIL,
+                        recipient_list=[user.email],
+                        html_message=html_message,
+                        fail_silently=False,
+                    )
+                except Exception as e:
+                    # Log, do not fail the request
+                    print(f"Failed to send notification email to {user.email}: {str(e)}")
 
             return Response({"detail": f"Notification sent to {user.name or user.email}"}, status=status.HTTP_201_CREATED)
 

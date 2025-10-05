@@ -58,3 +58,41 @@ def banner_header_html(request=None, image_url: str | None = None) -> str:
         f"  </td>"
         f"</tr>"
     )
+
+
+def render_notification_email(title: str, message: str, request=None) -> str:
+    """Return HTML for notification emails mirroring the Forgot Password layout.
+
+    - Uses the same banner header (purple) via `banner_header_html`
+    - Matches card styling: background #e5e7eb, 600px container, 16px radius
+    - Typography aligned with reset email for consistency
+    """
+    return (
+        f"""
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset=\"utf-8\">
+    <title>{title}</title>
+  </head>
+  <body style=\"margin:0;padding:0;background-color:#e5e7eb;\">
+    <table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" width=\"100%\"> 
+      <tr>
+        <td align=\"center\" style=\"padding:24px;\">
+          <table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" width=\"600\" style=\"background:#ffffff;border:1px solid #e5e7eb;border-radius:16px;font-family:Arial,Helvetica,sans-serif;font-size:16px;\">
+            {banner_header_html(request)}
+            <tr>
+              <td style=\"padding:24px;\">
+                <h2 style=\"margin:0 0 8px;font-size:28px;color:#111827;font-weight:800;\">{title}</h2>
+                <p style=\"margin:0 0 16px;color:#4b5563;font-size:16px;line-height:1.6;\">{message}</p>
+                <p style=\"margin:0;color:#6b7280;font-size:15px;\">Regards,<br/>AWN Platform</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+""".strip()
+    )
