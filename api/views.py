@@ -559,22 +559,38 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        
+        action = getattr(self, 'action', None)
+
+        # Admin can see everything across all actions
         if user.is_authenticated and user.role == User.Role.ADMIN:
-            # Admin can see all announcements in all actions
             return Announcement.objects.all()
-        elif self.action in ['list', 'retrieve']:
-            # Public view - only approved announcements for non-admin users
+
+        # Public list: only approved announcements
+        if action == 'list':
             return Announcement.objects.filter(status=Announcement.Status.APPROVED)
-        elif user.is_authenticated:
+
+        # Detail retrieval:
+        # - Organizations can see their own announcements by ID regardless of status
+        # - Other authenticated users and anonymous users see only approved
+        if action == 'retrieve':
+            if user.is_authenticated and user.role == User.Role.ORGANIZATION:
+                return Announcement.objects.filter(
+                    Q(status=Announcement.Status.APPROVED) |
+                    Q(created_by=user) |
+                    Q(organization__user=user)
+                )
+            else:
+                return Announcement.objects.filter(status=Announcement.Status.APPROVED)
+
+        # Other actions
+        if user.is_authenticated:
             if user.role == User.Role.ORGANIZATION:
-                # Organization can see their own announcements
+                # Organizations operating on their own collections
                 return Announcement.objects.filter(created_by=user)
             else:
-                # Regular users can only see approved announcements
                 return Announcement.objects.filter(status=Announcement.Status.APPROVED)
-        else:
-            return Announcement.objects.filter(status=Announcement.Status.APPROVED)
+
+        return Announcement.objects.filter(status=Announcement.Status.APPROVED)
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -608,16 +624,32 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
         """Override list to return standard format with validation for ID filter"""
         # Check if filtering by ID
         id_filter = request.query_params.get('id')
+
+        if id_filter:
+            # When filtering by a specific ID, expand permissions for organization owners
+            user = request.user
+            base_qs = Announcement.objects.filter(pk=id_filter)
+
+            if user.is_authenticated and user.role == User.Role.ADMIN:
+                queryset = base_qs
+            elif user.is_authenticated and user.role == User.Role.ORGANIZATION:
+                queryset = base_qs.filter(
+                    Q(status=Announcement.Status.APPROVED) |
+                    Q(created_by=user) |
+                    Q(organization__user=user)
+                )
+            else:
+                queryset = base_qs.filter(status=Announcement.Status.APPROVED)
+
+            if not queryset.exists():
+                return Response({
+                    'success': False,
+                    'message': f'No announcement found with ID: {id_filter}'
+                }, status=status.HTTP_404_NOT_FOUND)
+        else:
+            # Default list behavior with filters (approved-only for public/non-admin)
+            queryset = self.filter_queryset(self.get_queryset())
         
-        queryset = self.filter_queryset(self.get_queryset())
-        
-        # If filtering by ID and no results found, return error
-        if id_filter and not queryset.exists():
-            return Response({
-                'success': False,
-                'message': f'No announcement found with ID: {id_filter}'
-            }, status=status.HTTP_404_NOT_FOUND)
-            
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
@@ -634,8 +666,25 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
 
     def retrieve(self, request, *args, **kwargs):
         """Override retrieve to handle not found errors with custom message"""
+        # Custom object retrieval to allow organization owners to access pending announcements
+        pk = kwargs.get('pk')
+        user = request.user
         try:
-            instance = self.get_object()
+            base_qs = Announcement.objects.filter(pk=pk)
+            if user.is_authenticated and user.role == User.Role.ADMIN:
+                instance = base_qs.first()
+            elif user.is_authenticated and user.role == User.Role.ORGANIZATION:
+                instance = base_qs.filter(
+                    Q(status=Announcement.Status.APPROVED) |
+                    Q(created_by=user) |
+                    Q(organization__user=user)
+                ).first()
+            else:
+                instance = base_qs.filter(status=Announcement.Status.APPROVED).first()
+
+            if not instance:
+                raise Http404
+
             serializer = self.get_serializer(instance)
             return Response({
                 'success': True,
@@ -644,7 +693,7 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
         except Http404:
             return Response({
                 'success': False,
-                'message': f'No announcement found with ID: {kwargs.get("pk")}'
+                'message': f'No announcement found with ID: {pk}'
             }, status=status.HTTP_404_NOT_FOUND)
     
     @action(detail=True, methods=['patch'], url_path='approve')
@@ -1548,7 +1597,8 @@ class AdminStatisticsAPIView(APIView):
         org_blocked = apply_date_filters(Organization.objects.filter(is_active=False)).count()
 
         # Announcements
-        ann_total = apply_date_filters(Announcement.objects.all()).count()
+        # Count only approved announcements in total to reflect published items
+        ann_total = apply_date_filters(Announcement.objects.filter(status=Announcement.Status.APPROVED)).count()
         ann_by_status = {
             'approved': apply_date_filters(Announcement.objects.filter(status=Announcement.Status.APPROVED)).count(),
             'pending': apply_date_filters(Announcement.objects.filter(status=Announcement.Status.PENDING)).count(),
@@ -1714,7 +1764,11 @@ class AdminTimeSeriesStatisticsAPIView(APIView):
         if interval == 'day':
             aggregated = qs.annotate(bucket=TruncDay('created_at')).values('bucket').annotate(count=Count('id')).order_by('bucket')
         else:
-            aggregated = qs.annotate(bucket=TruncMonth('created_at')).values('bucket').annotate(count=Count('id')).order_by('bucket')
+            # For single-month, 3-month, and 6-month views, aggregate at day-level to enable 3-day/2-week/3-week buckets
+            if period in {'month', '3months', '6months'}:
+                aggregated = qs.annotate(bucket=TruncDay('created_at')).values('bucket').annotate(count=Count('id')).order_by('bucket')
+            else:
+                aggregated = qs.annotate(bucket=TruncMonth('created_at')).values('bucket').annotate(count=Count('id')).order_by('bucket')
 
         # Map existing buckets to counts
         bucket_counts = {item['bucket']: item['count'] for item in aggregated}
@@ -1731,14 +1785,67 @@ class AdminTimeSeriesStatisticsAPIView(APIView):
                 total += count
                 cur = cur + timezone.timedelta(days=1)
         else:  # month
-            cur = first_day_of_month(start_dt)
-            end_month = first_day_of_month(end_dt)
-            while cur <= end_month:
-                key = first_day_of_month(cur)
-                count = bucket_counts.get(key, 0)
-                buckets.append({'date': key.strftime('%Y-%m'), 'count': count})
-                total += count
-                cur = add_months(cur, 1)
+            if period == 'month':
+                # Build 3-day buckets across the selected month range
+                cur = start_of_day(start_dt)
+                while cur <= end_dt:
+                    b_end = cur + timezone.timedelta(days=2)
+                    if b_end > end_dt:
+                        b_end = end_dt
+                    # Sum daily counts within this 3-day window
+                    b_cur = cur
+                    b_count = 0
+                    while b_cur <= b_end:
+                        key = start_of_day(b_cur)
+                        b_count += bucket_counts.get(key, 0)
+                        b_cur = b_cur + timezone.timedelta(days=1)
+                    buckets.append({'date': cur.date().isoformat(), 'count': b_count})
+                    total += b_count
+                    cur = cur + timezone.timedelta(days=3)
+            elif period == '3months':
+                # Build 2-week buckets across the selected 3-month range
+                cur = start_of_day(start_dt)
+                while cur <= end_dt:
+                    b_end = cur + timezone.timedelta(days=13)
+                    if b_end > end_dt:
+                        b_end = end_dt
+                    # Sum daily counts within this 14-day window
+                    b_cur = cur
+                    b_count = 0
+                    while b_cur <= b_end:
+                        key = start_of_day(b_cur)
+                        b_count += bucket_counts.get(key, 0)
+                        b_cur = b_cur + timezone.timedelta(days=1)
+                    buckets.append({'date': cur.date().isoformat(), 'count': b_count})
+                    total += b_count
+                    cur = cur + timezone.timedelta(days=14)
+            elif period == '6months':
+                # Build 3-week buckets across the selected 6-month range
+                cur = start_of_day(start_dt)
+                while cur <= end_dt:
+                    b_end = cur + timezone.timedelta(days=20)
+                    if b_end > end_dt:
+                        b_end = end_dt
+                    # Sum daily counts within this 21-day window
+                    b_cur = cur
+                    b_count = 0
+                    while b_cur <= b_end:
+                        key = start_of_day(b_cur)
+                        b_count += bucket_counts.get(key, 0)
+                        b_cur = b_cur + timezone.timedelta(days=1)
+                    buckets.append({'date': cur.date().isoformat(), 'count': b_count})
+                    total += b_count
+                    cur = cur + timezone.timedelta(days=21)
+            else:
+                # Default monthly buckets for 6-month and year periods
+                cur = first_day_of_month(start_dt)
+                end_month = first_day_of_month(end_dt)
+                while cur <= end_month:
+                    key = first_day_of_month(cur)
+                    count = bucket_counts.get(key, 0)
+                    buckets.append({'date': key.strftime('%Y-%m'), 'count': count})
+                    total += count
+                    cur = add_months(cur, 1)
 
         applied_filters = {
             'metric': metric,

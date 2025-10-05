@@ -495,6 +495,8 @@ class HelpSupport(models.Model):
         default=SupportType.SYSTEM
     )
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    # Stores the admin's response message so users can view it later
+    reply = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

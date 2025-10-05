@@ -806,7 +806,7 @@ class HelpSupportSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'user', 'user_name', 'user_email', 'title', 'description',
             'type', 'type_display',
-            'status', 'status_display', 'created_at'
+            'status', 'status_display', 'reply', 'created_at'
         ]
         read_only_fields = ['id', 'user', 'created_at', 'status', 'status_display']
     
@@ -858,7 +858,7 @@ class HelpSupportAdminSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'user', 'user_name', 'user_email',
             'title', 'description', 'type_display',
-            'status', 'status_display',
+            'status', 'status_display', 'reply',
             'created_at'
         ]
         read_only_fields = ['id', 'user', 'created_at', 'status', 'type']

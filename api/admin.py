@@ -164,7 +164,7 @@ class HelpSupportAdmin(admin.ModelAdmin):
             "fields": ("user", "type", "description")
         }),
         ("Status & Response", {
-            "fields": ("status", "admin_response")
+            "fields": ("status", "reply")
         }),
         ("Metadata", {
             "fields": ("created_at",)
