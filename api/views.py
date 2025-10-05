@@ -1742,12 +1742,18 @@ class AdminTimeSeriesStatisticsAPIView(APIView):
                 '6months': 6,
                 'year': 12,
             }
-            months_back = months_back_map[period]
-            # Range from first day of the month N-1 months ago up to end of current month
-            start_dt = first_day_of_month(add_months(now, -(months_back - 1)))
-            # End at end of current month
-            end_month_start = first_day_of_month(now)
-            end_dt = end_of_day(add_months(end_month_start, 1) - timezone.timedelta(days=1))
+            if period == 'month':
+                # Use the previous calendar month (last month from today)
+                start_dt = first_day_of_month(add_months(now, -1))
+                end_month_start = start_dt
+                end_dt = end_of_day(add_months(end_month_start, 1) - timezone.timedelta(days=1))
+            else:
+                months_back = months_back_map[period]
+                # Range from first day of the month N-1 months ago up to end of current month
+                start_dt = first_day_of_month(add_months(now, -(months_back - 1)))
+                # End at end of current month
+                end_month_start = first_day_of_month(now)
+                end_dt = end_of_day(add_months(end_month_start, 1) - timezone.timedelta(days=1))
 
         # Select model based on metric
         if metric == 'users':
