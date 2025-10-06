@@ -50,6 +50,97 @@ msgstr "ملف المؤسسة غير موجود"
 msgid "End date must be after start date"
 msgstr "تاريخ الانتهاء يجب أن يكون بعد تاريخ البداية"
 
+msgid "You do not have permission to perform this action"
+msgstr "ليس لديك صلاحية لتنفيذ هذا الإجراء"
+
+msgid "Invalid credentials"
+msgstr "بيانات الاعتماد غير صالحة"
+
+msgid "User account is not active"
+msgstr "حساب المستخدم غير نشط"
+
+msgid "No active account found with the given credentials"
+msgstr "لم يتم العثور على حساب نشط للبيانات المقدمة"
+
+msgid "Arabic"
+msgstr "العربية"
+
+msgid "English"
+msgstr "الإنجليزية"
+
+# Common UI strings
+msgid "Welcome"
+msgstr "مرحباً"
+
+msgid "Login"
+msgstr "تسجيل الدخول"
+
+msgid "Logout"
+msgstr "تسجيل الخروج"
+
+msgid "Register"
+msgstr "التسجيل"
+
+msgid "Home"
+msgstr "الرئيسية"
+
+msgid "Profile"
+msgstr "الملف الشخصي"
+
+msgid "Settings"
+msgstr "الإعدادات"
+
+msgid "Save"
+msgstr "حفظ"
+
+msgid "Cancel"
+msgstr "إلغاء"
+
+msgid "Delete"
+msgstr "حذف"
+
+msgid "Edit"
+msgstr "تعديل"
+
+msgid "Search"
+msgstr "بحث"
+
+msgid "Loading..."
+msgstr "جاري التحميل..."
+
+msgid "Success"
+msgstr "نجح"
+
+msgid "Error"
+msgstr "خطأ"
+
+msgid "Warning"
+msgstr "تحذير"
+
+msgid "Information"
+msgstr "معلومات"
+
+msgid "Language"
+msgstr "اللغة"
+
+msgid "Switch Language"
+msgstr "تغيير اللغة"
+
+msgid "Announcements"
+msgstr "الإعلانات"
+
+msgid "Organizations"
+msgstr "المؤسسات"
+
+msgid "Users"
+msgstr "المستخدمون"
+
+msgid "Dashboard"
+msgstr "لوحة التحكم"
+
+msgid "Admin Panel"
+msgstr "لوحة الإدارة"
+
 msgid "Status must be either approved or rejected"
 msgstr "الحالة يجب أن تكون إما موافق عليها أو مرفوضة"
 

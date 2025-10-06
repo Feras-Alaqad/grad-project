@@ -2,7 +2,7 @@ from django.conf import settings
 from django.utils.translation import gettext as _
 
 # Brand palette aligned with AWN logo and theme
-PRIMARY_COLOR = "#5b6cfb"  # primary brand color
+PRIMARY_COLOR = "#009091"  # primary brand color
 PRIMARY_DARK = "#0b1220"   # darker footer/background for improved dark mode
 BG_COLOR = "#f3f4f6"       # page background
 TEXT_PRIMARY = "#0f172a"   # main text color (slate-900)

@@ -68,6 +68,9 @@ msgstr "This user does not have an organization."
 msgid "Expiry date must be after publish date"
 msgstr "Expiry date must be after publish date"
 
+msgid "No active account found with the given credentials"
+msgstr "No active account found with the given credentials"
+
 msgid "Rate must be between 1 and 5"
 msgstr "Rate must be between 1 and 5"
 
@@ -83,3 +86,76 @@ msgstr "Visit Website"
 
 msgid "Regards"
 msgstr "Regards"
+
+# Common UI strings
+msgid "Welcome"
+msgstr "Welcome"
+
+msgid "Login"
+msgstr "Login"
+
+msgid "Logout"
+msgstr "Logout"
+
+msgid "Register"
+msgstr "Register"
+
+msgid "Home"
+msgstr "Home"
+
+msgid "Profile"
+msgstr "Profile"
+
+msgid "Settings"
+msgstr "Settings"
+
+msgid "Save"
+msgstr "Save"
+
+msgid "Cancel"
+msgstr "Cancel"
+
+msgid "Delete"
+msgstr "Delete"
+
+msgid "Edit"
+msgstr "Edit"
+
+msgid "Search"
+msgstr "Search"
+
+msgid "Loading..."
+msgstr "Loading..."
+
+msgid "Success"
+msgstr "Success"
+
+msgid "Error"
+msgstr "Error"
+
+msgid "Warning"
+msgstr "Warning"
+
+msgid "Information"
+msgstr "Information"
+
+msgid "Language"
+msgstr "Language"
+
+msgid "Switch Language"
+msgstr "Switch Language"
+
+msgid "Announcements"
+msgstr "Announcements"
+
+msgid "Organizations"
+msgstr "Organizations"
+
+msgid "Users"
+msgstr "Users"
+
+msgid "Dashboard"
+msgstr "Dashboard"
+
+msgid "Admin Panel"
+msgstr "Admin Panel"

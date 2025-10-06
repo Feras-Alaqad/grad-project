@@ -312,7 +312,7 @@ def password_reset_email_preview(request):
 
     html_preview = render_notification_email(
         title="Forgot your password?",
-        message="It happens to the best of us. To reset your password, click the button below. The link will self‑destruct after five days.",
+        message="To reset your password, click the button below. The link will self‑destruct after five days.",
         request=request,
         cta_url=reset_url,
         cta_label="Reset Password"
