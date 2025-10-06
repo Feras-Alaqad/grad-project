@@ -58,6 +58,8 @@ from .views import (
     AdminTimeSeriesStatisticsAPIView,
     password_reset_email_preview,
     notification_email_preview,
+    set_language,
+    get_current_language,
 
 )
 
@@ -144,6 +146,11 @@ urlpatterns = [
     path('api/admin/notification/<int:pk>/delete/', AdminNotificationDeleteView.as_view(), name='admin-notification-delete'),
     path('api/admin/statistics/', AdminStatisticsAPIView.as_view(), name='admin-statistics'),
     path('api/admin/statistics/timeseries/', AdminTimeSeriesStatisticsAPIView.as_view(), name='admin-statistics-timeseries'),
+    
+    # Language switching endpoints
+    path('api/language/set/', set_language, name='set-language'),
+    path('api/language/current/', get_current_language, name='get-current-language'),
+    
     # api app endpoints (ViewSets)
     path('api/', include(router.urls)),
 ]

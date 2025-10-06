@@ -1,0 +1,85 @@
+# English translation for AWN Platform
+# Copyright (C) 2024
+# This file is distributed under the same license as the AWN Platform package.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: AWN Platform\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2024-01-01 00:00+0000\n"
+"PO-Revision-Date: 2024-01-01 00:00+0000\n"
+"Last-Translator: AWN Team\n"
+"Language-Team: English\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+# Validation messages
+msgid "This email is already in use"
+msgstr "This email is already in use"
+
+msgid "Passwords do not match"
+msgstr "Passwords do not match"
+
+msgid "Phone number is required."
+msgstr "Phone number is required."
+
+msgid "Token is invalid or expired"
+msgstr "Token is invalid or expired"
+
+msgid "Invalid user ID"
+msgstr "Invalid user ID"
+
+msgid "Current password is incorrect"
+msgstr "Current password is incorrect"
+
+msgid "New passwords do not match"
+msgstr "New passwords do not match"
+
+msgid "A user with this email already exists."
+msgstr "A user with this email already exists."
+
+msgid "This email is not registered"
+msgstr "This email is not registered"
+
+msgid "Organization profile not found"
+msgstr "Organization profile not found"
+
+msgid "End date must be after start date"
+msgstr "End date must be after start date"
+
+msgid "Status must be either approved or rejected"
+msgstr "Status must be either approved or rejected"
+
+msgid "Invalid request type"
+msgstr "Invalid request type"
+
+msgid "Issue description must be at least 10 characters long"
+msgstr "Issue description must be at least 10 characters long"
+
+msgid "Only organizations can upload documents."
+msgstr "Only organizations can upload documents."
+
+msgid "This user does not have an organization."
+msgstr "This user does not have an organization."
+
+msgid "Expiry date must be after publish date"
+msgstr "Expiry date must be after publish date"
+
+msgid "Rate must be between 1 and 5"
+msgstr "Rate must be between 1 and 5"
+
+# Email messages
+msgid "Get Started"
+msgstr "Get Started"
+
+msgid "Contact Us"
+msgstr "Contact Us"
+
+msgid "Visit Website"
+msgstr "Visit Website"
+
+msgid "Regards"
+msgstr "Regards"

@@ -4,7 +4,7 @@ from django.conf import settings
 from django.utils import timezone
 from datetime import datetime, timedelta
 from api.models import UserApplicationTracking, Notification
-from api.email_utils import logo_header_html
+from api.email_utils import render_notification_email
 
 
 class Command(BaseCommand):
@@ -91,57 +91,41 @@ class Command(BaseCommand):
         """Send email notification for reminder"""
         subject = f'Reminder: {tracking.announcement.title}'
         
-        message = f"""
+        # Build the message content
+        message_parts = [
+            f"This is a reminder about the announcement: {tracking.announcement.title}",
+            f"Organization: {tracking.announcement.organization_name}",
+            f"Your current status: {tracking.get_status_display()}"
+        ]
+        
+        if tracking.notes:
+            message_parts.append(f"Your notes: {tracking.notes}")
+            
+        message_parts.append("Please check the announcement for any updates or deadlines.")
+        
+        message = " ".join(message_parts)
+        
+        # Plain text version
+        plain_message = f"""
 Hello {tracking.user.first_name or tracking.user.email},
 
-This is a reminder about the announcement: {tracking.announcement.title}
-Organization: {tracking.announcement.organization_name}
-
-Your current status: {tracking.get_status_display()}
-
-{f'Your notes: {tracking.notes}' if tracking.notes else ''}
-
-Please check the announcement for any updates or deadlines.
+{message}
 
 Best regards,
 AWN Team
         """.strip()
-        html_message = f"""
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset=\"utf-8\">
-    <title>Reminder: {tracking.announcement.title}</title>
-  </head>
-  <body style=\"margin:0;padding:0;background-color:#f7f7f9;\">
-    <table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" width=\"100%\"> 
-      <tr>
-        <td align=\"center\" style=\"padding:24px;\">
-          <table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" width=\"600\" style=\"background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;font-family:Arial,Helvetica,sans-serif;\">
-            {logo_header_html(None)}
-            <tr>
-              <td style=\"padding:24px;\">
-                <h2 style=\"margin:0 0 12px;font-size:20px;color:#111827;\">Reminder</h2>
-                <p style=\"margin:0 0 12px;color:#374151;\">Hello {tracking.user.first_name or tracking.user.email},</p>
-                <p style=\"margin:0 0 12px;color:#374151;\">This is a reminder about the announcement: <strong>{tracking.announcement.title}</strong></p>
-                <p style=\"margin:0 0 12px;color:#374151;\">Organization: {tracking.announcement.organization_name}</p>
-                <p style=\"margin:0 0 12px;color:#374151;\">Your current status: {tracking.get_status_display()}</p>
-                {f'<p style=\"margin:0 0 12px;color:#374151;\">Your notes: {tracking.notes}</p>' if tracking.notes else ''}
-                <p style=\"margin:0 0 24px;color:#374151;\">Please check the announcement for any updates or deadlines.</p>
-                <p style=\"margin:0;color:#6b7280;\">Best regards,<br/>AWN Team</p>
-              </td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-    </table>
-  </body>
-</html>
-""".strip()
+        
+        # HTML version using render_notification_email
+        html_message = render_notification_email(
+            title="Reminder",
+            message=message,
+            request=None,
+            greeting=f"Hello {tracking.user.first_name or tracking.user.email},"
+        )
         
         send_mail(
             subject=subject,
-            message=message,
+            message=plain_message,
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[tracking.user.email],
             fail_silently=False,

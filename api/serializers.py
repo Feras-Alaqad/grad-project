@@ -3,6 +3,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.contrib.auth.tokens import default_token_generator
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -113,7 +114,7 @@ class BaseSignupSerializer(serializers.ModelSerializer):
 
     def validate_email(self, value):
         if User.objects.filter(email=value).exists():
-            raise serializers.ValidationError("This email is already in use")
+            raise serializers.ValidationError(_("This email is already in use"))
         return value
 
     def validate_password(self, value):
@@ -126,7 +127,7 @@ class BaseSignupSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         if attrs['password'] != attrs['password_confirm']:
             raise serializers.ValidationError(
-                {"password_confirm": "Passwords do not match"}
+                {"password_confirm": _("Passwords do not match")}
             )
         return attrs
 
@@ -164,7 +165,7 @@ class OrganizationSignupSerializer(serializers.ModelSerializer):
 
     def validate_email(self, value):
         if User.objects.filter(email=value).exists():
-            raise serializers.ValidationError("A user with this email already exists.")
+            raise serializers.ValidationError(_("A user with this email already exists."))
         return value
 
     def validate_password(self, value):
@@ -176,12 +177,12 @@ class OrganizationSignupSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         if attrs['password'] != attrs['password_confirm']:
-            raise serializers.ValidationError({"password_confirm": "Passwords do not match"})
+            raise serializers.ValidationError({"password_confirm": _("Passwords do not match")})
         return attrs
 
     def validate_phone(self, value):
         if not value:
-            raise serializers.ValidationError("Phone number is required.")
+            raise serializers.ValidationError(_("Phone number is required."))
         return value
 
     def create(self, validated_data):
@@ -234,7 +235,7 @@ class LogoutSerializer(serializers.Serializer):
             token = RefreshToken(self.token)
             token.blacklist()  # وضع الـ token في blacklist
         except Exception as e:
-            raise serializers.ValidationError("Token is invalid or expired")
+            raise serializers.ValidationError(_("Token is invalid or expired"))
 
 class UserSerializer(serializers.ModelSerializer):
     profile_image = serializers.ImageField(required=False, allow_null=True)  
@@ -275,7 +276,7 @@ class ForgotPasswordSerializer(serializers.Serializer):
             user = User.objects.get(email=value)
             self.context['user'] = user  # نخزن المستخدم في السياق
         except User.DoesNotExist:
-            raise serializers.ValidationError("This email is not registered")
+            raise serializers.ValidationError(_("This email is not registered"))
         return value
 
 
@@ -304,7 +305,7 @@ class ResetPasswordSerializer(serializers.Serializer):
             self.context['user'] = user
 
         except User.DoesNotExist:
-            raise serializers.ValidationError({"user_id": "Invalid user ID"})
+            raise serializers.ValidationError({"user_id": _("Invalid user ID")})
 
         return attrs
 
@@ -317,7 +318,7 @@ class ChangePasswordSerializer(serializers.Serializer):
     def validate_old_password(self, value):
         user = self.context['request'].user
         if not user.check_password(value):
-            raise serializers.ValidationError("Current password is incorrect")
+            raise serializers.ValidationError(_("Current password is incorrect"))
         return value
 
     def validate_new_password(self, value):
@@ -329,7 +330,7 @@ class ChangePasswordSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         if attrs['new_password'] != attrs['new_password_confirm']:
-            raise serializers.ValidationError({"new_password_confirm": "New passwords do not match"})
+            raise serializers.ValidationError({"new_password_confirm": _("New passwords do not match")})
         return attrs
     
 class OrganizationProfileSerializer(serializers.ModelSerializer):
@@ -612,7 +613,7 @@ class AnnouncementCreateSerializer(serializers.ModelSerializer):
                 attrs['organization'] = organization
                 attrs['organization_name'] = None
             except Organization.DoesNotExist:
-                raise serializers.ValidationError("Organization profile not found")
+                raise serializers.ValidationError(_("Organization profile not found"))
             # Remove organization fields from input if provided
             attrs.pop('organization_id', None)
             attrs.pop('organization_name', None)
@@ -649,7 +650,7 @@ class AnnouncementCreateSerializer(serializers.ModelSerializer):
         # Validate dates
         if attrs.get('start_date') and attrs.get('end_date'):
             if attrs['end_date'] <= attrs['start_date']:
-                raise serializers.ValidationError("End date must be after start date")
+                raise serializers.ValidationError(_("End date must be after start date"))
         
         return attrs
     
@@ -687,7 +688,7 @@ class AnnouncementUpdateSerializer(serializers.ModelSerializer):
         end_date = attrs.get('end_date', instance.end_date)
         
         if start_date and end_date and end_date <= start_date:
-            raise serializers.ValidationError("End date must be after start date")
+            raise serializers.ValidationError(_("End date must be after start date"))
         
         return attrs
     
@@ -745,7 +746,7 @@ class AnnouncementApprovalSerializer(serializers.ModelSerializer):
     
     def validate_status(self, value):
         if value not in [Announcement.Status.APPROVED, Announcement.Status.REJECTED]:
-            raise serializers.ValidationError("Status must be either approved or rejected")
+            raise serializers.ValidationError(_("Status must be either approved or rejected"))
         return value
 
 
@@ -812,12 +813,12 @@ class HelpSupportSerializer(serializers.ModelSerializer):
     
     def validate_type(self, value):
         if value not in [choice[0] for choice in HelpSupport.SupportType.choices]:
-            raise serializers.ValidationError("Invalid request type")
+            raise serializers.ValidationError(_("Invalid request type"))
         return value
     
     def validate_description(self, value):
         if len(value.strip()) < 10:
-            raise serializers.ValidationError("Issue description must be at least 10 characters long")
+            raise serializers.ValidationError(_("Issue description must be at least 10 characters long"))
         return value.strip()
 
 class HelpSupportCreateSerializer(serializers.ModelSerializer):
@@ -902,13 +903,13 @@ class OrganizationDocumentSerializer(serializers.ModelSerializer):
 
         # تأكد أن المستخدم هو مؤسسة
         if user.role != user.Role.ORGANIZATION:
-            raise serializers.ValidationError("Only organizations can upload documents.")
+            raise serializers.ValidationError(_("Only organizations can upload documents."))
         
         # الحصول على المؤسسة الخاصة بالمستخدم
         try:
             organization = Organization.objects.get(user=user)
         except Organization.DoesNotExist:
-            raise serializers.ValidationError("This user does not have an organization.")
+            raise serializers.ValidationError(_("This user does not have an organization."))
 
         validated_data["organization"] = organization
         return super().create(validated_data)

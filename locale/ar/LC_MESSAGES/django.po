@@ -1,0 +1,85 @@
+# Arabic translation for AWN Platform
+# Copyright (C) 2024
+# This file is distributed under the same license as the AWN Platform package.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: AWN Platform\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2024-01-01 00:00+0000\n"
+"PO-Revision-Date: 2024-01-01 00:00+0000\n"
+"Last-Translator: AWN Team\n"
+"Language-Team: Arabic\n"
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=6; plural=n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && n%100<=10 ? 3 : n%100>=11 ? 4 : 5;\n"
+
+# Validation messages
+msgid "This email is already in use"
+msgstr "هذا البريد الإلكتروني مستخدم بالفعل"
+
+msgid "Passwords do not match"
+msgstr "كلمات المرور غير متطابقة"
+
+msgid "Phone number is required."
+msgstr "رقم الهاتف مطلوب."
+
+msgid "Token is invalid or expired"
+msgstr "الرمز المميز غير صالح أو منتهي الصلاحية"
+
+msgid "Invalid user ID"
+msgstr "معرف المستخدم غير صالح"
+
+msgid "Current password is incorrect"
+msgstr "كلمة المرور الحالية غير صحيحة"
+
+msgid "New passwords do not match"
+msgstr "كلمات المرور الجديدة غير متطابقة"
+
+msgid "A user with this email already exists."
+msgstr "يوجد مستخدم بهذا البريد الإلكتروني بالفعل."
+
+msgid "This email is not registered"
+msgstr "هذا البريد الإلكتروني غير مسجل"
+
+msgid "Organization profile not found"
+msgstr "ملف المؤسسة غير موجود"
+
+msgid "End date must be after start date"
+msgstr "تاريخ الانتهاء يجب أن يكون بعد تاريخ البداية"
+
+msgid "Status must be either approved or rejected"
+msgstr "الحالة يجب أن تكون إما موافق عليها أو مرفوضة"
+
+msgid "Invalid request type"
+msgstr "نوع الطلب غير صالح"
+
+msgid "Issue description must be at least 10 characters long"
+msgstr "وصف المشكلة يجب أن يكون على الأقل 10 أحرف"
+
+msgid "Only organizations can upload documents."
+msgstr "المؤسسات فقط يمكنها رفع الوثائق."
+
+msgid "This user does not have an organization."
+msgstr "هذا المستخدم ليس لديه مؤسسة."
+
+msgid "Expiry date must be after publish date"
+msgstr "تاريخ انتهاء الصلاحية يجب أن يكون بعد تاريخ النشر"
+
+msgid "Rate must be between 1 and 5"
+msgstr "التقييم يجب أن يكون بين 1 و 5"
+
+# Email messages
+msgid "Get Started"
+msgstr "ابدأ الآن"
+
+msgid "Contact Us"
+msgstr "اتصل بنا"
+
+msgid "Visit Website"
+msgstr "زيارة الموقع"
+
+msgid "Regards"
+msgstr "مع أطيب التحيات"

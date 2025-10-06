@@ -1,11 +1,12 @@
 from django.conf import settings
+from django.utils.translation import gettext as _
 
 # Brand palette aligned with AWN logo and theme
 PRIMARY_COLOR = "#5b6cfb"  # primary brand color
-PRIMARY_DARK = "#0f172a"   # dark footer background
+PRIMARY_DARK = "#0b1220"   # darker footer/background for improved dark mode
 BG_COLOR = "#f3f4f6"       # page background
-TEXT_PRIMARY = "#111827"   # main text color
-TEXT_SECONDARY = "#4b5563" # secondary text color
+TEXT_PRIMARY = "#0f172a"   # main text color (slate-900)
+TEXT_SECONDARY = "#374151" # secondary text color with better contrast
 
 def absolute_media_url(path: str, request=None) -> str:
     """Build an absolute URL for a media file using request or BASE_URL.
@@ -73,39 +74,43 @@ def render_notification_email(title: str, message: str, request=None, cta_url: s
     Layout:
     - White header with logo (rounded corners)
     - Centered hero icon, clear title, friendly copy
-    - Optional primary action button
-    - Dark brand footer with helpful links
+    - Optional primary action button with AWN Platform branding
+    - Dark brand footer with contact link
     """
-    # Inline SVG hero icon uses brand color to avoid external assets
-    hero_svg = (
-        f"<svg width=\"40\" height=\"40\" viewBox=\"0 0 24 24\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\" style=\"display:block;\">"
-        f"  <circle cx=\"12\" cy=\"12\" r=\"10\" fill=\"{PRIMARY_COLOR}\" opacity=\"0.12\"/>"
-        f"  <path d=\"M12 12c2.209 0 4-1.791 4-4s-1.791-4-4-4-4 1.791-4 4 1.791 4 4 4zm0 2c-3.314 0-6 2.239-6 5v1h12v-1c0-2.761-2.686-5-6-5z\" fill=\"{PRIMARY_COLOR}\"/>"
-        f"</svg>"
-    )
-
+    logo_src = absolute_media_url('awnlogo.png', request)
     cta_block = (
-        f"<table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\"><tr><td style=\"border-radius:8px;\"><a href=\"{cta_url}\" style=\"background:{PRIMARY_COLOR};color:#ffffff;text-decoration:none;padding:12px 18px;display:inline-block;border-radius:8px;font-weight:600;\">{cta_label}</a></td></tr></table>"
-        if cta_url and cta_label
+        f"<table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\"><tr><td style=\"border-radius:8px;\">"
+        f"<a href=\"{cta_url}\" style=\"background:{PRIMARY_COLOR};color:#ffffff;text-decoration:none;padding:12px 18px;display:inline-block;border-radius:8px;font-weight:600;\">"
+        f"{cta_label if cta_label else _('Get Started')}"
+        f"</a></td></tr></table>"
+        if cta_url
         else ""
     )
 
-    # Build a white header with logo (left aligned)
-    logo_src = absolute_media_url('awnlogo.png', request)
+    # Build a white header with logo only (left aligned)
     header_html = (
-        f"<tr><td style=\"background:#ffffff;border-top-left-radius:16px;border-top-right-radius:16px;\">"
-        f"<table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\"><tr>"
-        f"<td align=\"left\" style=\"padding:16px 24px;\"><img src=\"{logo_src}\" alt=\"AWN Platform\" style=\"height:28px;display:block;\"/></td>"
-        f"</tr></table>"
+        f"<tr><td class=\"awn-header\" style=\"background:#ffffff;border-top-left-radius:16px;border-top-right-radius:16px;\">"
+        f"<table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\">"
+        f"<tr>"
+        f"  <td align=\"left\" style=\"padding:16px 24px;\">"
+        f"    <img src=\"{logo_src}\" alt=\"AWN Platform Logo\" style=\"height:28px;display:block;\"/>"
+        f"  </td>"
+        f"</tr>"
+        f"</table>"
         f"</td></tr>"
     )
 
-    # Brand footer
+    # Brand footer with Contact Us email link and website link
     footer_html = (
         f"<tr><td style=\"background:{PRIMARY_DARK};color:#e5e7eb;border-bottom-left-radius:16px;border-bottom-right-radius:16px;\">"
         f"<table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\">"
-        f"<tr><td align=\"center\" style=\"padding:20px 24px;\"><img src=\"{logo_src}\" alt=\"AWN Platform\" style=\"height:28px;display:block;\"/></td></tr>"
-        f"<tr><td align=\"center\" style=\"padding:8px 24px;font-size:14px;\"><span style=\"color:#cbd5e1;\">Privacy Policy • Contact Us • Unsubscribe</span></td></tr>"
+        f"<tr><td align=\"center\" style=\"padding:20px 24px;\">"
+        f"<table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" style=\"display:inline-table;\">"
+        f"<tr><td style=\"vertical-align:middle;padding-right:8px;\"><img src=\"{logo_src}\" alt=\"AWN Platform\" style=\"height:28px;display:block;\"/></td>"
+        f"<td style=\"vertical-align:middle;color:#e5e7eb;font-size:16px;font-weight:600;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text',Helvetica,Arial,sans-serif;\">AWN Platform</td></tr>"
+        f"</table>"
+        f"</td></tr>"
+        f"<tr><td align=\"center\" style=\"padding:8px 24px;font-size:14px;\"><a href=\"mailto:awnpalform@gmail.com\" style=\"color:#cbd5e1;text-decoration:none;\">{_('Contact Us')}</a> • <a href=\"https://awn-three.vercel.app\" style=\"color:#cbd5e1;text-decoration:none;\">{_('Visit Website')}</a></td></tr>"
         f"</table>"
         f"</td></tr>"
     )
@@ -117,20 +122,33 @@ def render_notification_email(title: str, message: str, request=None, cta_url: s
   <head>
     <meta charset=\"utf-8\">
     <title>{title}</title>
+    <meta name=\"color-scheme\" content=\"light dark\">
+    <meta name=\"supported-color-schemes\" content=\"light dark\">
+    <style>
+      @media (prefers-color-scheme: dark) {{
+        body {{ background-color: {PRIMARY_DARK} !important; }}
+        .awn-card {{ background: #1a202c !important; border-color: #2d3748 !important; }}
+        .awn-header {{ background: #1a202c !important; }}
+        .awn-title {{ color: #f7fafc !important; }}
+        .awn-text {{ color: #e2e8f0 !important; }}
+        .awn-footer {{ background: {PRIMARY_DARK} !important; }}
+        .awn-btn {{ background: #7c8cfb !important; color: #ffffff !important; }}
+        .awn-brand {{ color: #f7fafc !important; }}
+      }}
+    </style>
   </head>
   <body style=\"margin:0;padding:0;background-color:{BG_COLOR};\">
     <table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" width=\"100%\"> 
       <tr>
         <td align=\"center\" style=\"padding:24px;\">
-          <table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" width=\"600\" style=\"background:#ffffff;border:1px solid #e5e7eb;border-radius:16px;font-family:Arial,Helvetica,sans-serif;\">
+          <table class=\"awn-card\" role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" width=\"600\" style=\"background:#ffffff;border:1px solid #e5e7eb;border-radius:16px;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text',Helvetica,Arial,sans-serif;\">
             {header_html}
             <tr>
-              <td style=\"padding:24px;\" align=\"center\">
-                <div style=\"width:64px;height:64px;border-radius:50%;background:#eef2ff;border:1px solid #dbeafe;display:flex;align-items:center;justify-content:center;margin:4px auto 12px;\">{hero_svg}</div>
-                <h1 style=\"margin:0 0 8px;font-size:26px;color:{TEXT_PRIMARY};font-weight:800;\">{title}</h1>
-                <p style=\"margin:0 0 18px;color:{TEXT_SECONDARY};font-size:16px;line-height:1.7;\">{message}</p>
+              <td style=\"padding:28px 24px 24px;\" align=\"center\">
+                <h1 class=\"awn-title\" style=\"margin:0 0 10px;font-size:28px;color:{TEXT_PRIMARY};font-weight:700;letter-spacing:-0.5px;\">{title}</h1>
+                <p class=\"awn-text\" style=\"margin:0 0 20px;color:{TEXT_SECONDARY};font-size:16px;line-height:1.6;\">{message}</p>
                 {cta_block}
-                <p style=\"margin:16px 0 0;color:#6b7280;font-size:14px;\">Regards,<br/>AWN Platform</p>
+                <p class=\"awn-brand\" style=\"margin:18px 0 0;color:#64748b;font-size:14px;font-weight:500;\">{_('Regards')},<br/>AWN Platform</p>
               </td>
             </tr>
             {footer_html}

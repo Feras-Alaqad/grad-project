@@ -5,7 +5,9 @@ from django.contrib.auth.models import BaseUserManager, AbstractBaseUser, Permis
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.utils.translation import gettext_lazy as _
 from django.conf import settings
+import os
 
 
 
@@ -236,7 +238,7 @@ class Announcement(models.Model):
         """Data validation"""
         if self.expiry_date and self.publish_date:
             if self.expiry_date <= self.publish_date:
-                raise ValidationError('Expiry date must be after publish date')
+                raise ValidationError(_('Expiry date must be after publish date'))
     
 
     class Meta:
@@ -358,7 +360,7 @@ class Organization(models.Model):
     def clean(self):
         """Validate rate"""
         if self.rate < 1 or self.rate > 5:
-            raise ValidationError('Rate must be between 1 and 5')
+            raise ValidationError(_('Rate must be between 1 and 5'))
         
 
     class Meta:
