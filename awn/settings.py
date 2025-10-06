@@ -62,8 +62,6 @@ MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',  # CORS middleware (must be at the top)
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.locale.LocaleMiddleware',  # Django's built-in locale middleware
-    'api.middleware.LanguageMiddleware',  # Our custom language detection middleware
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -138,37 +136,38 @@ AUTH_PASSWORD_VALIDATORS = [
 
 
 
-# Internationalization
-# https://docs.djangoproject.com/en/5.2/topics/i18n/
-
-from django.utils.translation import gettext_lazy as _
-
-LANGUAGE_CODE = 'en'  # Default language
-
-LANGUAGES = [
-    ('en', _('English')),
-    ('ar', _('Arabic')),
-]
-
-LOCALE_PATHS = [
-    BASE_DIR / 'locale',
-]
+LANGUAGE_CODE = 'en-us'
 
 TIME_ZONE = 'UTC'
 
 USE_I18N = True
-USE_L10N = True  # Enable localization
+
 USE_TZ = True
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.2/howto/static-files/
+
+
 
 STATIC_URL = 'static/'
 
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
+
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+# settings.py
+
+from django.utils.translation import gettext_lazy as _
+
+LANGUAGE_CODE = 'en'  # اللغة الافتراضية للعربية
+
+LANGUAGES = (
+    ('ar', _('Arabic')),   # إضافة اللغة العربية
+    ('en', _('English')),  # خيار: يمكن إضافة الإنجليزية أو لغات أخرى
+)
+
+LOCALE_PATHS = [
+    BASE_DIR / 'locale',  # مسار ملفات الترجمة
+]
+
+LANGUAGE_BIDI = True  # لأن العربية لغة تُكتب من اليمين لليسار
 
 AUTH_USER_MODEL = 'api.User'
 
