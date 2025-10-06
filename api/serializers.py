@@ -338,7 +338,7 @@ class OrganizationProfileSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(source='user.email', required=True)
     phone = serializers.CharField(source='user.phone', required=True)
     role = serializers.CharField(source='user.role', required=False)
-    profile_image = serializers.SerializerMethodField()
+    profile_image = serializers.ImageField(required=False, allow_null=True)
 
     class Meta:
         model = Organization
@@ -349,9 +349,12 @@ class OrganizationProfileSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['rate', 'verified', 'is_active', 'created_at', 'updated_at']
 
-    def get_profile_image(self, obj):
+    def to_representation(self, instance):
+        """Override to return the full URL for profile_image in responses"""
+        data = super().to_representation(instance)
         request = self.context.get('request', None)
-        return get_safe_organization_profile_image_url_serializer(request, obj)
+        data['profile_image'] = get_safe_organization_profile_image_url_serializer(request, instance)
+        return data
 
     def update(self, instance, validated_data):
         # تحديث بيانات اليوزر المرتبطة

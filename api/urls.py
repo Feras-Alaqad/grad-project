@@ -151,6 +151,8 @@ urlpatterns = [
     path('api/language/set/', set_language, name='set-language'),
     path('api/language/current/', get_current_language, name='get-current-language'),
     
+    # Test endpoints (none)
+    
     # api app endpoints (ViewSets)
     path('api/', include(router.urls)),
 ]

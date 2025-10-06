@@ -118,9 +118,8 @@ AWN Team
         # HTML version using render_notification_email
         html_message = render_notification_email(
             title="Reminder",
-            message=message,
+            message=f"Hello {tracking.user.first_name or tracking.user.email},\n\n{message}\n\nRegards,\nAWN Platform",
             request=None,
-            greeting=f"Hello {tracking.user.first_name or tracking.user.email},"
         )
         
         send_mail(

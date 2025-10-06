@@ -102,15 +102,15 @@ def render_notification_email(title: str, message: str, request=None, cta_url: s
 
     # Brand footer with Contact Us email link and website link
     footer_html = (
-        f"<tr><td style=\"background:{PRIMARY_DARK};color:#e5e7eb;border-bottom-left-radius:16px;border-bottom-right-radius:16px;\">"
+        f"<tr><td class=\"awn-footer\" style=\"background:{PRIMARY_DARK};color:#e5e7eb;border-bottom-left-radius:16px;border-bottom-right-radius:16px;\">"
         f"<table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\">"
-        f"<tr><td align=\"center\" style=\"padding:20px 24px;\">"
-        f"<table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" style=\"display:inline-table;\">"
+        f"<tr><td align=\"center\" style=\"padding:20px 24px;text-align:center;\">"
+        f"<table class=\"footer-inline\" role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" style=\"display:inline-table;\">"
         f"<tr><td style=\"vertical-align:middle;padding-right:8px;\"><img src=\"{logo_src}\" alt=\"AWN Platform\" style=\"height:28px;display:block;\"/></td>"
         f"<td style=\"vertical-align:middle;color:#e5e7eb;font-size:16px;font-weight:600;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text',Helvetica,Arial,sans-serif;\">AWN Platform</td></tr>"
         f"</table>"
         f"</td></tr>"
-        f"<tr><td align=\"center\" style=\"padding:8px 24px;font-size:14px;\"><a href=\"mailto:awnpalform@gmail.com\" style=\"color:#cbd5e1;text-decoration:none;\">{_('Contact Us')}</a> • <a href=\"https://awn-three.vercel.app\" style=\"color:#cbd5e1;text-decoration:none;\">{_('Visit Website')}</a></td></tr>"
+        f"<tr><td class=\"footer-links\" align=\"center\" style=\"padding:8px 24px;font-size:14px;text-align:center;\"><a href=\"mailto:awnpaltform@gmail.com\" style=\"color:#cbd5e1;text-decoration:none;\">{_('Contact Us')}</a> • <a href=\"https://awn-three.vercel.app\" style=\"color:#cbd5e1;text-decoration:none;\">{_('Visit Website')}</a></td></tr>"
         f"</table>"
         f"</td></tr>"
     )
@@ -134,6 +134,11 @@ def render_notification_email(title: str, message: str, request=None, cta_url: s
         .awn-footer {{ background: {PRIMARY_DARK} !important; }}
         .awn-btn {{ background: #7c8cfb !important; color: #ffffff !important; }}
         .awn-brand {{ color: #f7fafc !important; }}
+      }}
+      @media only screen and (max-width: 480px) {{
+        .footer-inline {{ display: block !important; }}
+        .footer-links {{ text-align: left !important; }}
+        .awn-footer td {{ text-align: left !important; }}
       }}
     </style>
   </head>
@@ -159,4 +164,48 @@ def render_notification_email(title: str, message: str, request=None, cta_url: s
   </body>
 </html>
 """.strip()
+    )
+
+
+def render_welcome_email(user_name: str, user_email: str, request=None) -> str:
+    """Welcome email for new registered users with AWN Platform branding."""
+    title = _("Welcome to AWN Platform!")
+    message = _(
+        "Thank you for joining AWN Platform! We're excited to have you as part of our community. "
+        "You can now explore announcements, connect with organizations, and track your applications all in one place."
+    )
+    cta_url = "https://awn-three.vercel.app/login"
+    cta_label = _("Get Started")
+    
+    return render_notification_email(
+        title=title,
+        message=message,
+        request=request,
+        cta_url=cta_url,
+        cta_label=cta_label
+    )
+
+
+def render_admin_support_notification_email(support_request, request=None) -> str:
+    """Admin notification email for new support requests."""
+    title = _("New Support Request Received")
+    message = _(
+        f"A new support request has been submitted by {support_request.user.name or support_request.user.email}.\n\n"
+        f"Request Details:\n"
+        f"• Title: {support_request.title}\n"
+        f"• Type: {support_request.get_type_display()}\n"
+        f"• User: {support_request.user.name} ({support_request.user.email})\n"
+        f"• Request ID: #{support_request.id}\n\n"
+        f"Description:\n{support_request.description}\n\n"
+        "Please review and respond to this request in the admin panel."
+    )
+    cta_url = f"https://awn-three.vercel.app/"
+    cta_label = _("View Request")
+    
+    return render_notification_email(
+        title=title,
+        message=message,
+        request=request,
+        cta_url=cta_url,
+        cta_label=cta_label
     )

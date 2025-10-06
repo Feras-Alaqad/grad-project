@@ -38,7 +38,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q, Count
 from django.db.models.functions import TruncDay, TruncMonth
 from .models import User, Organization, Announcement, AnnouncementCategory
-from .email_utils import logo_header_html, banner_header_html, render_notification_email
+from .email_utils import logo_header_html, banner_header_html, render_notification_email, render_welcome_email, render_admin_support_notification_email
 from .serializers import (
     UserSignupSerializer,
     UserSerializer,
@@ -133,6 +133,23 @@ class UserSignupView(APIView):
         serializer = UserSignupSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
+            
+            # Send welcome email
+            try:
+                subject = _("Welcome to AWN Platform!")
+                html_message = render_welcome_email(user.name, user.email, request)
+                send_mail(
+                    subject=subject,
+                    message="",  # Plain text version (empty since we're using HTML)
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[user.email],
+                    html_message=html_message,
+                    fail_silently=True  # Don't fail registration if email fails
+                )
+            except Exception as e:
+                # Log the error but don't fail the registration
+                print(f"Failed to send welcome email to {user.email}: {str(e)}")
+            
             # إنشاء توكن وريفريش
             refresh = RefreshToken.for_user(user)
             return Response(
@@ -179,6 +196,26 @@ class OrganizationSignupView(APIView):
             # إنشاء التوكنات
             refresh = RefreshToken.for_user(user)
             access = refresh.access_token
+
+            # إرسال بريد الترحيب للمنظمة
+            try:
+                organization_name = user.organization.name if hasattr(user, 'organization') and user.organization else user.email
+                welcome_email_html = render_welcome_email(
+                    user_name=organization_name,
+                    user_email=user.email,
+                    is_organization=True
+                )
+                send_mail(
+                    subject='Welcome to Our Platform - Organization Registration Successful',
+                    message='',
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[user.email],
+                    html_message=welcome_email_html,
+                    fail_silently=True,
+                )
+            except Exception as e:
+                # لا نريد أن يفشل التسجيل بسبب مشكلة في الإيميل
+                print(f"Failed to send welcome email to organization {user.email}: {str(e)}")
 
             return Response({
                 "success": True,
@@ -471,13 +508,7 @@ class ProfileView(APIView):
             if email and User.objects.exclude(pk=user.pk).filter(email=email).exists():
                 return Response({"email": ["This email is already used by another account."]}, status=400)
 
-            # تحديث بيانات User الشخصية (بدون profile_image)
-            for field in ['name', 'email', 'phone']:
-                if field in request.data:
-                    setattr(user, field, request.data[field])
-            user.save()
-
-            # تحديث بيانات المؤسسة (description, website, location, profile_image)
+            # تحديث بيانات المؤسسة باستخدام الـ serializer (يتضمن profile_image و user fields)
             serializer = OrganizationProfileSerializer(
                 organization, data=request.data, partial=True, context={'request': request}
             )
@@ -1860,36 +1891,19 @@ def create_support_request(request):
                 "Best regards,\n"
                 "AWN Platform Support Team"
             )
-            html_message = f"""
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset=\"utf-8\">
-    <title>Support Request Received</title>
-  </head>
-  <body style=\"margin:0;padding:0;background-color:#f7f7f9;\">
-    <table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" width=\"100%\"> 
-      <tr>
-        <td align=\"center\" style=\"padding:24px;\">
-          <table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" width=\"600\" style=\"background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;font-family:Arial,Helvetica,sans-serif;\">
-            {logo_header_html(request)}
-            <tr>
-              <td style=\"padding:24px;\">
-                <h2 style=\"margin:0 0 12px;font-size:20px;color:#111827;\">Support Request Received</h2>
-                <p style=\"margin:0 0 16px;color:#374151;\">Dear {support_request.user.name or support_request.user.email},</p>
-                <p style=\"margin:0 0 12px;color:#374151;\">Thank you for contacting AWN Support. We acknowledge receipt of your support request titled <strong>{support_request.title}</strong> (Reference #{support_request.id}).</p>
-                <p style=\"margin:0 0 12px;color:#374151;\">Our support team is reviewing your request and will follow up as soon as possible. You can track the status and updates in the application under <strong>Support &gt; My Requests</strong>.</p>
-                <p style=\"margin:0 0 24px;color:#374151;\">If you need to provide additional information, please update your request in the application rather than replying to this email.</p>
-                <p style=\"margin:0;color:#6b7280;\">Best regards,<br/>AWN Platform Support Team</p>
-              </td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-    </table>
-  </body>
-</html>
-""".strip()
+            html_message = render_notification_email(
+                title=_("Support Request Received"),
+                message=(
+                    f"Dear {support_request.user.name or support_request.user.email},\n\n"
+                    f"Thank you for contacting AWN Support. We acknowledge receipt of your support request titled \"{support_request.title}\" (Reference #{support_request.id}).\n\n"
+                    "Our support team is reviewing your request and will follow up as soon as possible. You can track the status and updates in the application under Support > My Requests.\n\n"
+                    "If you need to provide additional information, please update your request in the application rather than replying to this email.\n\n"
+                    "Best regards,\nAWN Platform Support Team"
+                ),
+                request=request,
+                cta_url="https://awn-three.vercel.app/",
+                cta_label=_("View My Requests")
+            )
             recipient_list = [support_request.user.email]
 
             try:
@@ -1911,6 +1925,27 @@ def create_support_request(request):
                 title=f"Support Ticket Received: {support_request.title}",
                 message="We have received your ticket and will reply soon."
             )
+
+        # إرسال إشعار بريد إلكتروني للمديرين عن طلب الدعم الجديد
+        try:
+            admin_users = User.objects.filter(role=User.Role.ADMIN)
+            if admin_users.exists():
+                admin_emails = [admin.email for admin in admin_users if admin.email]
+                if admin_emails:
+                    admin_notification_html = render_admin_support_notification_email(
+                        support_request=support_request
+                    )
+                    send_mail(
+                        subject=f'New Support Request: {support_request.title}',
+                        message='',
+                        from_email=settings.DEFAULT_FROM_EMAIL,
+                        recipient_list=admin_emails,
+                        html_message=admin_notification_html,
+                        fail_silently=True,
+                    )
+        except Exception as e:
+            # لا نريد أن يفشل إنشاء طلب الدعم بسبب مشكلة في الإيميل
+            print(f"Failed to send admin notification email for support request {support_request.id}: {str(e)}")
 
         return Response({
             'success': True,
@@ -1987,38 +2022,19 @@ def admin_reply_request(request, pk):
         "AWN Platform Support Team"
     )
     recipient_list = [support_request.user.email]
-    html_message = f"""
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset=\"utf-8\">
-    <title>Support Reply</title>
-  </head>
-  <body style=\"margin:0;padding:0;background-color:#f7f7f9;\">
-    <table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" width=\"100%\"> 
-      <tr>
-        <td align=\"center\" style=\"padding:24px;\">
-          <table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" width=\"600\" style=\"background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;font-family:Arial,Helvetica,sans-serif;\">
-            {logo_header_html(request)}
-            <tr>
-              <td style=\"padding:24px;\">
-                <h2 style=\"margin:0 0 12px;font-size:20px;color:#111827;\">Support Reply</h2>
-                <p style=\"margin:0 0 16px;color:#374151;\">Dear {support_request.user.name or support_request.user.email},</p>
-                <p style=\"margin:0 0 12px;color:#374151;\">We have responded to your support request titled <strong>{support_request.title}</strong> (Reference #{support_request.id}).</p>
-                <div style=\"margin:16px 0;padding:12px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:6px;color:#111827;\">
-                  {reply_text}
-                </div>
-                <p style=\"margin:0 0 24px;color:#374151;\">You can view this request and any follow-up updates in the application under <strong>Support &gt; My Requests</strong>.</p>
-                <p style=\"margin:0;color:#6b7280;\">Best regards,<br/>AWN Platform Support Team</p>
-              </td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-    </table>
-  </body>
-</html>
-""".strip()
+    html_message = render_notification_email(
+        title=_("Support Reply"),
+        message=(
+            f"Dear {support_request.user.name or support_request.user.email},\n\n"
+            f"We have responded to your support request titled \"{support_request.title}\" (Reference #{support_request.id}).\n\n"
+            f"{reply_text}\n\n"
+            "You can view this request and any follow-up updates in the application under Support > My Requests.\n\n"
+            "Best regards,\nAWN Platform Support Team"
+        ),
+        request=request,
+        cta_url="https://awn-three.vercel.app/",
+        cta_label=_("View My Requests")
+    )
 
     try:
         send_mail(
@@ -2601,6 +2617,6 @@ def get_current_language(request):
         'current_language': current_language,
         'available_languages': [
             {'code': 'en', 'name': 'English'},
-            {'code': 'ar', 'name': 'العربية'}
+            {'code': 'ar', 'name': 'Arabic'}
         ]
     })
