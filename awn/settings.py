@@ -24,10 +24,6 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # Base URL for constructing absolute URLs (configurable via environment variable)
 BASE_URL = os.environ.get('BASE_URL', 'http://localhost:8000')
 
-
-
-
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
@@ -35,7 +31,7 @@ BASE_URL = os.environ.get('BASE_URL', 'http://localhost:8000')
 SECRET_KEY = 'django-insecure-)n0n8on81l1x+5_szj^0)3m!boj4g^=j3so$x+qk-n2z_&a!)2'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ['*']
 
@@ -50,16 +46,16 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'corsheaders',  # CORS headers for frontend access
-    'awn',  # Your main application
-    'api',  # Your API application
-    'rest_framework',  # Django REST Framework for API support
-    'rest_framework_simplejwt',  # JWT authentication support
-    'rest_framework_simplejwt.token_blacklist',  # Token blacklist for JWT
+    'awn',  
+    'api', 
+    'rest_framework',  
+    'rest_framework_simplejwt', 
+    'rest_framework_simplejwt.token_blacklist', 
     'django_extensions',
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',  # CORS middleware (must be at the top)
+    'corsheaders.middleware.CorsMiddleware',  
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',

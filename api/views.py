@@ -6,7 +6,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth.tokens import default_token_generator
 from django.conf import settings
 from rest_framework import permissions
-from django.core.mail import send_mail
+from django.core.mail import send_mail, EmailMultiAlternatives
 from rest_framework_simplejwt.tokens import UntypedToken
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework.decorators import api_view, permission_classes
@@ -290,29 +290,35 @@ Note: This link is valid for a limited time only.
 """
 
         html_message = render_notification_email(
-            title="Forgot your password?",
-            message="It happens to the best of us. To reset your password, click the button below. The link will self‑destruct after five days.",
+            title="Reset your AWN Platform password",
+            message="Use the button below to reset your password. This link expires soon for your security.",
             request=request,
             cta_url=reset_url,
             cta_label="Reset Password"
         )
 
         try:
-            result = send_mail(
-                subject="Password Reset",
-                message=message,
+            # Use EmailMultiAlternatives to include both plain text and HTML with helpful headers
+            email = EmailMultiAlternatives(
+                subject="Reset your AWN Platform password",
+                body=message,
                 from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[user.email],
-                fail_silently=False,
-                html_message=html_message,
+                to=[user.email],
+                headers={
+                    # Encourage clients to treat as transactional
+                    "X-Entity-Type": "Transactional",
+                    # Avoid replies going to the sending inbox
+                    "Reply-To": "no-reply@awnpaltform.gmail.com"
+                }
             )
-            # If no messages were accepted by the backend, treat as failure
+            email.attach_alternative(html_message, "text/html")
+            result = email.send(fail_silently=False)
             if result == 0:
-                print("Password reset email send_mail returned 0 (no recipients accepted)")
+                print("Password reset email send returned 0 (no recipients accepted)")
                 return Response({
                     "success": False,
                     "message": "Email provider did not accept the message.",
-                    "error": "send_mail returned 0"
+                    "error": "EmailMultiAlternatives.send returned 0"
                 }, status=status.HTTP_502_BAD_GATEWAY)
         except Exception as e:
             # Log the error and return a proper response to help debugging
@@ -1916,10 +1922,7 @@ def create_support_request(request):
                     fail_silently=False,
                 )
             except Exception as e:
-                # Log error without failing the API response
                 print(f"Failed to send email: {str(e)}")
-
-            # Send email notification also in the notificatioon tab also that confirming ticket receipt
             created_notification = Notification.objects.create(
                 user=support_request.user,
                 title=f"Support Ticket Received: {support_request.title}",

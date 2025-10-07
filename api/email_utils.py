@@ -1,20 +1,14 @@
 from django.conf import settings
 from django.utils.translation import gettext as _
 
-# Brand palette aligned with AWN logo and theme
-PRIMARY_COLOR = "#009091"  # primary brand color
-PRIMARY_DARK = "#0b1220"   # darker footer/background for improved dark mode
-BG_COLOR = "#f3f4f6"       # page background
-TEXT_PRIMARY = "#0f172a"   # main text color (slate-900)
-TEXT_SECONDARY = "#374151" # secondary text color with better contrast
+PRIMARY_COLOR = "#3CB54B"  
+PRIMARY_DARK = "#0b1220"   
+BG_COLOR = "#f3f4f6"       
+TEXT_PRIMARY = "#0f172a"   
+TEXT_SECONDARY = "#374151"
 
 def absolute_media_url(path: str, request=None) -> str:
-    """Build an absolute URL for a media file using request or BASE_URL.
 
-    - If `request` is provided, use `request.build_absolute_uri(media_path)` to match
-      how profile image URLs are generated for reliability behind proxies.
-    - Otherwise, fall back to `BASE_URL + MEDIA_URL`.
-    """
     media_url = getattr(settings, 'MEDIA_URL', '/media/')
     # Normalize media URL prefix
     if not media_url.startswith('/'):
@@ -29,11 +23,6 @@ def absolute_media_url(path: str, request=None) -> str:
 
 
 def logo_header_html(request=None, image_url: str | None = None) -> str:
-    """Return a table row containing the AWN logo for email headers.
-
-    Accepts optional `request` to build absolute URL like profile pictures,
-    and optional `image_url` to override the logo source if provided.
-    """
     logo_src = image_url or absolute_media_url('awnlogo.png', request)
     return (
         f"<tr>"
@@ -45,12 +34,6 @@ def logo_header_html(request=None, image_url: str | None = None) -> str:
 
 
 def banner_header_html(request=None, image_url: str | None = None) -> str:
-    """Return a full-width banner row with purple background and rounded corners.
-
-    - Centers the logo image at the top, matching the provided design.
-    - Uses `request` to build absolute logo URL when available.
-    - Allows overriding the logo with `image_url`.
-    """
     logo_src = image_url or absolute_media_url('awnlogo.png', request)
     # Top banner with rounded top corners and purple background
     return (
@@ -69,14 +52,6 @@ def banner_header_html(request=None, image_url: str | None = None) -> str:
 
 
 def render_notification_email(title: str, message: str, request=None, cta_url: str | None = None, cta_label: str | None = None) -> str:
-    """Professional, brand-colored notification email with optional CTA.
-
-    Layout:
-    - White header with logo (rounded corners)
-    - Centered hero icon, clear title, friendly copy
-    - Optional primary action button with AWN Platform branding
-    - Dark brand footer with contact link
-    """
     logo_src = absolute_media_url('awnlogo.png', request)
     cta_block = (
         f"<table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\"><tr><td style=\"border-radius:8px;\">"
@@ -87,7 +62,7 @@ def render_notification_email(title: str, message: str, request=None, cta_url: s
         else ""
     )
 
-    # Build a white header with logo only (left aligned)
+    
     header_html = (
         f"<tr><td class=\"awn-header\" style=\"background:#ffffff;border-top-left-radius:16px;border-top-right-radius:16px;\">"
         f"<table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\">"
@@ -100,19 +75,15 @@ def render_notification_email(title: str, message: str, request=None, cta_url: s
         f"</td></tr>"
     )
 
-    # Brand footer with Contact Us email link and website link
+    
     footer_html = (
-        f"<tr><td class=\"awn-footer\" style=\"background:{PRIMARY_DARK};color:#e5e7eb;border-bottom-left-radius:16px;border-bottom-right-radius:16px;\">"
-        f"<table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\">"
-        f"<tr><td align=\"center\" style=\"padding:20px 24px;text-align:center;\">"
-        f"<table class=\"footer-inline\" role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" style=\"display:inline-table;\">"
-        f"<tr><td style=\"vertical-align:middle;padding-right:8px;\"><img src=\"{logo_src}\" alt=\"AWN Platform\" style=\"height:28px;display:block;\"/></td>"
-        f"<td style=\"vertical-align:middle;color:#e5e7eb;font-size:16px;font-weight:600;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text',Helvetica,Arial,sans-serif;\">AWN Platform</td></tr>"
-        f"</table>"
+        f"<table class=\"awn-footblk\" role=\"presentation\" width=\"600\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" bgcolor=\"{PRIMARY_DARK}\" style=\"background:{PRIMARY_DARK};background-color:{PRIMARY_DARK};border-collapse:collapse;table-layout:fixed;\">"
+        f"<tr bgcolor=\"{PRIMARY_DARK}\"><td bgcolor=\"{PRIMARY_DARK}\" align=\"center\" style=\"background:{PRIMARY_DARK};background-color:{PRIMARY_DARK};padding:20px 24px;text-align:center;\">"
+        f"<img src=\"{logo_src}\" alt=\"AWN Platform\" style=\"height:28px;display:block;\"/>"
+        f"<p style=\"margin:12px 0 0;color:#e5e7eb;font-size:16px;font-weight:600;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text',Helvetica,Arial,sans-serif;\">AWN Platform</p>"
         f"</td></tr>"
-        f"<tr><td class=\"footer-links\" align=\"center\" style=\"padding:8px 24px;font-size:14px;text-align:center;\"><a href=\"mailto:awnpaltform@gmail.com\" style=\"color:#cbd5e1;text-decoration:none;\">{_('Contact Us')}</a> • <a href=\"https://awn-three.vercel.app\" style=\"color:#cbd5e1;text-decoration:none;\">{_('Visit Website')}</a></td></tr>"
+        f"<tr bgcolor=\"{PRIMARY_DARK}\"><td class=\"foot-links\" bgcolor=\"{PRIMARY_DARK}\" align=\"center\" style=\"background:{PRIMARY_DARK};background-color:{PRIMARY_DARK};padding:8px 24px;font-size:14px;text-align:center;\"><a href=\"mailto:awnpaltform@gmail.com\" style=\"color:#cbd5e1 !important;text-decoration:none !important;\">{_('Contact Us')}</a> • <a href=\"https://awn-three.vercel.app\" style=\"color:#cbd5e1 !important;text-decoration:none !important;\">{_('Visit Website')}</a></td></tr>"
         f"</table>"
-        f"</td></tr>"
     )
 
     return (
@@ -131,14 +102,14 @@ def render_notification_email(title: str, message: str, request=None, cta_url: s
         .awn-header {{ background: #1a202c !important; }}
         .awn-title {{ color: #f7fafc !important; }}
         .awn-text {{ color: #e2e8f0 !important; }}
-        .awn-footer {{ background: {PRIMARY_DARK} !important; }}
+        .awn-footblk, .awn-footblk table, .awn-footblk td {{ background: {PRIMARY_DARK} !important; background-color: {PRIMARY_DARK} !important; background-image: linear-gradient({PRIMARY_DARK},{PRIMARY_DARK}) !important; }}
+        .awn-footblk a, .foot-links a {{ color: #cbd5e1 !important; }}
         .awn-btn {{ background: #7c8cfb !important; color: #ffffff !important; }}
         .awn-brand {{ color: #f7fafc !important; }}
       }}
       @media only screen and (max-width: 480px) {{
-        .footer-inline {{ display: block !important; }}
-        .footer-links {{ text-align: left !important; }}
-        .awn-footer td {{ text-align: left !important; }}
+        .foot-links {{ text-align: left !important; }}
+        .awn-footblk td {{ text-align: left !important; }}
       }}
     </style>
   </head>
@@ -151,13 +122,13 @@ def render_notification_email(title: str, message: str, request=None, cta_url: s
             <tr>
               <td style=\"padding:28px 24px 24px;\" align=\"center\">
                 <h1 class=\"awn-title\" style=\"margin:0 0 10px;font-size:28px;color:{TEXT_PRIMARY};font-weight:700;letter-spacing:-0.5px;\">{title}</h1>
-                <p class=\"awn-text\" style=\"margin:0 0 20px;color:{TEXT_SECONDARY};font-size:16px;line-height:1.6;\">{message}</p>
+                <p class=\"awn-text\" style=\"margin:0 0 20px;color:{TEXT_SECONDARY};font-size:16px;line-height:1.6;white-space:pre-line;\">{message}</p>
                 {cta_block}
                 <p class=\"awn-brand\" style=\"margin:18px 0 0;color:#64748b;font-size:14px;font-weight:500;\">{_('Regards')},<br/>AWN Platform</p>
               </td>
             </tr>
-            {footer_html}
           </table>
+          {footer_html}
         </td>
       </tr>
     </table>
