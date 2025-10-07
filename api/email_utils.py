@@ -51,7 +51,7 @@ def banner_header_html(request=None, image_url: str | None = None) -> str:
     )
 
 
-def render_notification_email(title: str, message: str, request=None, cta_url: str | None = None, cta_label: str | None = None) -> str:
+def render_notification_email(title: str, message: str, request=None, cta_url: str | None = None, cta_label: str | None = None, reply_html: str | None = None) -> str:
     logo_src = absolute_media_url('awnlogo.png', request)
     cta_block = (
         f"<table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\"><tr><td style=\"border-radius:8px;\">"
@@ -86,6 +86,19 @@ def render_notification_email(title: str, message: str, request=None, cta_url: s
         f"</table>"
     )
 
+    # If reply_html is provided, render a distinct reply box block
+    reply_block = (
+        f"<table class=\"reply-box\" role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" width=\"100%\" style=\"margin:12px 0 4px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;\">"
+        f"  <tr>"
+        f"    <td style=\"padding:16px 18px;text-align:left;\">"
+        f"      <div style=\"font-weight:600;color:{TEXT_PRIMARY};margin-bottom:8px;font-size:15px;\">{_('Support Reply')}</div>"
+        f"      <div class=\"awn-reply\" style=\"color:{TEXT_SECONDARY};font-size:15px;line-height:1.7;white-space:pre-line;\">{reply_html}</div>"
+        f"    </td>"
+        f"  </tr>"
+        f"</table>"
+        if reply_html else ""
+    )
+
     return (
         f"""
 <!DOCTYPE html>
@@ -102,14 +115,21 @@ def render_notification_email(title: str, message: str, request=None, cta_url: s
         .awn-header {{ background: #1a202c !important; }}
         .awn-title {{ color: #f7fafc !important; }}
         .awn-text {{ color: #e2e8f0 !important; }}
+        .awn-reply {{ color: #e2e8f0 !important; }}
+        .awn-card .reply-box {{ background:#111827 !important; border-color:#374151 !important; }}
         .awn-footblk, .awn-footblk table, .awn-footblk td {{ background: {PRIMARY_DARK} !important; background-color: {PRIMARY_DARK} !important; background-image: linear-gradient({PRIMARY_DARK},{PRIMARY_DARK}) !important; }}
         .awn-footblk a, .foot-links a {{ color: #cbd5e1 !important; }}
         .awn-btn {{ background: #7c8cfb !important; color: #ffffff !important; }}
         .awn-brand {{ color: #f7fafc !important; }}
       }}
-      @media only screen and (max-width: 480px) {{
-        .foot-links {{ text-align: left !important; }}
-        .awn-footblk td {{ text-align: left !important; }}
+      @media only screen and (max-width: 600px) {{
+        .awn-card {{ width: 100% !important; border-radius: 12px !important; }}
+        .awn-title {{ font-size: 24px !important; }}
+        .awn-text {{ font-size: 16px !important; }}
+        .reply-box {{ width: 100% !important; border-radius: 10px !important; }}
+        .reply-box td {{ padding: 14px !important; }}
+        .awn-btn {{ display: block !important; width: 100% !important; }}
+        .foot-links, .awn-footblk td {{ text-align: center !important; }}
       }}
     </style>
   </head>
@@ -117,12 +137,13 @@ def render_notification_email(title: str, message: str, request=None, cta_url: s
     <table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" width=\"100%\"> 
       <tr>
         <td align=\"center\" style=\"padding:24px;\">
-          <table class=\"awn-card\" role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" width=\"600\" style=\"background:#ffffff;border:1px solid #e5e7eb;border-radius:16px;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text',Helvetica,Arial,sans-serif;\">
+          <table class=\"awn-card\" role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" width=\"100%\" style=\"max-width:600px;background:#ffffff;border:1px solid #e5e7eb;border-radius:16px;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text',Helvetica,Arial,sans-serif;\">
             {header_html}
             <tr>
               <td style=\"padding:28px 24px 24px;\" align=\"center\">
                 <h1 class=\"awn-title\" style=\"margin:0 0 10px;font-size:28px;color:{TEXT_PRIMARY};font-weight:700;letter-spacing:-0.5px;\">{title}</h1>
                 <p class=\"awn-text\" style=\"margin:0 0 20px;color:{TEXT_SECONDARY};font-size:16px;line-height:1.6;white-space:pre-line;\">{message}</p>
+                {reply_block}
                 {cta_block}
                 <p class=\"awn-brand\" style=\"margin:18px 0 0;color:#64748b;font-size:14px;font-weight:500;\">{_('Regards')},<br/>AWN Platform</p>
               </td>

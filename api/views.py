@@ -388,6 +388,37 @@ def notification_email_preview(request):
     return HttpResponse(html, content_type='text/html')
 
 
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def support_reply_email_preview(request):
+    """Preview the support reply email with a dedicated reply area.
+
+    Query params:
+    - reply: the reply text to show inside the reply box
+    - title: support request title
+    - user: user display name or email
+    """
+    reply = request.GET.get('reply', 'Thank you for contacting us. Your account has been verified. Please try logging in again and let us know if you face any issues.')
+    sr_title = request.GET.get('title', 'Account Verification Issue')
+    user_disp = request.GET.get('user', 'AWN User')
+
+    html = render_notification_email(
+        title=_('Support Reply'),
+        message=(
+            f"Dear {user_disp},\n\n"
+            f"We have responded to your support request titled \"{sr_title}\".\n\n"
+            "You can view this request and and the reply in the application under Support > My Requests.\n\n"
+            "Best regards,\nAWN Platform Support Team"
+        ),
+        request=request,
+        cta_url="https://awn-three.vercel.app/",
+        cta_label=_('View My Requests'),
+        reply_html=reply
+    )
+    from django.http import HttpResponse
+    return HttpResponse(html, content_type='text/html')
+
+
 class ResetPasswordAPIView(generics.GenericAPIView):
     serializer_class = ResetPasswordSerializer
     permission_classes = [AllowAny]
@@ -2020,7 +2051,7 @@ def admin_reply_request(request, pk):
         f"Dear {support_request.user.name or support_request.user.email},\n\n"
         "We have responded to your support request. Please find the details below:\n\n"
         f"{reply_text}\n\n"
-        "You can view this request and any follow-up updates in the application under Support > My Requests.\n\n"
+        "You can view this request and reply in the application under Support > My Requests.\n\n"
         "Best regards,\n"
         "AWN Platform Support Team"
     )
@@ -2030,13 +2061,13 @@ def admin_reply_request(request, pk):
         message=(
             f"Dear {support_request.user.name or support_request.user.email},\n\n"
             f"We have responded to your support request titled \"{support_request.title}\" (Reference #{support_request.id}).\n\n"
-            f"{reply_text}\n\n"
-            "You can view this request and any follow-up updates in the application under Support > My Requests.\n\n"
+            "You can view this request and reply in the application under Support > My Requests.\n\n"
             "Best regards,\nAWN Platform Support Team"
         ),
         request=request,
         cta_url="https://awn-three.vercel.app/",
-        cta_label=_("View My Requests")
+        cta_label=_("View My Requests"),
+        reply_html=reply_text
     )
 
     try:

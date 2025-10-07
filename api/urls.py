@@ -58,6 +58,7 @@ from .views import (
     AdminTimeSeriesStatisticsAPIView,
     password_reset_email_preview,
     notification_email_preview,
+    support_reply_email_preview,
     set_language,
     get_current_language,
 
@@ -84,6 +85,7 @@ urlpatterns = [
     path('api/auth/forgot-password/', ForgotPasswordAPIView.as_view(), name='forgot_password'),
     path('api/auth/email-preview/password-reset/', password_reset_email_preview, name='email-preview-password-reset'),
     path('api/email-preview/notification/', notification_email_preview, name='email-preview-notification'),
+    path('api/email-preview/support-reply/', support_reply_email_preview, name='email-preview-support-reply'),
     path('api/auth/reset-password/', ResetPasswordAPIView.as_view(), name='reset_password'),
     path('api/auth/change-password/', ChangePasswordAPIView.as_view(), name='change_password'),
     
