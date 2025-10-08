@@ -16,20 +16,22 @@ Our support team is reviewing your request and will follow up as soon as possibl
 </p>
 
 {% if cta_url %}
-<table role="presentation" cellspacing="0" cellpadding="0" border="0">
-    <tr>
-        <td style="border-radius: 8px;">
-            <a href="{{ cta_url }}" class="btn-primary">
-                {% trans "View My Requests" %}
-            </a>
-        </td>
-    </tr>
-</table>
+<div style="text-align: center; margin: 24px 0;">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center">
+        <tr>
+            <td align="center" style="border-radius: 8px; background: #3CB54B;">
+                <a href="{{ cta_url }}" style="background: #3CB54B; color: #ffffff !important; text-decoration: none; padding: 14px 32px; display: inline-block; border-radius: 8px; font-weight: 600; font-size: 16px; min-width: 160px; text-align: center; box-sizing: border-box;">
+                    {% trans "View My Requests" %}
+                </a>
+            </td>
+        </tr>
+    </table>
+</div>
 {% endif %}
 
-<p class="email-text" style="font-size: 14px; color: #64748b; margin-top: 20px;">
+<!-- <p class="email-text" style="font-size: 14px; color: #64748b; margin-top: 20px;">
     {% trans "If you need to provide additional information, please update your request in the application rather than replying to this email." %}
-</p>
+</p> -->
 
 <p class="signoff">
     {% trans "Regards" %},<br/>

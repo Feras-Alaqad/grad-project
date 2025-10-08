@@ -42,12 +42,36 @@
             .email-text { color: #e2e8f0 !important; }
             .email-text a { color: #4ade80 !important; }
             .reply-box { background: #111827 !important; border-color: #374151 !important; }
-            .footer-block { background: #0b1220 !important; }
-            .footer-link { color: #cbd5e1 !important; }
+            /* Footer: Black background in dark mode */
+            .footer-block { background-color: #000000 !important; }
+            .footer-block div { background-color: #000000 !important; }
+            .footer-brand { color: #ffffff !important; }
+            .footer-brand span { color: #ffffff !important; }
+            .footer-link { color: #cccccc !important; }
+            .footer-link span { color: #cccccc !important; }
+            .footer-links span { color: #cccccc !important; }
             .btn-primary { background: #4ade80 !important; color: #0f172a !important; }
             .warning-box { background: #1e3a8a !important; border-color: #60a5fa !important; }
             .warning-box p { color: #bfdbfe !important; }
             .warning-box strong { color: #dbeafe !important; }
+        }
+        
+        /* Gmail dark mode override */
+        u + .email-wrapper .footer-block { background-color: #000000 !important; }
+        u + .email-wrapper .footer-brand { color: #ffffff !important; }
+        u + .email-wrapper .footer-link { color: #cccccc !important; }
+        
+        /* Force dark mode for Gmail */
+        [data-ogsc] .footer-block { background-color: #000000 !important; }
+        [data-ogsc] .footer-brand { color: #ffffff !important; }
+        [data-ogsc] .footer-link { color: #cccccc !important; }
+        
+        /* Gmail dark mode specific overrides */
+        @media (prefers-color-scheme: dark) {
+            [data-ogsc] .footer-block { background-color: #0b1220 !important; }
+            [data-ogsc] .footer-brand { color: #e5e7eb !important; }
+            [data-ogsc] .footer-link { color: #9ca3af !important; }
+            u + .body .footer-block { background-color: #0b1220 !important; }
         }
         
         /* Base styles */
@@ -233,7 +257,7 @@
         <tr>
             <td align="center" style="padding: 24px;">
                 <!-- Main Email Card -->
-                <table class="email-card" role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                <table class="email-card" role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px;">
                     <!-- Header -->
                     <tr>
                         <td class="email-header">
@@ -259,23 +283,33 @@
                             {% endblock %}
                         </td>
                     </tr>
-                </table>
-                
-                <!-- Footer -->
-                <table class="footer-block" role="presentation" cellspacing="0" cellpadding="0" border="0" style="max-width: 600px; width: 100%; background: #0b1220; margin-top: 20px; border-radius: 16px;">
+                    
+                    <!-- Footer (now part of main card) -->
                     <tr>
-                        <td align="center" style="padding: 20px 24px;">
-                            {% if logo_url %}
-                            <img src="{{ logo_url }}" alt="{% trans 'AWN Platform' %}" class="footer-logo" style="height: 28px; margin-bottom: 12px;" onerror="this.style.display='none';" />
-                            {% endif %}
-                            <p class="footer-brand" style="margin: 12px 0 0; color: #e5e7eb; font-size: 16px; font-weight: 600;">AWN Platform</p>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td class="footer-links" align="center" style="padding: 0 24px 20px;">
-                            <a href="mailto:awnpaltform@gmail.com" class="footer-link" style="color: #9ca3af; text-decoration: none; font-size: 14px;">{% trans 'Contact Us' %}</a>
-                            <span style="color: #9ca3af; margin: 0 8px;">•</span>
-                            <a href="https://awn-three.vercel.app" class="footer-link" style="color: #9ca3af; text-decoration: none; font-size: 14px;">{% trans 'Visit Website' %}</a>
+                        <td class="footer-block" align="center" style="background-color: #ffffff !important; padding: 20px 24px; border-bottom-left-radius: 16px; border-bottom-right-radius: 16px;" bgcolor="#ffffff" data-ogsb="#ffffff" data-ogsc="#000000">
+                            <!--[if mso]>
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                            <tr>
+                            <td>
+                            <![endif]-->
+                            <div style="background-color: #ffffff; padding: 0;" data-ogsb="#ffffff" data-ogsc="#000000">
+                                {% if logo_url %}
+                                <img src="{{ logo_url }}" alt="{% trans 'AWN Platform' %}" class="footer-logo" style="height: 28px; margin-bottom: 12px; display: block; margin-left: auto; margin-right: auto;" onerror="this.style.display='none';" />
+                                {% endif %}
+                                <p class="footer-brand" style="margin: 12px 0 12px 0; color: #1f2937 !important; font-size: 16px; font-weight: 600; mso-line-height-rule: exactly;" data-ogsc="#1f2937">
+                                    <span style="color: #1f2937 !important;" data-ogsc="#ffffff">AWN Platform</span>
+                                </p>
+                                <div class="footer-links" style="text-align: center;">
+                                    <a href="mailto:awnpaltform@gmail.com" class="footer-link" style="color: #6b7280 !important; text-decoration: none; font-size: 14px;" target="_blank" data-ogsc="#6b7280"><span style="color: #6b7280 !important;" data-ogsc="#cccccc">{% trans 'Contact Us' %}</span></a>
+                                    <span style="color: #6b7280 !important; margin: 0 8px;" data-ogsc="#cccccc">•</span>
+                                    <a href="https://awn-three.vercel.app" class="footer-link" style="color: #6b7280 !important; text-decoration: none; font-size: 14px;" target="_blank" data-ogsc="#6b7280"><span style="color: #6b7280 !important;" data-ogsc="#cccccc">{% trans 'Visit Website' %}</span></a>
+                                </div>
+                            </div>
+                            <!--[if mso]>
+                            </td>
+                            </tr>
+                            </table>
+                            <![endif]-->
                         </td>
                     </tr>
                 </table>

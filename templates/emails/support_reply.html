@@ -27,15 +27,17 @@ Please find our response below:
 {% endif %}
 
 {% if cta_url %}
-<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin-top: 20px;">
-    <tr>
-        <td style="border-radius: 8px;">
-            <a href="{{ cta_url }}" class="btn-primary">
-                {% trans "View Request & Reply" %}
-            </a>
-        </td>
-    </tr>
-</table>
+<div style="text-align: center; margin: 24px 0;">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center">
+        <tr>
+            <td align="center" style="border-radius: 8px; background: #3CB54B;">
+                <a href="{{ cta_url }}" style="background: #3CB54B; color: #ffffff !important; text-decoration: none; padding: 14px 32px; display: inline-block; border-radius: 8px; font-weight: 600; font-size: 16px; min-width: 160px; text-align: center; box-sizing: border-box;">
+                    {% trans "View Request & Reply" %}
+                </a>
+            </td>
+        </tr>
+    </table>
+</div>
 {% endif %}
 
 <p class="email-text" style="font-size: 14px; color: #64748b; margin-top: 20px;">
