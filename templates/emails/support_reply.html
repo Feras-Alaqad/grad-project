@@ -1,0 +1,49 @@
+{% extends "emails/base.html" %}
+{% load i18n %}
+
+{% block email_title %}{% trans "Support Reply" %}{% endblock %}
+
+{% block email_content %}
+<h1 class="email-title">{% trans "Response to Your Support Request" %}</h1>
+<p class="email-text">
+    {% blocktrans with name=user_name title=request_title request_id=request_id %}
+    Hi {{ name }},
+
+We have responded to your support request titled "{{ title }}" (Reference #{{ request_id }}).
+
+Please find our response below:
+    {% endblocktrans %}
+</p>
+
+{% if reply_text %}
+<table class="reply-box" role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+    <tr>
+        <td>
+            <div class="reply-title">{% trans "Support Team Response" %}</div>
+            <div class="reply-content">{{ reply_text }}</div>
+        </td>
+    </tr>
+</table>
+{% endif %}
+
+{% if cta_url %}
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin-top: 20px;">
+    <tr>
+        <td style="border-radius: 8px;">
+            <a href="{{ cta_url }}" class="btn-primary">
+                {% trans "View Request & Reply" %}
+            </a>
+        </td>
+    </tr>
+</table>
+{% endif %}
+
+<p class="email-text" style="font-size: 14px; color: #64748b; margin-top: 20px;">
+    {% trans "You can view this request and provide additional information in the application under Support > My Requests." %}
+</p>
+
+<p class="signoff">
+    {% trans "Regards" %},<br/>
+    {% trans "AWN Platform Support Team" %}
+</p>
+{% endblock %}

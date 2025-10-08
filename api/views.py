@@ -275,7 +275,22 @@ class ForgotPasswordAPIView(generics.GenericAPIView):
 
         reset_url = f"https://awn-three.vercel.app/reset-password/{user.id}/{token}/"
 
-        # Email content (plain text + HTML)
+        # Use the new EmailService for better template rendering
+        from api.services.email_service import EmailService
+        email_service = EmailService(request)
+        
+        # Render using dedicated password reset template
+        from django.template.loader import render_to_string
+        context = {
+            'user_name': user.name or user.email,
+            'user_email': user.email,
+            'reset_url': reset_url,
+            'logo_url': email_service._get_logo_url(),
+            'platform_url': getattr(settings, 'PLATFORM_URL', 'https://awn-three.vercel.app'),
+        }
+        html_message = render_to_string('emails/password_reset.html', context, request=request)
+        
+        # Plain text version
         message = f"""
 Dear {user.name or user.email},
 
@@ -287,20 +302,15 @@ Click the link below to reset your password:
 Or copy this link into your browser.
 
 Note: This link is valid for a limited time only.
-"""
 
-        html_message = render_notification_email(
-            title="Reset your AWN Platform password",
-            message="Use the button below to reset your password. This link expires soon for your security.",
-            request=request,
-            cta_url=reset_url,
-            cta_label="Reset Password"
-        )
+Regards,
+AWN Platform Security Team
+"""
 
         try:
             # Use EmailMultiAlternatives to include both plain text and HTML with helpful headers
             email = EmailMultiAlternatives(
-                subject="Reset your AWN Platform password",
+                subject="Reset Your AWN Platform Password",
                 body=message,
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 to=[user.email],
@@ -1925,8 +1935,6 @@ def create_support_request(request):
                 f"Thank you for contacting AWN Support. We acknowledge receipt of your support request titled \"{support_request.title}\" (Reference #{support_request.id}).\n\n"
                 "Our support team is reviewing your request and will follow up as soon as possible. You can track the status and updates in the application under Support > My Requests.\n\n"
                 "If you need to provide additional information, please update your request in the application rather than replying to this email.\n\n"
-                "Best regards,\n"
-                "AWN Platform Support Team"
             )
             html_message = render_notification_email(
                 title=_("Support Request Received"),
@@ -1935,11 +1943,11 @@ def create_support_request(request):
                     f"Thank you for contacting AWN Support. We acknowledge receipt of your support request titled \"{support_request.title}\" (Reference #{support_request.id}).\n\n"
                     "Our support team is reviewing your request and will follow up as soon as possible. You can track the status and updates in the application under Support > My Requests.\n\n"
                     "If you need to provide additional information, please update your request in the application rather than replying to this email.\n\n"
-                    "Best regards,\nAWN Platform Support Team"
                 ),
                 request=request,
                 cta_url="https://awn-three.vercel.app/",
-                cta_label=_("View My Requests")
+                cta_label=_("View My Requests"),
+                signoff_text=_('AWN Platform Support Team')
             )
             recipient_list = [support_request.user.email]
 
@@ -2052,8 +2060,6 @@ def admin_reply_request(request, pk):
         "We have responded to your support request. Please find the details below:\n\n"
         f"{reply_text}\n\n"
         "You can view this request and reply in the application under Support > My Requests.\n\n"
-        "Best regards,\n"
-        "AWN Platform Support Team"
     )
     recipient_list = [support_request.user.email]
     html_message = render_notification_email(
@@ -2062,12 +2068,12 @@ def admin_reply_request(request, pk):
             f"Dear {support_request.user.name or support_request.user.email},\n\n"
             f"We have responded to your support request titled \"{support_request.title}\" (Reference #{support_request.id}).\n\n"
             "You can view this request and reply in the application under Support > My Requests.\n\n"
-            "Best regards,\nAWN Platform Support Team"
         ),
         request=request,
         cta_url="https://awn-three.vercel.app/",
         cta_label=_("View My Requests"),
-        reply_html=reply_text
+        reply_html=reply_text,
+        signoff_text=_('AWN Platform Support Team')
     )
 
     try:

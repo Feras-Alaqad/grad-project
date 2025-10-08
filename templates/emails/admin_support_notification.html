@@ -1,0 +1,44 @@
+{% extends "emails/base.html" %}
+{% load i18n %}
+
+{% block email_title %}{% trans "New Support Request" %}{% endblock %}
+
+{% block email_content %}
+<h1 class="email-title">{% trans "New Support Request Received" %}</h1>
+<p class="email-text">
+    {% trans "A new support request has been submitted that requires your attention." %}
+</p>
+
+<table class="reply-box" role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="text-align: left;">
+    <tr>
+        <td>
+            <div class="reply-title">{% trans "Request Details" %}</div>
+            <div class="reply-content">
+                <strong>{% trans "Title:" %}</strong> {{ request_title }}<br/>
+                <strong>{% trans "Type:" %}</strong> {{ request_type }}<br/>
+                <strong>{% trans "User:" %}</strong> {{ user_name }} ({{ user_email }})<br/>
+                <strong>{% trans "Request ID:" %}</strong> #{{ request_id }}<br/>
+                <br/>
+                <strong>{% trans "Description:" %}</strong><br/>
+                {{ request_description }}
+            </div>
+        </td>
+    </tr>
+</table>
+
+{% if cta_url %}
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin-top: 20px;">
+    <tr>
+        <td style="border-radius: 8px;">
+            <a href="{{ cta_url }}" class="btn-primary">
+                {% trans "View & Respond" %}
+            </a>
+        </td>
+    </tr>
+</table>
+{% endif %}
+
+<p class="signoff">
+    {% trans "AWN Platform Admin System" %}
+</p>
+{% endblock %}

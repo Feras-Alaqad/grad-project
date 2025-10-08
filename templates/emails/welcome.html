@@ -1,0 +1,36 @@
+{% extends "emails/base.html" %}
+{% load i18n %}
+
+{% block email_title %}{% trans "Welcome to AWN Platform!" %}{% endblock %}
+
+{% block email_content %}
+<h1 class="email-title">{% trans "Welcome to AWN Platform!" %} 🎉</h1>
+<p class="email-text">
+    {% blocktrans with name=user_name %}Hi {{ name }},{% endblocktrans %}
+</p>
+<p class="email-text">
+    {% trans "Thank you for joining AWN Platform! We're excited to have you as part of our community." %}
+</p>
+<p class="email-text">
+    {% trans "You can now explore announcements, connect with organizations, and track your applications all in one place." %}
+</p>
+
+{% if cta_url %}
+<div style="text-align: center; margin: 24px 0;">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center">
+        <tr>
+            <td align="center" style="border-radius: 8px; background: #3CB54B;">
+                <a href="{{ cta_url }}" style="background: #3CB54B; color: #ffffff !important; text-decoration: none; padding: 14px 32px; display: inline-block; border-radius: 8px; font-weight: 600; font-size: 16px; min-width: 160px; text-align: center; box-sizing: border-box;">
+                    {{ cta_label|default:_("Get Started") }}
+                </a>
+            </td>
+        </tr>
+    </table>
+</div>
+{% endif %}
+
+<p class="signoff">
+    {% trans "Best regards" %},<br/>
+    <strong>{% trans "The AWN Platform Team" %}</strong>
+</p>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends "emails/base.html" %}
+{% load i18n %}
+
+{% block email_title %}{{ title }}{% endblock %}
+
+{% block email_content %}
+<h1 class="email-title">{{ title }}</h1>
+<p class="email-text">{{ message }}</p>
+
+{% if reply_html %}
+<table class="reply-box" role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+    <tr>
+        <td>
+            <div class="reply-title">{% trans "Additional Information" %}</div>
+            <div class="reply-content">{{ reply_html }}</div>
+        </td>
+    </tr>
+</table>
+{% endif %}
+
+{% if cta_url %}
+<div style="text-align: center; margin: 24px 0;">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center">
+        <tr>
+            <td align="center" style="border-radius: 8px; background: #3CB54B;">
+                <a href="{{ cta_url }}" style="background: #3CB54B; color: #ffffff !important; text-decoration: none; padding: 14px 32px; display: inline-block; border-radius: 8px; font-weight: 600; font-size: 16px; min-width: 160px; text-align: center; box-sizing: border-box;">
+                    {{ cta_label|default:_("Learn More") }}
+                </a>
+            </td>
+        </tr>
+    </table>
+</div>
+{% endif %}
+
+<p class="signoff">
+    {% trans "Best regards" %},<br/>
+    <strong>{{ signoff_text|default:_("AWN Platform") }}</strong>
+</p>
+{% endblock %}

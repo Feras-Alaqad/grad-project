@@ -24,6 +24,9 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # Base URL for constructing absolute URLs (configurable via environment variable)
 BASE_URL = os.environ.get('BASE_URL', 'http://localhost:8000')
 
+# Platform URL for email links
+PLATFORM_URL = os.environ.get('PLATFORM_URL', 'https://awn-three.vercel.app')
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
@@ -70,7 +73,7 @@ ROOT_URLCONF = 'awn.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],  # Added templates directory
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
