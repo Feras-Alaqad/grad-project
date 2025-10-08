@@ -34,7 +34,7 @@ PLATFORM_URL = os.environ.get('PLATFORM_URL', 'https://awn-three.vercel.app')
 SECRET_KEY = 'django-insecure-)n0n8on81l1x+5_szj^0)3m!boj4g^=j3so$x+qk-n2z_&a!)2'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True  # Set to False in production
 
 ALLOWED_HOSTS = ['*']
 

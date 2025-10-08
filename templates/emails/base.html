@@ -262,20 +262,20 @@
                 </table>
                 
                 <!-- Footer -->
-                <table class="footer-block" role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="max-width: 600px;">
+                <table class="footer-block" role="presentation" cellspacing="0" cellpadding="0" border="0" style="max-width: 600px; width: 100%; background: #0b1220; margin-top: 20px; border-radius: 16px;">
                     <tr>
-                        <td align="center">
+                        <td align="center" style="padding: 20px 24px;">
                             {% if logo_url %}
-                            <img src="{{ logo_url }}" alt="{% trans 'AWN Platform' %}" class="footer-logo" onerror="this.style.display='none';" />
+                            <img src="{{ logo_url }}" alt="{% trans 'AWN Platform' %}" class="footer-logo" style="height: 28px; margin-bottom: 12px;" onerror="this.style.display='none';" />
                             {% endif %}
-                            <p class="footer-brand">AWN Platform</p>
+                            <p class="footer-brand" style="margin: 12px 0 0; color: #e5e7eb; font-size: 16px; font-weight: 600;">AWN Platform</p>
                         </td>
                     </tr>
                     <tr>
-                        <td class="footer-links" align="center">
-                            <a href="mailto:awnpaltform@gmail.com" class="footer-link">{% trans 'Contact Us' %}</a>
-                            •
-                            <a href="https://awn-three.vercel.app" class="footer-link">{% trans 'Visit Website' %}</a>
+                        <td class="footer-links" align="center" style="padding: 0 24px 20px;">
+                            <a href="mailto:awnpaltform@gmail.com" class="footer-link" style="color: #9ca3af; text-decoration: none; font-size: 14px;">{% trans 'Contact Us' %}</a>
+                            <span style="color: #9ca3af; margin: 0 8px;">•</span>
+                            <a href="https://awn-three.vercel.app" class="footer-link" style="color: #9ca3af; text-decoration: none; font-size: 14px;">{% trans 'Visit Website' %}</a>
                         </td>
                     </tr>
                 </table>
