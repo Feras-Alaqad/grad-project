@@ -153,7 +153,7 @@ Thumbs.db
 *.bak
 *.swp
 *~
-
+.env
 # Additional
 .installed.cfg
 *.egg-info/
