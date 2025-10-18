@@ -1,12 +1,9 @@
-{% extends "emails/base.html" %}
-{% load i18n %}
-
-{% block email_title %}{% trans "New Announcement Available!" %}{% endblock %}
-
-{% block email_content %}
+{% extends "emails/base.html" %} {% load i18n %} {% block email_title %}{% trans
+"New Announcement Available!" %}{% endblock %} {% block email_content %}
 <h1 class="email-title">{% trans "New Announcement Available!" %} 📢</h1>
 <p class="email-text">
-  {% trans "A new announcement has been added to AWN Platform that might interest you." %}
+  {% trans "A new announcement has been added to AWN Platform that might
+  interest you." %}
 </p>
 
 <table

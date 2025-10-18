@@ -1,55 +1,86 @@
-{% extends "emails/base.html" %}
-{% load i18n %}
-
-{% block email_title %}{% trans "Welcome to AWN Platform!" %}{% endblock %}
-
-{% block email_content %}
+{% extends "emails/base.html" %} {% load i18n %} {% block email_title %}{% trans
+"Welcome to AWN Platform!" %}{% endblock %} {% block email_content %}
 <h1 class="email-title">{% trans "Welcome to AWN Platform!" %} 🎉</h1>
 <p class="email-text">
-    {% blocktrans with name=user_name %}Hi {{ name }},{% endblocktrans %}
+  {% blocktrans with name=user_name %}Hi {{ name }},{% endblocktrans %}
 </p>
 
 {% if is_organization %}
 <p class="email-text">
-    {% trans "Thank you for registering your organization on AWN Platform! We're excited to have you as part of our community." %}
+  {% trans "Thank you for registering your organization on AWN Platform! We're
+  excited to have you as part of our community." %}
 </p>
-<p class="email-text">
-    {% trans "As an organization, you can now:" %}
-</p>
-<ul style="color: #475569; font-size: 15px; line-height: 1.8; margin: 16px 0; padding-left: 20px;">
-    <li>{% trans "Create and publish announcements to reach potential candidates" %}</li>
-    <li>{% trans "Manage your organization profile and showcase your mission" %}</li>
-    <li>{% trans "Connect with talented individuals looking for opportunities" %}</li>
-    <li>{% trans "Track and manage your announcement applications" %}</li>
+<p class="email-text">{% trans "As an organization, you can now:" %}</p>
+<ul
+  style="
+    color: #475569;
+    font-size: 15px;
+    line-height: 1.8;
+    margin: 16px 0;
+    padding-left: 20px;
+  "
+>
+  <li>
+    {% trans "Create and publish announcements to reach potential candidates" %}
+  </li>
+  <li>
+    {% trans "Manage your organization profile and showcase your mission" %}
+  </li>
+  <li>
+    {% trans "Connect with talented individuals looking for opportunities" %}
+  </li>
+  <li>{% trans "Track and manage your announcement applications" %}</li>
 </ul>
 <p class="email-text">
-    {% trans "Please note that your organization profile will be reviewed by our admin team before it becomes visible to users." %}
+  {% trans "Please note that your organization profile will be reviewed by our
+  admin team before it becomes visible to users." %}
 </p>
 {% else %}
 <p class="email-text">
-    {% trans "Thank you for joining AWN Platform! We're excited to have you as part of our community." %}
+  {% trans "Thank you for joining AWN Platform! We're excited to have you as
+  part of our community." %}
 </p>
 <p class="email-text">
-    {% trans "You can now explore announcements, connect with organizations, and track your applications all in one place." %}
+  {% trans "You can now explore announcements, connect with organizations, and
+  track your applications all in one place." %}
 </p>
-{% endif %}
-
-{% if cta_url %}
-<div style="text-align: center; margin: 24px 0;">
-    <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center">
-        <tr>
-            <td align="center" style="border-radius: 8px; background: #3CB54B;">
-                <a href="{{ cta_url }}" style="background: #3CB54B; color: #ffffff !important; text-decoration: none; padding: 14px 32px; display: inline-block; border-radius: 8px; font-weight: 600; font-size: 16px; min-width: 160px; text-align: center; box-sizing: border-box;">
-                    {{ cta_label|default:_("Get Started") }}
-                </a>
-            </td>
-        </tr>
-    </table>
+{% endif %} {% if cta_url %}
+<div style="text-align: center; margin: 24px 0">
+  <table
+    role="presentation"
+    cellspacing="0"
+    cellpadding="0"
+    border="0"
+    align="center"
+  >
+    <tr>
+      <td align="center" style="border-radius: 8px; background: #3cb54b">
+        <a
+          href="{{ cta_url }}"
+          style="
+            background: #3cb54b;
+            color: #ffffff !important;
+            text-decoration: none;
+            padding: 14px 32px;
+            display: inline-block;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            min-width: 160px;
+            text-align: center;
+            box-sizing: border-box;
+          "
+        >
+          {{ cta_label|default:_("Get Started") }}
+        </a>
+      </td>
+    </tr>
+  </table>
 </div>
 {% endif %}
 
 <p class="signoff">
-    {% trans "Best regards" %},<br/>
-    <strong>{% trans "The AWN Platform Team" %}</strong>
+  {% trans "Best regards" %},<br />
+  <strong>{% trans "The AWN Platform Team" %}</strong>
 </p>
 {% endblock %}
