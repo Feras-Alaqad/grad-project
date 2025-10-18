@@ -95,12 +95,21 @@ WSGI_APPLICATION = 'awn.wsgi.application'
 
 DATABASES = {
     'default': {
+<<<<<<< HEAD
         'ENGINE': os.environ.get('DB_ENGINE'),
         'NAME': os.environ.get('DB_NAME'),         
         'USER': os.environ.get('DB_USER'),           
         'PASSWORD': os.environ.get('DB_PASSWORD'), 
         'HOST': os.environ.get('DB_HOST'),                  
         'PORT': os.environ.get('DB_PORT'),                       
+=======
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'awn',         
+        'USER': 'postgres',           
+        'PASSWORD': 'Awn@db.5200!!', 
+        'HOST': '79.127.138.214',                  
+        'PORT': '5432',                       
+>>>>>>> d2f5e30db9344091f90544f04173d23888003cc3
     }
 }
 
