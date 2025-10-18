@@ -194,8 +194,8 @@ class EmailService:
         subject = _("Welcome to AWN Platform!")
         user_name = user.name if hasattr(user, 'name') else user.email
         
-        if is_organization and hasattr(user, 'organization') and user.organization:
-            user_name = user.organization.name
+        # For organizations, use the user's name (which is the organization name)
+        # The organization model doesn't have a separate name field
         
         context = {
             'user_name': user_name,

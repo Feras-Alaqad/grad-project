@@ -862,12 +862,15 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
         """Override to set created_by field and notify org if pending"""
         instance = serializer.save(created_by=self.request.user)
 
-        if self.request.user.is_authenticated and self.request.user.role == User.Role.ORGANIZATION:
+        # Only send pending notification to organization users who created the announcement
+        if (self.request.user.is_authenticated and 
+            self.request.user.role == User.Role.ORGANIZATION and
+            instance.created_by == self.request.user):
             if instance.status == Announcement.Status.PENDING:
                 Notification.objects.create(
                     user=self.request.user,
-                    title=f"Pending: {instance.title}",
-                    message="Your announcement has been submitted and is pending admin review."
+                    title=f"Pending Announcement: {instance.title}",
+                    message="Your announcement has been submitted and is pending for admin review."
                 )
 
     def perform_update(self, serializer):
@@ -875,12 +878,15 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
         prev_status = serializer.instance.status
         instance = serializer.save()
 
-        if self.request.user.is_authenticated and self.request.user.role == User.Role.ORGANIZATION:
+        # Only send pending notification to organization users who own the announcement
+        if (self.request.user.is_authenticated and 
+            self.request.user.role == User.Role.ORGANIZATION and
+            instance.created_by == self.request.user):
             if instance.status == Announcement.Status.PENDING and prev_status != Announcement.Status.PENDING:
                 Notification.objects.create(
                     user=self.request.user,
-                    title=f"Pending: {instance.title}",
-                    message="Your announcement update is pending admin review."
+                    title=f"Pending Announcement: {instance.title}",
+                    message="Your announcement update is pending for admin review."
                 )
     
     @action(detail=True, methods=['post', 'delete', 'get'], url_path='track-application', permission_classes=[IsAuthenticated])

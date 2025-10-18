@@ -159,3 +159,56 @@ msgstr "Dashboard"
 
 msgid "Admin Panel"
 msgstr "Admin Panel"
+
+# Announcement email translations
+msgid "New Announcement Available!"
+msgstr "New Announcement Available!"
+
+msgid "A new announcement has been added to AWN Platform that might interest you."
+msgstr "A new announcement has been added to AWN Platform that might interest you."
+
+msgid "By:"
+msgstr "By:"
+
+msgid "View Announcement"
+msgstr "View Announcement"
+
+msgid "You're receiving this email because you're a member of AWN Platform. To manage your notification preferences, please visit your account settings."
+msgstr "You're receiving this email because you're a member of AWN Platform. To manage your notification preferences, please visit your account settings."
+
+msgid "Best regards"
+msgstr "Best regards"
+
+msgid "The AWN Platform Team"
+msgstr "The AWN Platform Team"
+
+# Welcome email translations
+msgid "Welcome to AWN Platform!"
+msgstr "Welcome to AWN Platform!"
+
+msgid "Thank you for registering your organization on AWN Platform! We're excited to have you as part of our community."
+msgstr "Thank you for registering your organization on AWN Platform! We're excited to have you as part of our community."
+
+msgid "As an organization, you can now:"
+msgstr "As an organization, you can now:"
+
+msgid "Create and publish announcements to reach potential candidates"
+msgstr "Create and publish announcements to reach potential candidates"
+
+msgid "Manage your organization profile and showcase your mission"
+msgstr "Manage your organization profile and showcase your mission"
+
+msgid "Connect with talented individuals looking for opportunities"
+msgstr "Connect with talented individuals looking for opportunities"
+
+msgid "Track and manage your announcement applications"
+msgstr "Track and manage your announcement applications"
+
+msgid "Please note that your organization profile will be reviewed by our admin team before it becomes visible to users."
+msgstr "Please note that your organization profile will be reviewed by our admin team before it becomes visible to users."
+
+msgid "Thank you for joining AWN Platform! We're excited to have you as part of our community."
+msgstr "Thank you for joining AWN Platform! We're excited to have you as part of our community."
+
+msgid "You can now explore announcements, connect with organizations, and track your applications all in one place."
+msgstr "You can now explore announcements, connect with organizations, and track your applications all in one place."

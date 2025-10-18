@@ -174,3 +174,56 @@ msgstr "زيارة الموقع"
 
 msgid "Regards"
 msgstr "مع أطيب التحيات"
+
+# Announcement email translations
+msgid "New Announcement Available!"
+msgstr "!إعلان جديد متاح"
+
+msgid "A new announcement has been added to AWN Platform that might interest you."
+msgstr "تمت إضافة إعلان جديد إلى منصة AWN قد يهمك."
+
+msgid "By:"
+msgstr ":بواسطة"
+
+msgid "View Announcement"
+msgstr "عرض الإعلان"
+
+msgid "You're receiving this email because you're a member of AWN Platform. To manage your notification preferences, please visit your account settings."
+msgstr "تتلقى هذا البريد الإلكتروني لأنك عضو في منصة AWN. لإدارة تفضيلات الإشعارات، يرجى زيارة إعدادات حسابك."
+
+msgid "Best regards"
+msgstr "مع أطيب التحيات"
+
+msgid "The AWN Platform Team"
+msgstr "فريق منصة AWN"
+
+# Welcome email translations
+msgid "Welcome to AWN Platform!"
+msgstr "!مرحباً بك في منصة AWN"
+
+msgid "Thank you for registering your organization on AWN Platform! We're excited to have you as part of our community."
+msgstr "شكراً لتسجيل منظمتك في منصة AWN! نحن سعداء بانضمامك إلى مجتمعنا."
+
+msgid "As an organization, you can now:"
+msgstr ":كمنظمة، يمكنك الآن"
+
+msgid "Create and publish announcements to reach potential candidates"
+msgstr "إنشاء ونشر الإعلانات للوصول إلى المرشحين المحتملين"
+
+msgid "Manage your organization profile and showcase your mission"
+msgstr "إدارة ملف منظمتك وإظهار رسالتك"
+
+msgid "Connect with talented individuals looking for opportunities"
+msgstr "التواصل مع الأفراد الموهوبين الباحثين عن الفرص"
+
+msgid "Track and manage your announcement applications"
+msgstr "تتبع وإدارة طلبات إعلاناتك"
+
+msgid "Please note that your organization profile will be reviewed by our admin team before it becomes visible to users."
+msgstr "يرجى ملاحظة أن ملف منظمتك سيتم مراجعته من قبل فريق الإدارة قبل أن يصبح مرئياً للمستخدمين."
+
+msgid "Thank you for joining AWN Platform! We're excited to have you as part of our community."
+msgstr "شكراً لانضمامك إلى منصة AWN! نحن سعداء بوجودك كجزء من مجتمعنا."
+
+msgid "You can now explore announcements, connect with organizations, and track your applications all in one place."
+msgstr "يمكنك الآن استكشاف الإعلانات، والتواصل مع المنظمات، وتتبع طلباتك في مكان واحد."

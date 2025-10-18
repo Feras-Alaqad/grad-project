@@ -8,12 +8,31 @@
 <p class="email-text">
     {% blocktrans with name=user_name %}Hi {{ name }},{% endblocktrans %}
 </p>
+
+{% if is_organization %}
+<p class="email-text">
+    {% trans "Thank you for registering your organization on AWN Platform! We're excited to have you as part of our community." %}
+</p>
+<p class="email-text">
+    {% trans "As an organization, you can now:" %}
+</p>
+<ul style="color: #475569; font-size: 15px; line-height: 1.8; margin: 16px 0; padding-left: 20px;">
+    <li>{% trans "Create and publish announcements to reach potential candidates" %}</li>
+    <li>{% trans "Manage your organization profile and showcase your mission" %}</li>
+    <li>{% trans "Connect with talented individuals looking for opportunities" %}</li>
+    <li>{% trans "Track and manage your announcement applications" %}</li>
+</ul>
+<p class="email-text">
+    {% trans "Please note that your organization profile will be reviewed by our admin team before it becomes visible to users." %}
+</p>
+{% else %}
 <p class="email-text">
     {% trans "Thank you for joining AWN Platform! We're excited to have you as part of our community." %}
 </p>
 <p class="email-text">
     {% trans "You can now explore announcements, connect with organizations, and track your applications all in one place." %}
 </p>
+{% endif %}
 
 {% if cta_url %}
 <div style="text-align: center; margin: 24px 0;">
