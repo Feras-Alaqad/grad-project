@@ -1,31 +1,47 @@
-{% extends "emails/base.html" %}
-{% load i18n %}
-
-{% block email_title %}{% trans "Support Request Received" %}{% endblock %}
-
-{% block email_content %}
+{% extends "emails/base.html" %} {% load i18n %} {% block email_title %}{% trans
+"Support Request Received" %}{% endblock %} {% block email_content %}
 <h1 class="email-title">{% trans "Support Request Received" %}</h1>
 <p class="email-text">
-    {% blocktrans with name=user_name title=request_title request_id=request_id %}
-    Hi {{ name }},
-
-Thank you for contacting AWN Support. We acknowledge receipt of your support request titled "{{ title }}" (Reference #{{ request_id }}).
-
-Our support team is reviewing your request and will follow up as soon as possible. You can track the status and updates in the application under Support > My Requests.
-    {% endblocktrans %}
+  {% blocktrans with name=user_name title=request_title request_id=request_id %}
+  Hi {{ name }}, Thank you for contacting AWN Support. We acknowledge receipt of
+  your support request titled "{{ title }}" (Reference #{{ request_id }}). Our
+  support team is reviewing your request and will follow up as soon as possible.
+  You can track the status and updates in the application under Support > My
+  Requests. {% endblocktrans %}
 </p>
 
 {% if cta_url %}
-<div style="text-align: center; margin: 24px 0;">
-    <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center">
-        <tr>
-            <td align="center" style="border-radius: 8px; background: #3CB54B;">
-                <a href="{{ cta_url }}" style="background: #3CB54B; color: #ffffff !important; text-decoration: none; padding: 14px 32px; display: inline-block; border-radius: 8px; font-weight: 600; font-size: 16px; min-width: 160px; text-align: center; box-sizing: border-box;">
-                    {% trans "View My Requests" %}
-                </a>
-            </td>
-        </tr>
-    </table>
+<div style="text-align: center; margin: 24px 0">
+  <table
+    role="presentation"
+    cellspacing="0"
+    cellpadding="0"
+    border="0"
+    align="center"
+  >
+    <tr>
+      <td align="center" style="border-radius: 8px; background: #3cb54b">
+        <a
+          href="{{ cta_url }}"
+          style="
+            background: #3cb54b;
+            color: #ffffff !important;
+            text-decoration: none;
+            padding: 14px 32px;
+            display: inline-block;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            min-width: 160px;
+            text-align: center;
+            box-sizing: border-box;
+          "
+        >
+          {% trans "View My Requests" %}
+        </a>
+      </td>
+    </tr>
+  </table>
 </div>
 {% endif %}
 
@@ -34,7 +50,7 @@ Our support team is reviewing your request and will follow up as soon as possibl
 </p> -->
 
 <p class="signoff">
-    {% trans "Regards" %},<br/>
-    {% trans "AWN Platform Support Team" %}
+  {% trans " Regards" %},<br />
+  {% trans "AWN Platform Support Team" %}
 </p>
 {% endblock %}
