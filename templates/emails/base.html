@@ -399,16 +399,14 @@
                 >
                   <tr>
                     <td align="left">
-                      {% if logo_base64 %} {# Base64 encoded logo - works in all
-                      email clients #}
+                      {% if logo_base64 %}
                       <img
                         src="{{ logo_base64 }}"
                         alt="{% trans 'AWN Platform Logo' %}"
                         class="logo"
                         style="max-width: 150px; height: auto"
                       />
-                      {% elif logo_url %} {# External logo URL - may be blocked
-                      by some email clients #}
+                      {% elif logo_url %}
                       <img
                         src="{{ logo_url }}"
                         alt="{% trans 'AWN Platform Logo' %}"
@@ -425,7 +423,7 @@
                       >
                         AWN Platform
                       </div>
-                      {% else %} {# Fallback text if no logo available #}
+                      {% else %}
                       <div
                         style="
                           font-size: 20px;
@@ -476,8 +474,7 @@
                   data-ogsb="#ffffff"
                   data-ogsc="#000000"
                 >
-                  {% if logo_base64 %} {# Base64 encoded logo - works in all
-                  email clients #}
+                  {% if logo_base64 %}
                   <img
                     src="{{ logo_base64 }}"
                     alt="{% trans 'AWN Platform' %}"
@@ -491,8 +488,7 @@
                       margin-right: auto;
                     "
                   />
-                  {% elif logo_url %} {# External logo URL - may be blocked by
-                  some email clients #}
+                  {% elif logo_url %}
                   <img
                     src="{{ logo_url }}"
                     alt="{% trans 'AWN Platform' %}"

@@ -80,44 +80,15 @@ class EmailService:
     def _get_logo_base64(self) -> Optional[str]:
         """
         Get the logo as base64 encoded string for embedding in emails.
-        Only used in production to ensure logo reliability.
+        DISABLED: Using logo URL instead to keep email size small.
         
         Returns:
-            Base64 encoded image data URL or None if not in production
+            None (base64 encoding disabled)
         """
-        # Only use base64 in production (when PLATFORM_URL is not localhost)
-        platform_url = getattr(settings, 'PLATFORM_URL', '')
-        is_production = platform_url and 'localhost' not in platform_url and '127.0.0.1' not in platform_url
-        
-        if not is_production:
-            # Skip base64 encoding in development
-            return None
-        
-        try:
-            # Try multiple possible logo locations
-            possible_paths = [
-                Path(settings.MEDIA_ROOT) / 'awnlogo.png',
-                Path(settings.BASE_DIR) / 'media' / 'awnlogo.png',
-                Path(settings.BASE_DIR) / 'media' / 'defaults' / 'awnlogo.png',
-            ]
-            
-            logo_path = None
-            for path in possible_paths:
-                if path.exists():
-                    logo_path = path
-                    break
-            
-            if not logo_path:
-                logger.warning("Logo file not found in any expected location")
-                return None
-            
-            # Read and encode the image
-            with open(logo_path, 'rb') as img_file:
-                encoded = base64.b64encode(img_file.read()).decode('utf-8')
-                return f"data:image/png;base64,{encoded}"
-        except Exception as e:
-            logger.error(f"Error encoding logo to base64: {e}")
-            return None
+        # Base64 encoding disabled to reduce email size
+        # Gmail clips emails larger than 102KB
+        # Logo URL is more efficient and works well for production
+        return None
     
     def _render_email_template(self, template_name: str, context: dict) -> tuple:
         """
@@ -130,9 +101,11 @@ class EmailService:
         Returns:
             Tuple of (html_content, plain_text_content)
         """
-        # Add common context variables with both URL and base64 logo
+        # Add common context variables - prioritize URL over base64 for smaller emails
         context.setdefault('logo_url', self._get_logo_url())
-        context.setdefault('logo_base64', self._get_logo_base64())
+        # Don't include base64 logo - it makes emails too large (>1MB)
+        # Gmail will show "view entire message" for emails > 102KB
+        context.setdefault('logo_base64', None)
         context.setdefault('platform_url', self.PLATFORM_URL)
         
         # Render HTML version
