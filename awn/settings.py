@@ -13,6 +13,10 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 from datetime import timedelta
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -22,21 +26,21 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 # Base URL for constructing absolute URLs (configurable via environment variable)
-BASE_URL = os.environ.get('BASE_URL', 'http://localhost:8000')
+BASE_URL = os.environ.get('BASE_URL')
 
 # Platform URL for email links
-PLATFORM_URL = os.environ.get('PLATFORM_URL', 'https://awn-three.vercel.app')
+PLATFORM_URL = os.environ.get('PLATFORM_URL')
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-)n0n8on81l1x+5_szj^0)3m!boj4g^=j3so$x+qk-n2z_&a!)2'
+SECRET_KEY = os.environ.get('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True  # Set to False in production
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',')
 
 
 # Application definition
@@ -91,12 +95,12 @@ WSGI_APPLICATION = 'awn.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'awn',         
-        'USER': 'postgres',           
-        'PASSWORD': 'Awn@db.5200!!', 
-        'HOST': '79.127.138.214',                  
-        'PORT': '5432',                       
+        'ENGINE': os.environ.get('DB_ENGINE'),
+        'NAME': os.environ.get('DB_NAME'),         
+        'USER': os.environ.get('DB_USER'),           
+        'PASSWORD': os.environ.get('DB_PASSWORD'), 
+        'HOST': os.environ.get('DB_HOST'),                  
+        'PORT': os.environ.get('DB_PORT'),                       
     }
 }
 
@@ -155,7 +159,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 from django.utils.translation import gettext_lazy as _
 
-LANGUAGE_CODE = 'en'  # اللغة الافتراضية للعربية
+LANGUAGE_CODE = os.environ.get('LANGUAGE_CODE', 'en')
 
 LANGUAGES = (
     ('ar', _('Arabic')),   # إضافة اللغة العربية
@@ -171,20 +175,20 @@ LANGUAGE_BIDI = True  # لأن العربية لغة تُكتب من اليمي�
 AUTH_USER_MODEL = 'api.User'
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=int(os.environ.get('JWT_ACCESS_TOKEN_LIFETIME_DAYS'))),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=int(os.environ.get('JWT_REFRESH_TOKEN_LIFETIME_DAYS'))),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
 }
 
 # إعدادات البريد الإلكتروني
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'  
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'awnpaltform@gmail.com'  
-EMAIL_HOST_PASSWORD = 'ivgiuriekdhepasz'  
-DEFAULT_FROM_EMAIL = 'AWN Platform <awnpaltform@gmail.com>'
+EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND')
+EMAIL_HOST = os.environ.get('EMAIL_HOST')  
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT'))
+EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'False') == 'True'
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')  
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')  
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL')
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
@@ -192,26 +196,7 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # Base URL for building absolute URLs - configured at top of file with environment variable
 
 # CORS settings
-CORS_ALLOWED_ORIGINS = [
-    "https://preview--chime-comms.lovable.app",
-    "https://chime-comms.lovable.app", 
-    "https://lovable.app",
-    "http://localhost:3000",
-    "https://localhost:3000",
-    "http://localhost:3001",
-    "https://localhost:3001",
-    "http://localhost:3002",
-    "http://127.0.0.1:8000",
-    "http://127.0.0.1:3000",
-    "http://127.0.0.1:3001",
-    "http://127.0.0.1:3002",
-    "https://awn-three.vercel.app",
-    "http://mrs.infnet.tech",
-    "https://mrs.infnet.tech",
-    "https://mrs.infnet.tech:8001",
-    "http://infnet.tech",
-    "https://infnet.tech",
-]
+CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', '').split(',')
 
 # Allow any Vercel preview domains
 CORS_ALLOWED_ORIGIN_REGEXES = [
@@ -221,21 +206,7 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
 CORS_ALLOW_CREDENTIALS = True
 
 # Allow these origins to make state-changing requests (Django CSRF checks)
-CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:3000",
-    "https://localhost:3000",
-    "http://localhost:3001",
-    "https://localhost:3001",
-    "http://localhost:3002",
-    "https://localhost:3002",
-    "https://awn-three.vercel.app",
-    "https://awn-aao5ksjjj-ahmedalabadlas-projects.vercel.app",
-    "http://mrs.infnet.tech",
-    "https://mrs.infnet.tech",
-    "https://mrs.infnet.tech:8001",
-    "http://infnet.tech",
-    "https://infnet.tech",
-]
+CSRF_TRUSTED_ORIGINS = os.environ.get('CSRF_TRUSTED_ORIGINS', '').split(',')
 
 CORS_ALLOW_ALL_ORIGINS = DEBUG  # Allow all in development to unblock testing
 

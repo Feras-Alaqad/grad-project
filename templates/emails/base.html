@@ -1,320 +1,576 @@
 {% load i18n %}
 <!DOCTYPE html>
-<html lang="{% get_current_language as LANGUAGE_CODE %}{{ LANGUAGE_CODE|default:'en' }}">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="color-scheme" content="light dark">
-    <meta name="supported-color-schemes" content="light dark">
+<html
+  lang="{% get_current_language as LANGUAGE_CODE %}{{ LANGUAGE_CODE|default:'en' }}"
+>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="supported-color-schemes" content="light dark" />
     <title>{% block email_title %}AWN Platform{% endblock %}</title>
     <style>
-        /* Reset styles */
-        body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
-        table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
-        img { -ms-interpolation-mode: bicubic; border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; }
-        
-        /* Base styles */
+      /* Reset styles */
+      body,
+      table,
+      td,
+      a {
+        -webkit-text-size-adjust: 100%;
+        -ms-text-size-adjust: 100%;
+      }
+      table,
+      td {
+        mso-table-lspace: 0pt;
+        mso-table-rspace: 0pt;
+      }
+      img {
+        -ms-interpolation-mode: bicubic;
+        border: 0;
+        height: auto;
+        line-height: 100%;
+        outline: none;
+        text-decoration: none;
+      }
+
+      /* Base styles */
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100% !important;
+        background-color: #f3f4f6;
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display",
+          "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      }
+
+      /* Color variables */
+      :root {
+        --primary-color: #3cb54b;
+        --primary-dark: #0b1220;
+        --bg-color: #f3f4f6;
+        --text-primary: #0f172a;
+        --text-secondary: #374151;
+        --border-color: #e5e7eb;
+      }
+
+      /* Dark mode support */
+      @media (prefers-color-scheme: dark) {
         body {
-            margin: 0;
-            padding: 0;
-            width: 100% !important;
-            background-color: #f3f4f6;
-            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+          background-color: #0b1220 !important;
         }
-        
-        /* Color variables */
-        :root {
-            --primary-color: #3CB54B;
-            --primary-dark: #0b1220;
-            --bg-color: #f3f4f6;
-            --text-primary: #0f172a;
-            --text-secondary: #374151;
-            --border-color: #e5e7eb;
+        .email-wrapper {
+          background-color: #0b1220 !important;
         }
-        
-        /* Dark mode support */
-        @media (prefers-color-scheme: dark) {
-            body { background-color: #0b1220 !important; }
-            .email-wrapper { background-color: #0b1220 !important; }
-            .email-card { background: #1a202c !important; border-color: #2d3748 !important; }
-            .email-header { background: #1a202c !important; }
-            .email-title { color: #f7fafc !important; }
-            .email-text { color: #e2e8f0 !important; }
-            .email-text a { color: #4ade80 !important; }
-            .reply-box { background: #111827 !important; border-color: #374151 !important; }
-            /* Footer: Black background in dark mode */
-            .footer-block { background-color: #000000 !important; }
-            .footer-block div { background-color: #000000 !important; }
-            .footer-brand { color: #ffffff !important; }
-            .footer-brand span { color: #ffffff !important; }
-            .footer-link { color: #cccccc !important; }
-            .footer-link span { color: #cccccc !important; }
-            .footer-links span { color: #cccccc !important; }
-            .btn-primary { background: #4ade80 !important; color: #0f172a !important; }
-            .warning-box { background: #1e3a8a !important; border-color: #60a5fa !important; }
-            .warning-box p { color: #bfdbfe !important; }
-            .warning-box strong { color: #dbeafe !important; }
-        }
-        
-        /* Gmail dark mode override */
-        u + .email-wrapper .footer-block { background-color: #000000 !important; }
-        u + .email-wrapper .footer-brand { color: #ffffff !important; }
-        u + .email-wrapper .footer-link { color: #cccccc !important; }
-        
-        /* Force dark mode for Gmail */
-        [data-ogsc] .footer-block { background-color: #000000 !important; }
-        [data-ogsc] .footer-brand { color: #ffffff !important; }
-        [data-ogsc] .footer-link { color: #cccccc !important; }
-        
-        /* Gmail dark mode specific overrides */
-        @media (prefers-color-scheme: dark) {
-            [data-ogsc] .footer-block { background-color: #0b1220 !important; }
-            [data-ogsc] .footer-brand { color: #e5e7eb !important; }
-            [data-ogsc] .footer-link { color: #9ca3af !important; }
-            u + .body .footer-block { background-color: #0b1220 !important; }
-        }
-        
-        /* Base styles */
-        body {
-            margin: 0;
-            padding: 0;
-            width: 100% !important;
-            background-color: #f3f4f6;
-            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-        }
-        
-        /* Color variables */
-        :root {
-            --primary-color: #3CB54B;
-            --primary-dark: #0b1220;
-            --bg-color: #f3f4f6;
-            --text-primary: #0f172a;
-            --text-secondary: #374151;
-            --border-color: #e5e7eb;
-        }
-        
-        /* Dark mode support */
-        @media (prefers-color-scheme: dark) {
-            body { background-color: #0b1220 !important; }
-            .email-wrapper { background-color: #0b1220 !important; }
-            .email-card { background: #1a202c !important; border-color: #2d3748 !important; }
-            .email-header { background: #1a202c !important; }
-            .email-title { color: #f7fafc !important; }
-            .email-text { color: #e2e8f0 !important; }
-            .reply-box { background: #111827 !important; border-color: #374151 !important; }
-            .footer-block { background: #0b1220 !important; }
-            .footer-link { color: #cbd5e1 !important; }
-            .btn-primary { background: #7c8cfb !important; }
-        }
-        
-        /* Responsive styles */
-        @media only screen and (max-width: 600px) {
-            .email-card { width: 100% !important; border-radius: 12px !important; }
-            .email-title { font-size: 24px !important; }
-            .email-text { font-size: 16px !important; }
-            .footer-links { text-align: center !important; }
-        }
-        
-        /* Component styles */
         .email-card {
-            max-width: 600px;
-            background: #ffffff;
-            border: 1px solid #e5e7eb;
-            border-radius: 16px;
+          background: #1a202c !important;
+          border-color: #2d3748 !important;
         }
-        
         .email-header {
-            background: #ffffff;
-            border-top-left-radius: 16px;
-            border-top-right-radius: 16px;
-            padding: 16px 24px;
+          background: #1a202c !important;
         }
-        
-        .logo {
-            height: 28px;
-            display: block;
-        }
-        
-        .email-body {
-            padding: 28px 24px 24px;
-            text-align: center;
-        }
-        
         .email-title {
-            margin: 0 0 10px;
-            font-size: 28px;
-            color: #0f172a;
-            font-weight: 700;
-            letter-spacing: -0.5px;
+          color: #f7fafc !important;
         }
-        
         .email-text {
-            margin: 0 0 20px;
-            color: #374151;
-            font-size: 16px;
-            line-height: 1.6;
-            white-space: pre-line;
+          color: #e2e8f0 !important;
         }
-        
-        .btn-primary {
-            background: #3CB54B;
-            color: #ffffff !important;
-            text-decoration: none;
-            padding: 14px 32px;
-            display: inline-block;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 16px;
-            margin: 10px auto;
-            text-align: center;
-            min-width: 180px;
+        .email-text a {
+          color: #4ade80 !important;
         }
-        
-        .btn-primary:hover {
-            background: #2ea03d;
-        }
-        
         .reply-box {
-            margin: 12px 0 4px;
-            background: #f9fafb;
-            border: 1px solid #e5e7eb;
-            border-radius: 12px;
-            padding: 16px 18px;
-            text-align: left;
+          background: #111827 !important;
+          border-color: #374151 !important;
         }
-        
-        .reply-title {
-            font-weight: 600;
-            color: #0f172a;
-            margin-bottom: 8px;
-            font-size: 15px;
-        }
-        
-        .reply-content {
-            color: #374151;
-            font-size: 15px;
-            line-height: 1.7;
-            white-space: pre-line;
-        }
-        
+        /* Footer: Black background in dark mode */
         .footer-block {
-            background: #0b1220;
-            padding: 20px 24px;
-            text-align: center;
+          background-color: #000000 !important;
         }
-        
-        .footer-logo {
-            height: 28px;
-            margin-bottom: 12px;
+        .footer-block div {
+          background-color: #000000 !important;
         }
-        
         .footer-brand {
-            margin: 12px 0 0;
-            color: #e5e7eb;
-            font-size: 16px;
-            font-weight: 600;
+          color: #ffffff !important;
         }
-        
-        .footer-links {
-            padding: 8px 24px;
-            font-size: 14px;
-            text-align: center;
-            color: #cbd5e1;
+        .footer-brand span {
+          color: #ffffff !important;
         }
-        
         .footer-link {
-            color: #cbd5e1 !important;
-            text-decoration: none !important;
+          color: #cccccc !important;
         }
-        
-        .signoff {
-            margin: 18px 0 0;
-            color: #64748b;
-            font-size: 14px;
-            font-weight: 500;
+        .footer-link span {
+          color: #cccccc !important;
         }
-        
+        .footer-links span {
+          color: #cccccc !important;
+        }
+        .btn-primary {
+          background: #4ade80 !important;
+          color: #0f172a !important;
+        }
         .warning-box {
-            background: #fef3c7;
-            border-left: 4px solid #f59e0b;
-            padding: 12px 16px;
-            margin: 24px 0;
-            border-radius: 4px;
-            text-align: left;
+          background: #1e3a8a !important;
+          border-color: #60a5fa !important;
         }
-        
         .warning-box p {
-            margin: 0;
-            font-size: 14px;
-            color: #92400e;
-            line-height: 1.5;
+          color: #bfdbfe !important;
         }
+        .warning-box strong {
+          color: #dbeafe !important;
+        }
+      }
+
+      /* Gmail dark mode override */
+      u + .email-wrapper .footer-block {
+        background-color: #000000 !important;
+      }
+      u + .email-wrapper .footer-brand {
+        color: #ffffff !important;
+      }
+      u + .email-wrapper .footer-link {
+        color: #cccccc !important;
+      }
+
+      /* Force dark mode for Gmail */
+      [data-ogsc] .footer-block {
+        background-color: #000000 !important;
+      }
+      [data-ogsc] .footer-brand {
+        color: #ffffff !important;
+      }
+      [data-ogsc] .footer-link {
+        color: #cccccc !important;
+      }
+
+      /* Gmail dark mode specific overrides */
+      @media (prefers-color-scheme: dark) {
+        [data-ogsc] .footer-block {
+          background-color: #0b1220 !important;
+        }
+        [data-ogsc] .footer-brand {
+          color: #e5e7eb !important;
+        }
+        [data-ogsc] .footer-link {
+          color: #9ca3af !important;
+        }
+        u + .body .footer-block {
+          background-color: #0b1220 !important;
+        }
+      }
+
+      /* Base styles */
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100% !important;
+        background-color: #f3f4f6;
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display",
+          "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      }
+
+      /* Color variables */
+      :root {
+        --primary-color: #3cb54b;
+        --primary-dark: #0b1220;
+        --bg-color: #f3f4f6;
+        --text-primary: #0f172a;
+        --text-secondary: #374151;
+        --border-color: #e5e7eb;
+      }
+
+      /* Dark mode support */
+      @media (prefers-color-scheme: dark) {
+        body {
+          background-color: #0b1220 !important;
+        }
+        .email-wrapper {
+          background-color: #0b1220 !important;
+        }
+        .email-card {
+          background: #1a202c !important;
+          border-color: #2d3748 !important;
+        }
+        .email-header {
+          background: #1a202c !important;
+        }
+        .email-title {
+          color: #f7fafc !important;
+        }
+        .email-text {
+          color: #e2e8f0 !important;
+        }
+        .reply-box {
+          background: #111827 !important;
+          border-color: #374151 !important;
+        }
+        .footer-block {
+          background: #0b1220 !important;
+        }
+        .footer-link {
+          color: #cbd5e1 !important;
+        }
+        .btn-primary {
+          background: #7c8cfb !important;
+        }
+      }
+
+      /* Responsive styles */
+      @media only screen and (max-width: 600px) {
+        .email-card {
+          width: 100% !important;
+          border-radius: 12px !important;
+        }
+        .email-title {
+          font-size: 24px !important;
+        }
+        .email-text {
+          font-size: 16px !important;
+        }
+        .footer-links {
+          text-align: center !important;
+        }
+      }
+
+      /* Component styles */
+      .email-card {
+        max-width: 600px;
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 16px;
+      }
+
+      .email-header {
+        background: #ffffff;
+        border-top-left-radius: 16px;
+        border-top-right-radius: 16px;
+        padding: 16px 24px;
+      }
+
+      .logo {
+        height: 28px;
+        display: block;
+      }
+
+      .email-body {
+        padding: 28px 24px 24px;
+        text-align: center;
+      }
+
+      .email-title {
+        margin: 0 0 10px;
+        font-size: 28px;
+        color: #0f172a;
+        font-weight: 700;
+        letter-spacing: -0.5px;
+      }
+
+      .email-text {
+        margin: 0 0 20px;
+        color: #374151;
+        font-size: 16px;
+        line-height: 1.6;
+        white-space: pre-line;
+      }
+
+      .btn-primary {
+        background: #3cb54b;
+        color: #ffffff !important;
+        text-decoration: none;
+        padding: 14px 32px;
+        display: inline-block;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 16px;
+        margin: 10px auto;
+        text-align: center;
+        min-width: 180px;
+      }
+
+      .btn-primary:hover {
+        background: #2ea03d;
+      }
+
+      .reply-box {
+        margin: 12px 0 4px;
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 16px 18px;
+        text-align: left;
+      }
+
+      .reply-title {
+        font-weight: 600;
+        color: #0f172a;
+        margin-bottom: 8px;
+        font-size: 15px;
+      }
+
+      .reply-content {
+        color: #374151;
+        font-size: 15px;
+        line-height: 1.7;
+        white-space: pre-line;
+      }
+
+      .footer-block {
+        background: #0b1220;
+        padding: 20px 24px;
+        text-align: center;
+      }
+
+      .footer-logo {
+        height: 28px;
+        margin-bottom: 12px;
+      }
+
+      .footer-brand {
+        margin: 12px 0 0;
+        color: #e5e7eb;
+        font-size: 16px;
+        font-weight: 600;
+      }
+
+      .footer-links {
+        padding: 8px 24px;
+        font-size: 14px;
+        text-align: center;
+        color: #cbd5e1;
+      }
+
+      .footer-link {
+        color: #cbd5e1 !important;
+        text-decoration: none !important;
+      }
+
+      .signoff {
+        margin: 18px 0 0;
+        color: #64748b;
+        font-size: 14px;
+        font-weight: 500;
+      }
+
+      .warning-box {
+        background: #fef3c7;
+        border-left: 4px solid #f59e0b;
+        padding: 12px 16px;
+        margin: 24px 0;
+        border-radius: 4px;
+        text-align: left;
+      }
+
+      .warning-box p {
+        margin: 0;
+        font-size: 14px;
+        color: #92400e;
+        line-height: 1.5;
+      }
     </style>
     {% block extra_styles %}{% endblock %}
-</head>
-<body>
-    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" class="email-wrapper">
-        <tr>
-            <td align="center" style="padding: 24px;">
-                <!-- Main Email Card -->
-                <table class="email-card" role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px;">
-                    <!-- Header -->
-                    <tr>
-                        <td class="email-header">
-                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
-                                <tr>
-                                    <td align="left">
-                                        {% if logo_url %}
-                                        <img src="{{ logo_url }}" alt="{% trans 'AWN Platform Logo' %}" class="logo" />
-                                        {% else %}
-                                        <div style="font-size: 20px; font-weight: 700; color: #3CB54B;">AWN Platform</div>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                            </table>
-                        </td>
-                    </tr>
-                    
-                    <!-- Body Content -->
-                    <tr>
-                        <td class="email-body" align="center">
-                            {% block email_content %}
-                            <!-- Email content goes here -->
-                            {% endblock %}
-                        </td>
-                    </tr>
-                    
-                    <!-- Footer (now part of main card) -->
-                    <tr>
-                        <td class="footer-block" align="center" style="background-color: #ffffff !important; padding: 20px 24px; border-bottom-left-radius: 16px; border-bottom-right-radius: 16px;" bgcolor="#ffffff" data-ogsb="#ffffff" data-ogsc="#000000">
-                            <!--[if mso]>
+  </head>
+  <body>
+    <table
+      role="presentation"
+      cellspacing="0"
+      cellpadding="0"
+      border="0"
+      width="100%"
+      class="email-wrapper"
+    >
+      <tr>
+        <td align="center" style="padding: 24px">
+          <!-- Main Email Card -->
+          <table
+            class="email-card"
+            role="presentation"
+            cellspacing="0"
+            cellpadding="0"
+            border="0"
+            width="100%"
+            style="max-width: 600px"
+          >
+            <!-- Header -->
+            <tr>
+              <td class="email-header">
+                <table
+                  role="presentation"
+                  width="100%"
+                  cellspacing="0"
+                  cellpadding="0"
+                  border="0"
+                >
+                  <tr>
+                    <td align="left">
+                      {% if logo_base64 %} {# Base64 encoded logo - works in all
+                      email clients #}
+                      <img
+                        src="{{ logo_base64 }}"
+                        alt="{% trans 'AWN Platform Logo' %}"
+                        class="logo"
+                        style="max-width: 150px; height: auto"
+                      />
+                      {% elif logo_url %} {# External logo URL - may be blocked
+                      by some email clients #}
+                      <img
+                        src="{{ logo_url }}"
+                        alt="{% trans 'AWN Platform Logo' %}"
+                        class="logo"
+                        onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+                      />
+                      <div
+                        style="
+                          display: none;
+                          font-size: 20px;
+                          font-weight: 700;
+                          color: #3cb54b;
+                        "
+                      >
+                        AWN Platform
+                      </div>
+                      {% else %} {# Fallback text if no logo available #}
+                      <div
+                        style="
+                          font-size: 20px;
+                          font-weight: 700;
+                          color: #3cb54b;
+                        "
+                      >
+                        AWN Platform
+                      </div>
+                      {% endif %}
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- Body Content -->
+            <tr>
+              <td class="email-body" align="center">
+                {% block email_content %}
+                <!-- Email content goes here -->
+                {% endblock %}
+              </td>
+            </tr>
+
+            <!-- Footer (now part of main card) -->
+            <tr>
+              <td
+                class="footer-block"
+                align="center"
+                style="
+                  background-color: #ffffff !important;
+                  padding: 20px 24px;
+                  border-bottom-left-radius: 16px;
+                  border-bottom-right-radius: 16px;
+                "
+                bgcolor="#ffffff"
+                data-ogsb="#ffffff"
+                data-ogsc="#000000"
+              >
+                <!--[if mso]>
                             <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                             <tr>
                             <td>
                             <![endif]-->
-                            <div style="background-color: #ffffff; padding: 0;" data-ogsb="#ffffff" data-ogsc="#000000">
-                                {% if logo_url %}
-                                <img src="{{ logo_url }}" alt="{% trans 'AWN Platform' %}" class="footer-logo" style="height: 28px; margin-bottom: 12px; display: block; margin-left: auto; margin-right: auto;" onerror="this.style.display='none';" />
-                                {% endif %}
-                                <p class="footer-brand" style="margin: 12px 0 12px 0; color: #1f2937 !important; font-size: 16px; font-weight: 600; mso-line-height-rule: exactly;" data-ogsc="#1f2937">
-                                    <span style="color: #1f2937 !important;" data-ogsc="#ffffff">AWN Platform</span>
-                                </p>
-                                <div class="footer-links" style="text-align: center;">
-                                    <a href="mailto:awnpaltform@gmail.com" class="footer-link" style="color: #6b7280 !important; text-decoration: none; font-size: 14px;" target="_blank" data-ogsc="#6b7280"><span style="color: #6b7280 !important;" data-ogsc="#cccccc">{% trans 'Contact Us' %}</span></a>
-                                    <span style="color: #6b7280 !important; margin: 0 8px;" data-ogsc="#cccccc">•</span>
-                                    <a href="https://awn-three.vercel.app" class="footer-link" style="color: #6b7280 !important; text-decoration: none; font-size: 14px;" target="_blank" data-ogsc="#6b7280"><span style="color: #6b7280 !important;" data-ogsc="#cccccc">{% trans 'Visit Website' %}</span></a>
-                                </div>
-                            </div>
-                            <!--[if mso]>
+                <div
+                  style="background-color: #ffffff; padding: 0"
+                  data-ogsb="#ffffff"
+                  data-ogsc="#000000"
+                >
+                  {% if logo_base64 %} {# Base64 encoded logo - works in all
+                  email clients #}
+                  <img
+                    src="{{ logo_base64 }}"
+                    alt="{% trans 'AWN Platform' %}"
+                    class="footer-logo"
+                    style="
+                      max-width: 150px;
+                      height: auto;
+                      margin-bottom: 12px;
+                      display: block;
+                      margin-left: auto;
+                      margin-right: auto;
+                    "
+                  />
+                  {% elif logo_url %} {# External logo URL - may be blocked by
+                  some email clients #}
+                  <img
+                    src="{{ logo_url }}"
+                    alt="{% trans 'AWN Platform' %}"
+                    class="footer-logo"
+                    style="
+                      height: 28px;
+                      margin-bottom: 12px;
+                      display: block;
+                      margin-left: auto;
+                      margin-right: auto;
+                    "
+                    onerror="this.style.display='none';"
+                  />
+                  {% endif %}
+                  <p
+                    class="footer-brand"
+                    style="
+                      margin: 12px 0 12px 0;
+                      color: #1f2937 !important;
+                      font-size: 16px;
+                      font-weight: 600;
+                    "
+                    data-ogsc="#1f2937"
+                  >
+                    <span style="color: #1f2937 !important" data-ogsc="#ffffff"
+                      >AWN Platform</span
+                    >
+                  </p>
+                  <div class="footer-links" style="text-align: center">
+                    <a
+                      href="mailto:awnpaltform@gmail.com"
+                      class="footer-link"
+                      style="
+                        color: #6b7280 !important;
+                        text-decoration: none;
+                        font-size: 14px;
+                      "
+                      target="_blank"
+                      data-ogsc="#6b7280"
+                      ><span
+                        style="color: #6b7280 !important"
+                        data-ogsc="#cccccc"
+                        >{% trans 'Contact Us' %}</span
+                      ></a
+                    >
+                    <span
+                      style="color: #6b7280 !important; margin: 0 8px"
+                      data-ogsc="#cccccc"
+                      >•</span
+                    >
+                    <a
+                      href="https://awn-three.vercel.app"
+                      class="footer-link"
+                      style="
+                        color: #6b7280 !important;
+                        text-decoration: none;
+                        font-size: 14px;
+                      "
+                      target="_blank"
+                      data-ogsc="#6b7280"
+                      ><span
+                        style="color: #6b7280 !important"
+                        data-ogsc="#cccccc"
+                        >{% trans 'Visit Website' %}</span
+                      ></a
+                    >
+                  </div>
+                </div>
+                <!--[if mso]>
                             </td>
                             </tr>
                             </table>
                             <![endif]-->
-                        </td>
-                    </tr>
-                </table>
-            </td>
-        </tr>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
     </table>
-</body>
+  </body>
 </html>

@@ -134,21 +134,14 @@ class UserSignupView(APIView):
         if serializer.is_valid():
             user = serializer.save()
             
-            # Send welcome email
+            # Send welcome notification and email
             try:
-                subject = _("Welcome to AWN Platform!")
-                html_message = render_welcome_email(user.name, user.email, request)
-                send_mail(
-                    subject=subject,
-                    message="",  # Plain text version (empty since we're using HTML)
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=[user.email],
-                    html_message=html_message,
-                    fail_silently=True  # Don't fail registration if email fails
-                )
+                from api.utils.notification_utils import NotificationManager
+                notification_manager = NotificationManager(request)
+                notification_manager.notify_welcome(user, is_organization=False)
             except Exception as e:
                 # Log the error but don't fail the registration
-                print(f"Failed to send welcome email to {user.email}: {str(e)}")
+                print(f"Failed to send welcome notification to {user.email}: {str(e)}")
             
             # إنشاء توكن وريفريش
             refresh = RefreshToken.for_user(user)
@@ -199,23 +192,12 @@ class OrganizationSignupView(APIView):
 
             # إرسال بريد الترحيب للمنظمة
             try:
-                organization_name = user.organization.name if hasattr(user, 'organization') and user.organization else user.email
-                welcome_email_html = render_welcome_email(
-                    user_name=organization_name,
-                    user_email=user.email,
-                    is_organization=True
-                )
-                send_mail(
-                    subject='Welcome to Our Platform - Organization Registration Successful',
-                    message='',
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=[user.email],
-                    html_message=welcome_email_html,
-                    fail_silently=True,
-                )
+                from api.utils.notification_utils import NotificationManager
+                notification_manager = NotificationManager(request)
+                notification_manager.notify_welcome(user, is_organization=True)
             except Exception as e:
                 # لا نريد أن يفشل التسجيل بسبب مشكلة في الإيميل
-                print(f"Failed to send welcome email to organization {user.email}: {str(e)}")
+                print(f"Failed to send welcome notification to organization {user.email}: {str(e)}")
 
             return Response({
                 "success": True,
@@ -760,26 +742,45 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(announcement, data=request.data, partial=True)
         
         if serializer.is_valid():
+            old_status = announcement.status
             serializer.save()
             
-            # Send notification to organization user (org page) with status as title and admin notes as body
+            from api.utils.notification_utils import NotificationManager
+            notification_manager = NotificationManager(request)
+            
+            # Send notification to organization user about status change
             status_display = (announcement.status or "").title()
             target_user = None
-
             
             if getattr(announcement, "organization", None) and getattr(announcement.organization, "user", None):
                 target_user = announcement.organization.user
-            
             elif announcement.created_by and announcement.created_by.role == User.Role.ORGANIZATION:
                 target_user = announcement.created_by
-            #
+            
             created_notification = None
             if target_user:
-                created_notification = Notification.objects.create(
-                    user=target_user,
-                    title=(f"{status_display}: {announcement.title}" if status_display else f"Status: {announcement.title}"),
-                    message=(announcement.admin_notes.strip() if announcement.admin_notes else f"Your announcement '{announcement.title}' was {status_display.lower() if status_display else 'updated' } by admin.")
+                created_notification = notification_manager.notify_announcement_status_change(
+                    announcement=announcement,
+                    organization_user=target_user,
+                    status=announcement.status,
+                    admin_notes=announcement.admin_notes
                 )
+            
+            # If announcement was just approved, notify all users
+            if announcement.status == Announcement.Status.APPROVED and old_status != Announcement.Status.APPROVED:
+                try:
+                    # Get all regular users
+                    all_users = User.objects.filter(role=User.Role.USER, is_active=True)
+                    
+                    # Notify all users about new announcement
+                    notification_manager.notify_announcement_approved(
+                        announcement=announcement,
+                        users=list(all_users)
+                    )
+                    
+                    print(f"Notified {all_users.count()} users about new announcement: {announcement.title}")
+                except Exception as e:
+                    print(f"Failed to notify users about new announcement: {str(e)}")
             
             return Response({
                 'success': True,
@@ -1058,6 +1059,25 @@ class CreateAnnouncementsView(APIView):
         if serializer.is_valid():
             # Set the creator, it will retuen the name of the creator of the announcement, if admin it will retuen the admin name, so condider this to do not view it or i will remove it in the production version //mhnd
             announcement = serializer.save(created_by=request.user)
+            
+            # If admin creates an approved announcement, notify all users
+            if announcement.status == Announcement.Status.APPROVED and request.user.role == User.Role.ADMIN:
+                try:
+                    from api.utils.notification_utils import NotificationManager
+                    notification_manager = NotificationManager(request)
+                    
+                    # Get all regular users
+                    all_users = User.objects.filter(role=User.Role.USER, is_active=True)
+                    
+                    # Notify all users about new announcement
+                    notification_manager.notify_announcement_approved(
+                        announcement=announcement,
+                        users=list(all_users)
+                    )
+                    
+                    print(f"Notified {all_users.count()} users about new admin announcement: {announcement.title}")
+                except Exception as e:
+                    print(f"Failed to notify users about new announcement: {str(e)}")
             
             # Return detailed response
             response_serializer = AnnouncementDetailSerializer(announcement)
@@ -1928,62 +1948,27 @@ def create_support_request(request):
         support_request = serializer.save(user=request.user)
         response_serializer = HelpSupportSerializer(support_request)
 
+        from api.utils.notification_utils import NotificationManager
+        notification_manager = NotificationManager(request)
+        
+        created_notification = None
         if support_request.type in [HelpSupport.SupportType.SYSTEM, HelpSupport.SupportType.OTHER]:
-            subject = "Support Request Received"
-            message = (
-                f"Dear {support_request.user.name or support_request.user.email},\n\n"
-                f"Thank you for contacting AWN Support. We acknowledge receipt of your support request titled \"{support_request.title}\" (Reference #{support_request.id}).\n\n"
-                "Our support team is reviewing your request and will follow up as soon as possible. You can track the status and updates in the application under Support > My Requests.\n\n"
-                "If you need to provide additional information, please update your request in the application rather than replying to this email.\n\n"
-            )
-            html_message = render_notification_email(
-                title=_("Support Request Received"),
-                message=(
-                    f"Dear {support_request.user.name or support_request.user.email},\n\n"
-                    f"Thank you for contacting AWN Support. We acknowledge receipt of your support request titled \"{support_request.title}\" (Reference #{support_request.id}).\n\n"
-                    "Our support team is reviewing your request and will follow up as soon as possible. You can track the status and updates in the application under Support > My Requests.\n\n"
-                    "If you need to provide additional information, please update your request in the application rather than replying to this email.\n\n"
-                ),
-                request=request,
-                cta_url="https://awn-three.vercel.app/",
-                cta_label=_("View My Requests"),
-                signoff_text=_('AWN Platform Support Team')
-            )
-            recipient_list = [support_request.user.email]
-
-            try:
-                send_mail(
-                    subject=subject,
-                    message=message,
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=recipient_list,
-                    html_message=html_message,
-                    fail_silently=False,
-                )
-            except Exception as e:
-                print(f"Failed to send email: {str(e)}")
-            created_notification = Notification.objects.create(
-                user=support_request.user,
-                title=f"Support Ticket Received: {support_request.title}",
-                message="We have received your ticket and will reply soon."
-            )
+            # Send notification and email to user
+            created_notification = notification_manager.notify_support_received(support_request)
 
         # إرسال إشعار بريد إلكتروني للمديرين عن طلب الدعم الجديد
         try:
+            from api.services.email_service import EmailService
+            email_service = EmailService(request)
+            
             admin_users = User.objects.filter(role=User.Role.ADMIN)
             if admin_users.exists():
                 admin_emails = [admin.email for admin in admin_users if admin.email]
                 if admin_emails:
-                    admin_notification_html = render_admin_support_notification_email(
-                        support_request=support_request
-                    )
-                    send_mail(
-                        subject=f'New Support Request: {support_request.title}',
-                        message='',
-                        from_email=settings.DEFAULT_FROM_EMAIL,
-                        recipient_list=admin_emails,
-                        html_message=admin_notification_html,
-                        fail_silently=True,
+                    email_service.send_admin_support_notification(
+                        support_request=support_request,
+                        admin_emails=admin_emails,
+                        fail_silently=True
                     )
         except Exception as e:
             # لا نريد أن يفشل إنشاء طلب الدعم بسبب مشكلة في الإيميل
@@ -1993,7 +1978,7 @@ def create_support_request(request):
             'success': True,
             'message': 'Support request sent successfully',
             'data': response_serializer.data,
-            'notification': NotificationDetailSerializer(created_notification).data if support_request.type in [HelpSupport.SupportType.SYSTEM, HelpSupport.SupportType.OTHER] else None
+            'notification': NotificationDetailSerializer(created_notification).data if created_notification else None
         }, status=status.HTTP_201_CREATED)
     
     return Response({
@@ -2046,48 +2031,10 @@ def admin_reply_request(request, pk):
     support_request.status = HelpSupport.Status.CLOSED  # ← تغيير الحالة
     support_request.save()
 
-    # Create in-app notification for the user
-    created_notification = Notification.objects.create(
-        user=support_request.user,
-        title=f"Support Reply: {support_request.title}",
-        message=reply_text
-    )
-
-    # إرسال إيميل للمستخدم الذي قدم الطلب
-    subject = f"Response to your support request: {support_request.title}"
-    message = (
-        f"Dear {support_request.user.name or support_request.user.email},\n\n"
-        "We have responded to your support request. Please find the details below:\n\n"
-        f"{reply_text}\n\n"
-        "You can view this request and reply in the application under Support > My Requests.\n\n"
-    )
-    recipient_list = [support_request.user.email]
-    html_message = render_notification_email(
-        title=_("Support Reply"),
-        message=(
-            f"Dear {support_request.user.name or support_request.user.email},\n\n"
-            f"We have responded to your support request titled \"{support_request.title}\" (Reference #{support_request.id}).\n\n"
-            "You can view this request and reply in the application under Support > My Requests.\n\n"
-        ),
-        request=request,
-        cta_url="https://awn-three.vercel.app/",
-        cta_label=_("View My Requests"),
-        reply_html=reply_text,
-        signoff_text=_('AWN Platform Support Team')
-    )
-
-    try:
-        send_mail(
-            subject=subject,
-            message=message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=recipient_list,
-            html_message=html_message,
-            fail_silently=False,
-        )
-    except Exception as e:
-        # Do not fail the endpoint; just log the error for admins
-        print(f"Failed to send email: {str(e)}")
+    # Create in-app notification and send email
+    from api.utils.notification_utils import NotificationManager
+    notification_manager = NotificationManager(request)
+    created_notification = notification_manager.notify_support_reply(support_request, reply_text)
 
     return Response({
         "success": True,
@@ -2353,29 +2300,19 @@ class SendNotificationAllUsersView(APIView):
             message = serializer.validated_data['message']
 
             users = User.objects.filter(role=User.Role.USER)
-            # Create notifications safely per-user to ensure timestamps are set
-            for user in users:
-                Notification.objects.create(user=user, title=title, message=message)
-
-            # Send email notifications to all users
-            subject = title
-            plain_message = f"{message}\n\nRegards,\nAWN Platform"
-            for user in users:
-                if not user.email:
-                    continue
-                try:
-                    html_message = render_notification_email(title, message, request)
-                    send_mail(
-                        subject=subject,
-                        message=plain_message,
-                        from_email=settings.DEFAULT_FROM_EMAIL,
-                        recipient_list=[user.email],
-                        html_message=html_message,
-                        fail_silently=False,
-                    )
-                except Exception as e:
-                    # Log, do not fail the request
-                    print(f"Failed to send notification email to {user.email}: {str(e)}")
+            
+            # Use NotificationManager to handle both notifications and emails
+            from api.utils.notification_utils import NotificationManager
+            notification_manager = NotificationManager(request)
+            
+            notification_manager.notify_users_bulk(
+                users=list(users),
+                title=title,
+                message=message,
+                email=True,
+                cta_url=None,
+                cta_label=None
+            )
 
             return Response({"detail": f"Notification sent to {users.count()} users."}, status=status.HTTP_201_CREATED)
         
@@ -2391,29 +2328,19 @@ class SendNotificationToOrganizationsView(APIView):
             message = serializer.validated_data['message']
 
             organizations = User.objects.filter(role=User.Role.ORGANIZATION)
-            # Create notifications safely per-organization user to ensure timestamps are set
-            for org in organizations:
-                Notification.objects.create(user=org, title=title, message=message)
-
-            # Send email notifications to organizations
-            subject = title
-            plain_message = f"{message}\n\nRegards,\nAWN Platform"
-            for org in organizations:
-                if not org.email:
-                    continue
-                try:
-                    html_message = render_notification_email(title, message, request)
-                    send_mail(
-                        subject=subject,
-                        message=plain_message,
-                        from_email=settings.DEFAULT_FROM_EMAIL,
-                        recipient_list=[org.email],
-                        html_message=html_message,
-                        fail_silently=False,
-                    )
-                except Exception as e:
-                    # Log, do not fail the request
-                    print(f"Failed to send notification email to {org.email}: {str(e)}")
+            
+            # Use NotificationManager to handle both notifications and emails
+            from api.utils.notification_utils import NotificationManager
+            notification_manager = NotificationManager(request)
+            
+            notification_manager.notify_users_bulk(
+                users=list(organizations),
+                title=title,
+                message=message,
+                email=True,
+                cta_url=None,
+                cta_label=None
+            )
 
             return Response({"detail": f"Notification sent to {organizations.count()} organizations."}, status=status.HTTP_201_CREATED)
         
@@ -2467,25 +2394,18 @@ class SendNotificationToUserView(APIView):
             except User.DoesNotExist:
                 return Response({"detail": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
-            Notification.objects.create(user=user, title=title, message=message)
-
-            # Send email notification to the specific user
-            if user.email:
-                subject = title
-                plain_message = f"{message}\n\nRegards,\nAWN Platform"
-                try:
-                    html_message = render_notification_email(title, message, request)
-                    send_mail(
-                        subject=subject,
-                        message=plain_message,
-                        from_email=settings.DEFAULT_FROM_EMAIL,
-                        recipient_list=[user.email],
-                        html_message=html_message,
-                        fail_silently=False,
-                    )
-                except Exception as e:
-                    # Log, do not fail the request
-                    print(f"Failed to send notification email to {user.email}: {str(e)}")
+            # Use NotificationManager to handle both notification and email
+            from api.utils.notification_utils import NotificationManager
+            notification_manager = NotificationManager(request)
+            
+            notification_manager.notify_user(
+                user=user,
+                title=title,
+                message=message,
+                email=True,
+                cta_url=None,
+                cta_label=None
+            )
 
             return Response({"detail": f"Notification sent to {user.name or user.email}"}, status=status.HTTP_201_CREATED)
 

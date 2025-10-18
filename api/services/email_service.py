@@ -19,6 +19,9 @@ from django.utils.html import strip_tags
 from django.utils.translation import gettext as _
 from typing import List, Optional
 import logging
+import os
+import base64
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -39,17 +42,82 @@ class EmailService:
         self.request = request
     
     def _get_logo_url(self) -> str:
-        """Get the absolute URL for the platform logo."""
-        media_url = getattr(settings, 'MEDIA_URL', '/media/')
-        logo_path = f"{media_url}awnlogo.png".replace('//', '/')
+        """
+        Get the absolute URL for the platform logo.
+        Prioritizes PLATFORM_URL for production deployment.
+        """
+        # Use PLATFORM_URL for deployed environments (primary method for production)
+        platform_url = getattr(settings, 'PLATFORM_URL', None)
+        if platform_url:
+            if platform_url.endswith('/'):
+                platform_url = platform_url[:-1]
+            # For Vercel/production deployments
+            return f"{platform_url}/media/awnlogo.png"
         
+        # Try to build from request (for API calls with request context)
         if self.request:
-            return self.request.build_absolute_uri(logo_path)
+            try:
+                media_url = getattr(settings, 'MEDIA_URL', '/media/')
+                logo_path = f"{media_url}awnlogo.png".replace('//', '/')
+                return self.request.build_absolute_uri(logo_path)
+            except Exception:
+                pass
         
-        base_url = getattr(settings, 'BASE_URL', 'http://localhost:8000')
-        if base_url.endswith('/'):
-            base_url = base_url[:-1]
-        return f"{base_url}{logo_path}"
+        # Fallback to BASE_URL
+        base_url = getattr(settings, 'BASE_URL', None)
+        if base_url:
+            if base_url.endswith('/'):
+                base_url = base_url[:-1]
+            media_url = getattr(settings, 'MEDIA_URL', '/media/')
+            if not media_url.startswith('/'):
+                media_url = '/' + media_url
+            logo_path = f"{media_url}awnlogo.png".replace('//', '/')
+            return f"{base_url}{logo_path}"
+        
+        # Last resort: Use your deployed URL directly
+        return "https://par.infnet.tech:8001/media/awnlogo.png"
+    
+    def _get_logo_base64(self) -> Optional[str]:
+        """
+        Get the logo as base64 encoded string for embedding in emails.
+        Only used in production to ensure logo reliability.
+        
+        Returns:
+            Base64 encoded image data URL or None if not in production
+        """
+        # Only use base64 in production (when PLATFORM_URL is not localhost)
+        platform_url = getattr(settings, 'PLATFORM_URL', '')
+        is_production = platform_url and 'localhost' not in platform_url and '127.0.0.1' not in platform_url
+        
+        if not is_production:
+            # Skip base64 encoding in development
+            return None
+        
+        try:
+            # Try multiple possible logo locations
+            possible_paths = [
+                Path(settings.MEDIA_ROOT) / 'awnlogo.png',
+                Path(settings.BASE_DIR) / 'media' / 'awnlogo.png',
+                Path(settings.BASE_DIR) / 'media' / 'defaults' / 'awnlogo.png',
+            ]
+            
+            logo_path = None
+            for path in possible_paths:
+                if path.exists():
+                    logo_path = path
+                    break
+            
+            if not logo_path:
+                logger.warning("Logo file not found in any expected location")
+                return None
+            
+            # Read and encode the image
+            with open(logo_path, 'rb') as img_file:
+                encoded = base64.b64encode(img_file.read()).decode('utf-8')
+                return f"data:image/png;base64,{encoded}"
+        except Exception as e:
+            logger.error(f"Error encoding logo to base64: {e}")
+            return None
     
     def _render_email_template(self, template_name: str, context: dict) -> tuple:
         """
@@ -62,8 +130,9 @@ class EmailService:
         Returns:
             Tuple of (html_content, plain_text_content)
         """
-        # Add common context variables
+        # Add common context variables with both URL and base64 logo
         context.setdefault('logo_url', self._get_logo_url())
+        context.setdefault('logo_base64', self._get_logo_base64())
         context.setdefault('platform_url', self.PLATFORM_URL)
         
         # Render HTML version
@@ -426,3 +495,86 @@ class EmailService:
         
         logger.info(f"Sent {success_count}/{len(recipients)} bulk notification emails")
         return success_count
+    
+    # =========================================================================
+    # Announcement-related emails
+    # =========================================================================
+    
+    def send_announcement_approved_email(
+        self,
+        announcement,
+        recipient_email: str,
+        fail_silently: bool = True
+    ) -> bool:
+        """
+        Send email notification when a new announcement is approved.
+        
+        Args:
+            announcement: Announcement model instance
+            recipient_email: Recipient email address
+            fail_silently: Whether to suppress exceptions
+            
+        Returns:
+            True if email was sent successfully
+        """
+        subject = _("New Announcement: {title}").format(title=announcement.title)
+        
+        context = {
+            'announcement_title': announcement.title,
+            'announcement_description': announcement.description[:200] + '...' if len(announcement.description) > 200 else announcement.description,
+            'organization_name': announcement.organization_name or (announcement.organization.user.name if announcement.organization else 'AWN Platform'),
+            'cta_url': f"{self.PLATFORM_URL}/announcements/{announcement.id}",
+            'cta_label': _("View Announcement"),
+        }
+        
+        html_content, plain_text = self._render_email_template('announcement_approved', context)
+        
+        return self._send_email(
+            subject=subject,
+            to_emails=[recipient_email],
+            html_content=html_content,
+            plain_text=plain_text,
+            fail_silently=fail_silently
+        )
+    
+    def send_announcement_status_email(
+        self,
+        announcement,
+        recipient_email: str,
+        status: str,
+        admin_notes: str = None,
+        fail_silently: bool = True
+    ) -> bool:
+        """
+        Send email notification when announcement status changes.
+        
+        Args:
+            announcement: Announcement model instance
+            recipient_email: Recipient email address
+            status: New status (approved, rejected, etc.)
+            admin_notes: Optional admin notes
+            fail_silently: Whether to suppress exceptions
+            
+        Returns:
+            True if email was sent successfully
+        """
+        status_display = status.title()
+        subject = _("{status}: {title}").format(status=status_display, title=announcement.title)
+        
+        context = {
+            'announcement_title': announcement.title,
+            'status': status_display,
+            'admin_notes': admin_notes,
+            'cta_url': f"{self.PLATFORM_URL}/my-announcements",
+            'cta_label': _("View My Announcements"),
+        }
+        
+        html_content, plain_text = self._render_email_template('announcement_status', context)
+        
+        return self._send_email(
+            subject=subject,
+            to_emails=[recipient_email],
+            html_content=html_content,
+            plain_text=plain_text,
+            fail_silently=fail_silently
+        )

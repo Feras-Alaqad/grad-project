@@ -1,0 +1,95 @@
+{% extends "emails/base.html" %} {% load i18n %} {% block email_title %}{{
+status }}: {{ announcement_title }}{% endblock %} {% block email_content %}
+<h1 class="email-title">{% trans "Announcement Status Update" %}</h1>
+<p class="email-text">
+  {% trans "Your announcement has been reviewed by our team." %}
+</p>
+
+<table
+  role="presentation"
+  cellspacing="0"
+  cellpadding="0"
+  border="0"
+  width="100%"
+  style="margin: 20px 0; background: #f9fafb; border-radius: 8px; padding: 16px"
+>
+  <tr>
+    <td>
+      <h2
+        style="
+          margin: 0 0 8px 0;
+          font-size: 18px;
+          color: #0f172a;
+          font-weight: 600;
+        "
+      >
+        {{ announcement_title }}
+      </h2>
+      <p style="margin: 8px 0; color: #64748b; font-size: 14px">
+        <strong>{% trans "Status:" %}</strong>
+        <span
+          style="background: {% if status == 'Approved' %}#dcfce7; color: #166534{% elif status == 'Rejected' %}#fee2e2; color: #991b1b{% else %}#fef3c7; color: #92400e{% endif %}; padding: 4px 12px; border-radius: 12px; font-weight: 600; font-size: 12px;"
+        >
+          {{ status }}
+        </span>
+      </p>
+    </td>
+  </tr>
+</table>
+
+{% if admin_notes %}
+<table
+  class="reply-box"
+  role="presentation"
+  cellspacing="0"
+  cellpadding="0"
+  border="0"
+  width="100%"
+>
+  <tr>
+    <td>
+      <div class="reply-title">{% trans "Admin Notes" %}</div>
+      <div class="reply-content">{{ admin_notes }}</div>
+    </td>
+  </tr>
+</table>
+{% endif %} {% if cta_url %}
+<div style="text-align: center; margin: 24px 0">
+  <table
+    role="presentation"
+    cellspacing="0"
+    cellpadding="0"
+    border="0"
+    align="center"
+  >
+    <tr>
+      <td align="center" style="border-radius: 8px; background: #3cb54b">
+        <a
+          href="{{ cta_url }}"
+          style="
+            background: #3cb54b;
+            color: #ffffff !important;
+            text-decoration: none;
+            padding: 14px 32px;
+            display: inline-block;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            min-width: 160px;
+            text-align: center;
+            box-sizing: border-box;
+          "
+        >
+          {{ cta_label|default:_("View My Announcements") }}
+        </a>
+      </td>
+    </tr>
+  </table>
+</div>
+{% endif %}
+
+<p class="signoff">
+  {% trans "Best regards" %},<br />
+  <strong>{% trans "The AWN Platform Team" %}</strong>
+</p>
+{% endblock %}
