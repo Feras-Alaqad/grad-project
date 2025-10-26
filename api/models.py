@@ -81,6 +81,13 @@ class User(AbstractBaseUser, PermissionsMixin):
         verbose_name="Role",
         help_text="User role in the system"
     )
+    preferred_language = models.CharField(
+        max_length=5,
+        choices=[('en', 'English'), ('ar', 'Arabic')],
+        default='en',
+        verbose_name="Preferred Language",
+        help_text="User's preferred language for emails and notifications"
+    )
     is_active = models.BooleanField(default=True)
 
     is_staff = models.BooleanField(default=False)

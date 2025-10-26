@@ -169,6 +169,7 @@ class NotificationManager:
                 self.email_service.send_announcement_approved_email(
                     announcement=announcement,
                     recipient_email=user.email,
+                    recipient_user=user,
                     fail_silently=True
                 )
             except Exception as e:
@@ -216,6 +217,7 @@ class NotificationManager:
                     recipient_email=organization_user.email,
                     status=status,
                     admin_notes=admin_notes,
+                    recipient_user=organization_user,
                     fail_silently=True
                 )
             except Exception as e:

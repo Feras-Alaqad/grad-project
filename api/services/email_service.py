@@ -16,7 +16,7 @@ from django.conf import settings
 from django.core.mail import send_mail, EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
-from django.utils.translation import gettext as _
+from django.utils.translation import gettext as _, activate, get_language
 from typing import List, Optional
 import logging
 import os
@@ -90,35 +90,62 @@ class EmailService:
         # Logo URL is more efficient and works well for production
         return None
     
-    def _render_email_template(self, template_name: str, context: dict) -> tuple:
+    def _get_user_language(self, user) -> str:
+        """
+        Get user's preferred language.
+        
+        Args:
+            user: User model instance
+            
+        Returns:
+            Language code (ar/en), defaults to 'en'
+        """
+        if hasattr(user, 'preferred_language'):
+            return getattr(user, 'preferred_language', 'en') or 'en'
+        return 'en'
+    
+    def _render_email_template(self, template_name: str, context: dict, user=None) -> tuple:
         """
         Render an email template with the given context.
         
         Args:
             template_name: Name of the template (without .html extension)
             context: Dictionary of context variables
+            user: Optional user instance to determine language preference
             
         Returns:
             Tuple of (html_content, plain_text_content)
         """
-        # Add common context variables - prioritize URL over base64 for smaller emails
-        context.setdefault('logo_url', self._get_logo_url())
-        # Don't include base64 logo - it makes emails too large (>1MB)
-        # Gmail will show "view entire message" for emails > 102KB
-        context.setdefault('logo_base64', None)
-        context.setdefault('platform_url', self.PLATFORM_URL)
+        # Save current language
+        current_language = get_language()
         
-        # Render HTML version
-        html_content = render_to_string(
-            f'emails/{template_name}.html',
-            context,
-            request=self.request
-        )
+        # Activate user's preferred language if available
+        if user:
+            user_language = self._get_user_language(user)
+            activate(user_language)
         
-        # Create plain text version by stripping HTML tags
-        plain_text = strip_tags(html_content)
-        
-        return html_content, plain_text
+        try:
+            # Add common context variables - prioritize URL over base64 for smaller emails
+            context.setdefault('logo_url', self._get_logo_url())
+            # Don't include base64 logo - it makes emails too large (>1MB)
+            # Gmail will show "view entire message" for emails > 102KB
+            context.setdefault('logo_base64', None)
+            context.setdefault('platform_url', self.PLATFORM_URL)
+            
+            # Render HTML version
+            html_content = render_to_string(
+                f'emails/{template_name}.html',
+                context,
+                request=self.request
+            )
+            
+            # Create plain text version by stripping HTML tags
+            plain_text = strip_tags(html_content)
+            
+            return html_content, plain_text
+        finally:
+            # Restore original language
+            activate(current_language)
     
     def _send_email(
         self,
@@ -205,7 +232,7 @@ class EmailService:
             'cta_label': _("Get Started"),
         }
         
-        html_content, plain_text = self._render_email_template('welcome', context)
+        html_content, plain_text = self._render_email_template('welcome', context, user=user)
         
         return self._send_email(
             subject=subject,
@@ -241,7 +268,7 @@ class EmailService:
             'reset_url': reset_url,
         }
         
-        html_content, plain_text = self._render_email_template('password_reset', context)
+        html_content, plain_text = self._render_email_template('password_reset', context, user=user)
         
         return self._send_email(
             subject=subject,
@@ -282,7 +309,7 @@ class EmailService:
             'cta_url': f"{self.PLATFORM_URL}/support/requests",
         }
         
-        html_content, plain_text = self._render_email_template('support_received', context)
+        html_content, plain_text = self._render_email_template('support_received', context, user=support_request.user)
         
         return self._send_email(
             subject=subject,
@@ -323,7 +350,7 @@ class EmailService:
             'cta_url': f"{self.PLATFORM_URL}/support/requests",
         }
         
-        html_content, plain_text = self._render_email_template('support_reply', context)
+        html_content, plain_text = self._render_email_template('support_reply', context, user=support_request.user)
         
         return self._send_email(
             subject=subject,
@@ -477,6 +504,7 @@ class EmailService:
         self,
         announcement,
         recipient_email: str,
+        recipient_user=None,
         fail_silently: bool = True
     ) -> bool:
         """
@@ -485,6 +513,7 @@ class EmailService:
         Args:
             announcement: Announcement model instance
             recipient_email: Recipient email address
+            recipient_user: Optional recipient User instance for language preference
             fail_silently: Whether to suppress exceptions
             
         Returns:
@@ -500,7 +529,7 @@ class EmailService:
             'cta_label': _("View Announcement"),
         }
         
-        html_content, plain_text = self._render_email_template('announcement_approved', context)
+        html_content, plain_text = self._render_email_template('announcement_approved', context, user=recipient_user)
         
         return self._send_email(
             subject=subject,
@@ -516,6 +545,7 @@ class EmailService:
         recipient_email: str,
         status: str,
         admin_notes: str = None,
+        recipient_user=None,
         fail_silently: bool = True
     ) -> bool:
         """
@@ -526,6 +556,7 @@ class EmailService:
             recipient_email: Recipient email address
             status: New status (approved, rejected, etc.)
             admin_notes: Optional admin notes
+            recipient_user: Optional recipient User instance for language preference
             fail_silently: Whether to suppress exceptions
             
         Returns:
@@ -542,7 +573,7 @@ class EmailService:
             'cta_label': _("View My Announcements"),
         }
         
-        html_content, plain_text = self._render_email_template('announcement_status', context)
+        html_content, plain_text = self._render_email_template('announcement_status', context, user=recipient_user)
         
         return self._send_email(
             subject=subject,

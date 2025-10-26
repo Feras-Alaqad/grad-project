@@ -22,6 +22,18 @@ class LanguageMiddleware:
         if language:
             translation.activate(language)
             request.LANGUAGE_CODE = language
+            
+            # Save language preference to user profile if authenticated
+            if hasattr(request, 'user') and request.user.is_authenticated:
+                if hasattr(request.user, 'preferred_language'):
+                    current_pref = getattr(request.user, 'preferred_language', None)
+                    if current_pref != language:
+                        try:
+                            request.user.preferred_language = language
+                            request.user.save(update_fields=['preferred_language'])
+                        except Exception:
+                            # Silently fail if we can't save the preference
+                            pass
         
         # Process the request
         response = self.get_response(request)

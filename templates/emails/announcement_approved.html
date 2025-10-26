@@ -1,9 +1,12 @@
-{% extends "emails/base.html" %} {% load i18n %} {% block email_title %}{% trans
-"New Announcement Available!" %}{% endblock %} {% block email_content %}
+{% extends "emails/base.html" %}
+{% load i18n %}
+
+{% block email_title %}{% trans "New Announcement Available!" %}{% endblock %}
+
+{% block email_content %}
 <h1 class="email-title">{% trans "New Announcement Available!" %} 📢</h1>
 <p class="email-text">
-  {% trans "A new announcement has been added to AWN Platform that might
-  interest you." %}
+  {% trans "A new announcement has been added to AWN Platform that might interest you." %}
 </p>
 
 <table
@@ -74,9 +77,7 @@
 {% endif %}
 
 <p class="email-text" style="color: #64748b; font-size: 13px">
-  {% trans "You're receiving this email because you're a member of AWN Platform.
-  To manage your notification preferences, please visit your account settings."
-  %}
+  {% trans "You're receiving this email because you're a member of AWN Platform. To manage your notification preferences, please visit your account settings." %}
 </p>
 
 <p class="signoff">

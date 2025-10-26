@@ -249,6 +249,7 @@ class UserSerializer(serializers.ModelSerializer):
             "phone",
             "role",
             "profile_image",  
+            "preferred_language",
             "is_active",
             "created_at",
             "updated_at"
