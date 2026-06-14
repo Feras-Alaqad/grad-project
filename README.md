@@ -275,6 +275,23 @@ python manage.py migrate
 # Run development server
 python manage.py runserver
 ```
+## Screenshots
+
+### Home Page
+
+![Home Page](screenshots/home-page.png)
+
+### Login Page
+
+![Login Page](screenshots/login-page.png)
+
+### Announcements Page
+
+![Announcements Page](screenshots/announcements-page.png)
+
+### Organization Dashboard
+
+![Organization Dashboard](screenshots/organization-dashboard.png)
 
 ## Live Demo
 
